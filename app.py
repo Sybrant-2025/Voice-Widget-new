@@ -165,10 +165,6 @@ def generate_widget_js(agent_id, branding):
             }}
 
             widgetWrapper.style.display = "block";
-            widgetWrapper.style.position = "fixed";
-            widgetWrapper.style.bottom = "120px"; // adjust this as needed
-            widgetWrapper.style.right = "50px";
-            widgetWrapper.style.zIndex = "9999";
 
         }});
         observer.observe(document.body, {{ childList: true, subtree: true }});
