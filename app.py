@@ -48,17 +48,33 @@ def generate_widget_js(agent_id, branding):
                         margin-right: 30px;
                     }}
 
-                    /* Hide logo and white circle */
-                    [class*="_avatar_"],
-                    [class*="_box_"] {{
+                    /* Hide the yellow logo */
+                    [class*="_avatar_"] {{
                         display: none !important;
                     }}
 
-                    /* Keep and style the call button */
+                    /* Make wrapper transparent, not removed */
+                    [class*="_box_"] {{
+                        background: transparent !important;
+                        box-shadow: none !important;
+                        border: none !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        display: flex !important;
+                        align-items: center !important;
+                        justify-content: center !important;
+                    }}
+
+                    /* Style button */
                     [class*="_btn_"] {{
                         border-radius: 30px !important;
-                        box-shadow: 0 2px 10px rgba(0,0,0,0.2) !important;
                         padding: 10px 20px !important;
+                        background-color: #0b72e7 !important;
+                        color: #fff !important;
+                        border: none !important;
+                        cursor: pointer !important;
+                        font-weight: 500;
+                        font-size: 14px;
                     }}
 
                     div[part='feedback-button'], 
@@ -75,7 +91,6 @@ def generate_widget_js(agent_id, branding):
                 const clonedButton = startCallButton.cloneNode(true);
                 startCallButton.style.display = 'none';
 
-                // Optional: Style cloned button if needed
                 clonedButton.style.backgroundColor = "#0b72e7";
                 clonedButton.style.color = "#fff";
                 clonedButton.style.border = "none";
@@ -181,6 +196,7 @@ def generate_widget_js(agent_id, branding):
         }});
     }})();
     """
+
 
 
 # --- Routes ---
