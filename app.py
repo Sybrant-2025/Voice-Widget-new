@@ -45,7 +45,7 @@ def generate_widget_js(agent_id, branding):
                         text-align: right;
                         margin-top: 10px;
                         margin-bottom: 40px;
-                        margin-right: 30px;
+                        margin-right: 10px;
                     }}
 
                     /* Hide the yellow logo */
