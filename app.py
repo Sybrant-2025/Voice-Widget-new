@@ -29,13 +29,11 @@ def generate_widget_js(agent_id, branding):
             if (!widget || !widget.shadowRoot) return;
             const shadowRoot = widget.shadowRoot;
 
-            // Replace powered‑by text
             const brandingElem = shadowRoot.querySelector('[class*="poweredBy"], div[part="branding"]');
             if (brandingElem) {{
                 brandingElem.textContent = "{branding}";
             }}
 
-            // Inject custom style
             if (!shadowRoot.querySelector("#custom-style")) {{
                 const style = document.createElement("style");
                 style.id = "custom-style";
@@ -49,7 +47,21 @@ def generate_widget_js(agent_id, branding):
                         margin-bottom: 40px;
                         margin-right: 30px;
                     }}
-                    div[part='feedback-button'],
+
+                    /* Hide logo and white circle */
+                    [class*="_avatar_"],
+                    [class*="_box_"] {{
+                        display: none !important;
+                    }}
+
+                    /* Keep and style the call button */
+                    [class*="_btn_"] {{
+                        border-radius: 30px !important;
+                        box-shadow: 0 2px 10px rgba(0,0,0,0.2) !important;
+                        padding: 10px 20px !important;
+                    }}
+
+                    div[part='feedback-button'], 
                     img[alt*='logo'] {{
                         display: none !important;
                     }}
@@ -57,14 +69,13 @@ def generate_widget_js(agent_id, branding):
                 shadowRoot.appendChild(style);
             }}
 
-            // Hook and clone the "Start a call" button
             const startCallButton = shadowRoot.querySelector('button[title="Start a call"]');
             if (startCallButton && !startCallButton._hooked) {{
                 startCallButton._hooked = true;
                 const clonedButton = startCallButton.cloneNode(true);
                 startCallButton.style.display = 'none';
 
-                // Style the cloned button
+                // Optional: Style cloned button if needed
                 clonedButton.style.backgroundColor = "#0b72e7";
                 clonedButton.style.color = "#fff";
                 clonedButton.style.border = "none";
@@ -136,13 +147,11 @@ def generate_widget_js(agent_id, branding):
             const modalEl = document.getElementById('visitor-form-modal');
             const closeForm = document.getElementById('close-form');
 
-            // Close handlers
             closeForm.onclick = () => modalEl.style.display = 'none';
             window.onclick = (e) => {{
                 if (e.target === modalEl) modalEl.style.display = 'none';
             }};
 
-            // Form submission
             document.getElementById('visitor-form').addEventListener('submit', function(e) {{
                 e.preventDefault();
 
@@ -156,18 +165,15 @@ def generate_widget_js(agent_id, branding):
                     return;
                 }}
 
-                // Log to Google Sheet
-                fetch('{GOOGLE_SHEET_WEBHOOK_URL}', {{
+                fetch('https://voice-widget-new-production.up.railway.app/log-visitor', {{
                     method: 'POST',
                     headers: {{ 'Content-Type': 'application/json' }},
                     body: JSON.stringify({{ name, mobile, email, url }})
                 }});
 
-                // Prevent re-prompt for 1 day
                 localStorage.setItem("convai_form_submitted", (Date.now() + 86400000).toString());
                 modalEl.style.display = 'none';
 
-                // Trigger real widget button
                 const widget = document.querySelector('elevenlabs-convai');
                 const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
                 realBtn?.click();
@@ -175,6 +181,7 @@ def generate_widget_js(agent_id, branding):
         }});
     }})();
     """
+
 
 # --- Routes ---
 @app.route('/convai-widget.js')
