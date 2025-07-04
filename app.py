@@ -5,10 +5,7 @@ import requests
 app = Flask(__name__)
 CORS(app)
 
-
-# --- Constants ---
-# not working_GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbysX7ZKHVAsxTmGoZeVBV65Q8imTgSEmwsrW27crcqJzDxQjCx9w-EeXMLnckmlFz38Uw/exec'
-# working live dhilak sheet
+# Working webhook
 GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
 
 # --- JS Generator ---
@@ -16,9 +13,9 @@ def generate_widget_js(agent_id, branding):
     return f"""
     (function() {{
         // Branding above widget
-        const brandingBanner = document.createElement('div');
-        brandingBanner.textContent = "{branding}";
-        brandingBanner.style = `
+        const brandingTop = document.createElement('div');
+        brandingTop.textContent = "{branding}";
+        brandingTop.style = `
             width: 100%;
             text-align: center;
             font-size: 13px;
@@ -27,8 +24,9 @@ def generate_widget_js(agent_id, branding):
             margin-top: 10px;
             margin-bottom: 5px;
         `;
-        document.body.appendChild(brandingBanner);
+        document.body.appendChild(brandingTop);
 
+        // Widget wrapper
         const widgetWrapper = document.createElement("div");
         widgetWrapper.style.display = "none";
         widgetWrapper.id = "convai-wrapper";
@@ -43,6 +41,20 @@ def generate_widget_js(agent_id, branding):
         script.async = true;
         document.body.appendChild(script);
 
+        // Branding below widget
+        const brandingBottom = document.createElement('div');
+        brandingBottom.textContent = "{branding}";
+        brandingBottom.style = `
+            width: 100%;
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+            font-family: Arial, sans-serif;
+            margin-top: 8px;
+        `;
+        document.body.appendChild(brandingBottom);
+
+        // Modal form
         const modal = document.createElement('div');
         modal.id = 'visitor-form-modal';
         modal.style = `
@@ -83,11 +95,8 @@ def generate_widget_js(agent_id, branding):
         `;
         document.body.appendChild(modal);
 
-        // Form modal logic
         const modalEl = document.getElementById('visitor-form-modal');
-        const formContainer = document.getElementById('form-container');
         const closeForm = document.getElementById('close-form');
-
         closeForm.onclick = () => modalEl.style.display = 'none';
         window.onclick = (e) => {{
             if (e.target === modalEl) modalEl.style.display = 'none';
@@ -113,10 +122,24 @@ def generate_widget_js(agent_id, branding):
                 localStorage.setItem("convai_form_submitted", (Date.now() + 86400000).toString());
                 modalEl.style.display = 'none';
 
-                const widget = document.querySelector('elevenlabs-convai');
-                const shadow = widget?.shadowRoot;
-                const realBtn = shadow?.querySelector('button[title="Start a call"]');
-                realBtn?.click();
+                let attempts = 0;
+                const maxAttempts = 20;
+                const interval = setInterval(() => {{
+                    const widget = document.querySelector('elevenlabs-convai');
+                    const shadow = widget?.shadowRoot;
+                    const realBtn = shadow?.querySelector('button[title="Start a call"]');
+
+                    if (realBtn) {{
+                        clearInterval(interval);
+                        realBtn.click();
+                    }} else {{
+                        attempts++;
+                        if (attempts >= maxAttempts) {{
+                            clearInterval(interval);
+                            alert("Voice widget not ready. Please try again in a few seconds.");
+                        }}
+                    }}
+                }}, 500);
             }});
         }});
 
@@ -165,13 +188,12 @@ def generate_widget_js(agent_id, branding):
             }}
 
             widgetWrapper.style.display = "block";
-
         }});
         observer.observe(document.body, {{ childList: true, subtree: true }});
     }})();
     """
 
-# --- Routes ---
+# --- Flask Routes ---
 @app.route('/convai-widget.js')
 def serve_sybrant_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
@@ -181,24 +203,19 @@ def serve_sybrant_widget():
 @app.route('/leaserush-widget.js')
 def serve_leaserush_widget():
     agent_id = request.args.get('agent', 'agent_01jvscwr0gf66r27cb61rhj5zc')
-    js = generate_widget_js(agent_id, branding="Powered by Leaserush")  # <-- Correct branding
+    js = generate_widget_js(agent_id, branding="Powered by Leaserush")
     return Response(js, mimetype='application/javascript')
-
-
 
 @app.route('/log-visitor', methods=['POST'])
 def log_visitor():
     data = request.json
     print("Visitor Info:", data)
-
     try:
         res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
         print("Google Sheet Response:", res.text)
     except Exception as e:
         print("Error sending to Google Sheet:", e)
-
     return {"status": "ok"}
-
 
 @app.route('/')
 def home():
@@ -208,11 +225,5 @@ def home():
 def health():
     return {"status": "healthy"}
 
-# # --- Run Server ---
-# if __name__ == '__main__':
-#     port = int(os.environ.get("PORT", 5000))
-#     app.run(debug=True, host='0.0.0.0', port=port)
-
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-
