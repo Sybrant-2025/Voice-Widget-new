@@ -5,167 +5,54 @@ import requests
 app = Flask(__name__)
 CORS(app)
 
-# Working webhook
+# Google Sheet Webhook
 GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
 
 # --- JS Generator ---
 def generate_widget_js(agent_id, branding):
     return f"""
     (function() {{
-        // Branding above widget
-        const brandingTop = document.createElement('div');
-        brandingTop.textContent = "{branding}";
-        brandingTop.style = `
-            width: 100%;
-            text-align: center;
-            font-size: 13px;
-            color: #999;
-            font-family: Arial, sans-serif;
-            margin-top: 10px;
-            margin-bottom: 5px;
-        `;
-        document.body.appendChild(brandingTop);
-
-        // Widget wrapper
-        const widgetWrapper = document.createElement("div");
-        widgetWrapper.style.display = "none";
-        widgetWrapper.id = "convai-wrapper";
-        document.body.appendChild(widgetWrapper);
-
         const tag = document.createElement("elevenlabs-convai");
         tag.setAttribute("agent-id", "{agent_id}");
-        widgetWrapper.appendChild(tag);
+        document.body.appendChild(tag);
 
         const script = document.createElement("script");
         script.src = "https://elevenlabs.io/convai-widget/index.js";
         script.async = true;
         document.body.appendChild(script);
 
-        // Branding below widget
-        const brandingBottom = document.createElement('div');
-        brandingBottom.textContent = "{branding}";
-        brandingBottom.style = `
-            width: 100%;
-            text-align: center;
-            font-size: 12px;
-            color: #999;
-            font-family: Arial, sans-serif;
-            margin-top: 8px;
-        `;
-        document.body.appendChild(brandingBottom);
-
-        // Modal form
-        const modal = document.createElement('div');
-        modal.id = 'visitor-form-modal';
-        modal.style = `
-            display: none;
-            position: fixed;
-            z-index: 99999;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            align-items: center;
-            justify-content: center;
-        `;
-        modal.innerHTML = `
-            <div id="form-container" style="
-                background: white;
-                padding: 30px;
-                border-radius: 12px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-                width: 320px;
-                font-family: sans-serif;
-                position: relative;
-            ">
-                <span id="close-form" style="
-                    position: absolute;
-                    top: 8px;
-                    right: 12px;
-                    cursor: pointer;
-                    font-size: 18px;
-                    font-weight: bold;
-                ">&times;</span>
-                <form id="visitor-form">
-                    <h3 style="margin-bottom: 15px;">Tell us about you</h3>
-                    <input type="text" placeholder="Name" name="name" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
-                    <input type="tel" placeholder="Mobile (+91...)" name="mobile" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
-                    <input type="email" placeholder="Email" name="email" required style="margin-bottom: 20px; width: 100%; padding: 8px;" />
-                    <button type="submit" style="width: 100%; padding: 10px; background: #1e88e5; color: white; border: none; border-radius: 4px;">Start Call</button>
-                </form>
-            </div>
-        `;
-        document.body.appendChild(modal);
-
-        const modalEl = document.getElementById('visitor-form-modal');
-        const closeForm = document.getElementById('close-form');
-        closeForm.onclick = () => modalEl.style.display = 'none';
-        window.onclick = (e) => {{
-            if (e.target === modalEl) modalEl.style.display = 'none';
-        }};
-
-        document.getElementById('visitor-form').addEventListener('submit', function(e) {{
-            e.preventDefault();
-            const name = this.name.value.trim();
-            const mobile = this.mobile.value.trim();
-            const email = this.email.value.trim();
-            const url = window.location.href;
-
-            if (!name || !mobile || !email) {{
-                alert("Please fill all fields.");
-                return;
-            }}
-
-            fetch('https://voice-widget-new-production.up.railway.app/log-visitor', {{
-                method: 'POST',
-                headers: {{ 'Content-Type': 'application/json' }},
-                body: JSON.stringify({{ name, mobile, email, url }})
-            }}).then(() => {{
-                localStorage.setItem("convai_form_submitted", (Date.now() + 86400000).toString());
-                modalEl.style.display = 'none';
-
-                let attempts = 0;
-                const maxAttempts = 20;
-                const interval = setInterval(() => {{
-                    const widget = document.querySelector('elevenlabs-convai');
-                    const shadow = widget?.shadowRoot;
-                    const realBtn = shadow?.querySelector('button[title="Start a call"]');
-
-                    if (realBtn) {{
-                        clearInterval(interval);
-                        realBtn.click();
-                    }} else {{
-                        attempts++;
-                        if (attempts >= maxAttempts) {{
-                            clearInterval(interval);
-                            alert("Voice widget not ready. Please try again in a few seconds.");
-                        }}
-                    }}
-                }}, 500);
-            }});
-        }});
-
         const observer = new MutationObserver(() => {{
             const widget = document.querySelector('elevenlabs-convai');
             if (!widget || !widget.shadowRoot) return;
-            const shadow = widget.shadowRoot;
+            const shadowRoot = widget.shadowRoot;
 
-            const brandingElems = shadow.querySelectorAll('[part="branding"], [class*="poweredBy"], a[href*="elevenlabs.io"]');
-            brandingElems.forEach(el => el.remove());
+            const brandingElem = shadowRoot.querySelector('[class*="poweredBy"], div[part="branding"]');
+            if (brandingElem) {{
+                brandingElem.textContent = "{branding}";
+            }}
 
-            if (!shadow.querySelector("#custom-style")) {{
+            if (!shadowRoot.querySelector("#custom-style")) {{
                 const style = document.createElement("style");
                 style.id = "custom-style";
                 style.textContent = `
-                    img[alt*='logo'],
+                    div[part='branding'] {{
+                        font-size: 12px !important;
+                        font-family: Arial, sans-serif !important;
+                        color: #888 !important;
+                        text-align: right;
+                        margin-top: 10px;
+                        margin-bottom: 40px;
+                        margin-right: 30px;
+                    }}
                     div[part='feedback-button'],
-                    div[part='branding'],
-                    a[href*="elevenlabs.io"] {{ display: none !important; }}
-                    [class*="_avatar_"] {{ display: none !important; }}
-                    [class*="_box_"] {{ background: transparent !important; box-shadow: none !important; border: none !important; outline: none !important; }}
+                    img[alt*='logo'] {{
+                        display: none !important;
+                    }}
                 `;
-                shadow.appendChild(style);
+                shadowRoot.appendChild(style);
             }}
 
-            const startCallButton = shadow.querySelector('button[title="Start a call"]');
+            const startCallButton = shadowRoot.querySelector('button[title="Start a call"]');
             if (startCallButton && !startCallButton._hooked) {{
                 startCallButton._hooked = true;
                 const clonedButton = startCallButton.cloneNode(true);
@@ -182,18 +69,108 @@ def generate_widget_js(agent_id, branding):
                     if (expiry && Date.now() < parseInt(expiry)) {{
                         startCallButton.click();
                     }} else {{
-                        modalEl.style.display = 'flex';
+                        document.getElementById('visitor-form-modal').style.display = 'flex';
                     }}
                 }});
             }}
-
-            widgetWrapper.style.display = "block";
         }});
         observer.observe(document.body, {{ childList: true, subtree: true }});
+
+        // Create modal form
+        window.addEventListener('DOMContentLoaded', () => {{
+            const modal = document.createElement('div');
+            modal.id = 'visitor-form-modal';
+            modal.style = `
+                display: none;
+                position: fixed;
+                z-index: 99999;
+                top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0, 0, 0, 0.6);
+                align-items: center;
+                justify-content: center;
+            `;
+            modal.innerHTML = `
+                <div id="form-container" style="
+                    background: white;
+                    padding: 30px;
+                    border-radius: 12px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                    width: 320px;
+                    font-family: sans-serif;
+                    position: relative;
+                ">
+                    <span id="close-form" style="
+                        position: absolute;
+                        top: 8px;
+                        right: 12px;
+                        cursor: pointer;
+                        font-size: 18px;
+                        font-weight: bold;
+                    ">&times;</span>
+                    <form id="visitor-form">
+                        <h3 style="margin-bottom: 15px;">Tell us about you</h3>
+                        <input type="text" placeholder="Name" name="name" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
+                        <input type="tel" placeholder="Mobile (+91...)" name="mobile" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
+                        <input type="email" placeholder="Email" name="email" required style="margin-bottom: 20px; width: 100%; padding: 8px;" />
+                        <button type="submit" style="width: 100%; padding: 10px; background: #1e88e5; color: white; border: none; border-radius: 4px;">Start Call</button>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            const modalEl = document.getElementById('visitor-form-modal');
+            const closeForm = document.getElementById('close-form');
+
+            closeForm.onclick = () => modalEl.style.display = 'none';
+            window.onclick = (e) => {{
+                if (e.target === modalEl) modalEl.style.display = 'none';
+            }};
+
+            document.getElementById('visitor-form').addEventListener('submit', function(e) {{
+                e.preventDefault();
+
+                const name = this.name.value.trim();
+                const mobile = this.mobile.value.trim();
+                const email = this.email.value.trim();
+                const url = window.location.href;
+
+                if (!name || !mobile || !email) {{
+                    alert("Please fill all fields.");
+                    return;
+                }}
+
+                fetch('https://voice-widget-new-production.up.railway.app/log-visitor', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ name, mobile, email, url }})
+                }});
+
+                localStorage.setItem("convai_form_submitted", (Date.now() + 86400000).toString());
+                modalEl.style.display = 'none';
+
+                let attempts = 0;
+                const interval = setInterval(() => {{
+                    const widget = document.querySelector('elevenlabs-convai');
+                    const shadowRoot = widget?.shadowRoot;
+                    const realBtn = shadowRoot?.querySelector('button[title="Start a call"]');
+
+                    if (realBtn) {{
+                        clearInterval(interval);
+                        realBtn.click();
+                    }} else {{
+                        attempts++;
+                        if (attempts >= 20) {{
+                            clearInterval(interval);
+                            alert("Voice widget not ready. Please try again in a few seconds.");
+                        }}
+                    }}
+                }}, 500);
+            }});
+        }});
     }})();
     """
 
-# --- Flask Routes ---
+# --- Routes ---
 @app.route('/convai-widget.js')
 def serve_sybrant_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
