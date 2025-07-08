@@ -15,11 +15,11 @@ BRANDS = {
         "branding": "Powered by Sybrant"
     },
     "leaserush": {
-        "agent_id": "agent_01234xyzleaserush56789",
+        "agent_id": "agent_01jvscwr0gf66r27cb61rhj5zc",
         "branding": "Powered by Leaserush"
     },
     "default": {
-        "agent_id": "agent_default123",
+        "agent_id": "agent_01jzm4vq12f58bfgnyr07ac819",
         "branding": "Powered by Delve-In"
     }
 }
