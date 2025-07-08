@@ -1,30 +1,21 @@
-from flask import Flask, request, Response, jsonify
+from flask import Flask, request, Response
 from flask_cors import CORS
 import requests
 
 app = Flask(__name__)
 CORS(app)
 
-# --- Config: Google Sheets Webhook ---
+# --- Constants ---
+# GOOGLE_SHEET_WEBHOOK_URL = (
+#     'https://script.google.com/macros/s/'
+#     'AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
+# )
+
 GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
 
-# --- Config: Brand-Based Agent and Branding ---
-BRANDS = {
-    "sybrant": {
-        "agent_id": "agent_01jx2adczxfw7rrv6n8ffbfsb1",
-        "branding": "Powered by Sybrant"
-    },
-    "leaserush": {
-        "agent_id": "agent_01jvscwr0gf66r27cb61rhj5zc",
-        "branding": "Powered by Leaserush"
-    },
-    "default": {
-        "agent_id": "agent_01jzm4vq12f58bfgnyr07ac819",
-        "branding": "Powered by Delve-In"
-    }
-}
 
-# --- Widget Script Generator ---
+
+# --- JS Generator ---
 def generate_widget_js(agent_id, branding):
     return f"""
     (function() {{
@@ -52,35 +43,48 @@ def generate_widget_js(agent_id, branding):
                 style.id = "custom-style";
                 style.textContent = `
                     div[part='branding'] {{
-                        font-size: 12px;
-                        font-family: Arial, sans-serif;
-                        color: #888;
+                        font-size: 12px !important;
+                        font-family: Arial, sans-serif !important;
+                        color: #888 !important;
                         text-align: right;
                         margin-top: 10px;
                         margin-bottom: 40px;
+                        margin-right: 0px;
                     }}
-                    [class*="_avatar_"] {{ display: none; }}
+
+                    /* Hide the yellow logo */
+                    [class*="_avatar_"] {{
+                        display: none !important;
+                    }}
+
+                    /* Make wrapper transparent, not removed */
                     [class*="_box_"] {{
-                        background: transparent;
-                        box-shadow: none;
-                        border: none;
-                        padding: 0;
-                        margin: 0;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
+                        background: transparent !important;
+                        box-shadow: none !important;
+                        border: none !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        display: flex !important;
+                        align-items: center !important;
+                        justify-content: center !important;
                     }}
+
+                    /* Style button */
                     [class*="_btn_"] {{
-                        border-radius: 30px;
-                        padding: 10px 20px;
-                        background-color: #0b72e7;
-                        color: #fff;
-                        border: none;
-                        cursor: pointer;
+                        border-radius: 30px !important;
+                        padding: 10px 20px !important;
+                        background-color: #0b72e7 !important;
+                        color: #fff !important;
+                        border: none !important;
+                        cursor: pointer !important;
                         font-weight: 500;
                         font-size: 14px;
                     }}
-                    div[part='feedback-button'], img[alt*='logo'] {{ display: none; }}
+
+                    div[part='feedback-button'], 
+                    img[alt*='logo'] {{
+                        display: none !important;
+                    }}
                 `;
                 shadowRoot.appendChild(style);
             }}
@@ -88,25 +92,28 @@ def generate_widget_js(agent_id, branding):
             const startCallButton = shadowRoot.querySelector('button[title="Start a call"]');
             if (startCallButton && !startCallButton._hooked) {{
                 startCallButton._hooked = true;
-                const clone = startCallButton.cloneNode(true);
+                const clonedButton = startCallButton.cloneNode(true);
                 startCallButton.style.display = 'none';
 
-                clone.style.backgroundColor = "#0b72e7";
-                clone.style.color = "#fff";
-                clone.style.padding = "10px 20px";
-                clone.style.borderRadius = "6px";
-                clone.style.cursor = "pointer";
+                clonedButton.style.backgroundColor = "#0b72e7";
+                clonedButton.style.color = "#fff";
+                clonedButton.style.border = "none";
+                clonedButton.style.padding = "10px 20px";
+                clonedButton.style.borderRadius = "6px";
+                clonedButton.style.cursor = "pointer";
 
-                const wrapper = document.createElement("div");
-                wrapper.appendChild(clone);
+                const wrapper = document.createElement('div');
+                wrapper.appendChild(clonedButton);
                 startCallButton.parentElement.appendChild(wrapper);
 
-                clone.addEventListener("click", () => {{
+                clonedButton.addEventListener('click', (e) => {{
+                    e.stopPropagation();
+                    e.preventDefault();
                     const expiry = localStorage.getItem("convai_form_submitted");
                     if (expiry && Date.now() < parseInt(expiry)) {{
                         startCallButton.click();
                     }} else {{
-                        document.getElementById("visitor-form-modal").style.display = "flex";
+                        document.getElementById('visitor-form-modal').style.display = 'flex';
                     }}
                 }});
             }}
@@ -114,112 +121,138 @@ def generate_widget_js(agent_id, branding):
         observer.observe(document.body, {{ childList: true, subtree: true }});
 
         window.addEventListener('DOMContentLoaded', () => {{
-            const modal = document.createElement("div");
-            modal.id = "visitor-form-modal";
+            const modal = document.createElement('div');
+            modal.id = 'visitor-form-modal';
             modal.style = `
                 display: none;
                 position: fixed;
                 z-index: 99999;
-                top: 0; left: 0;
-                width: 100%; height: 100%;
-                background: rgba(0,0,0,0.5);
+                top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0, 0, 0, 0.6);
                 align-items: center;
                 justify-content: center;
             `;
 
             modal.innerHTML = `
-                <div style="
+                <div id="form-container" style="
                     background: white;
                     padding: 30px;
-                    border-radius: 10px;
+                    border-radius: 12px;
                     box-shadow: 0 10px 30px rgba(0,0,0,0.2);
                     width: 320px;
-                    position: relative;
                     font-family: sans-serif;
+                    position: relative;
                 ">
                     <span id="close-form" style="
                         position: absolute;
-                        top: 10px; right: 15px;
+                        top: 8px;
+                        right: 12px;
                         cursor: pointer;
                         font-size: 18px;
-                        font-weight: bold;">&times;</span>
+                        font-weight: bold;
+                    ">&times;</span>
 
                     <form id="visitor-form">
-                        <h3>Tell us about you</h3>
-                        <input type="text" name="name" placeholder="Name" required style="width: 100%; margin: 10px 0; padding: 8px;" />
-                        <input type="tel" name="mobile" placeholder="Mobile (+91...)" required style="width: 100%; margin: 10px 0; padding: 8px;" />
-                        <input type="email" name="email" placeholder="Email" required style="width: 100%; margin: 10px 0; padding: 8px;" />
+                        <h3 style="margin-bottom: 15px;">Tell us about you</h3>
+                        <input type="text" placeholder="Name" name="name" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
+                        <input type="tel" placeholder="Mobile (+91...)" name="mobile" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
+                        <input type="email" placeholder="Email" name="email" required style="margin-bottom: 20px; width: 100%; padding: 8px;" />
                         <button type="submit" style="width: 100%; padding: 10px; background: #1e88e5; color: white; border: none; border-radius: 4px;">Start Call</button>
                     </form>
                 </div>
             `;
             document.body.appendChild(modal);
 
-            const closeBtn = document.getElementById("close-form");
-            closeBtn.onclick = () => modal.style.display = "none";
+            const modalEl = document.getElementById('visitor-form-modal');
+            const closeForm = document.getElementById('close-form');
+
+            closeForm.onclick = () => modalEl.style.display = 'none';
             window.onclick = (e) => {{
-                if (e.target === modal) modal.style.display = "none";
+                if (e.target === modalEl) modalEl.style.display = 'none';
             }};
 
-            document.getElementById("visitor-form").addEventListener("submit", function(e) {{
+            document.getElementById('visitor-form').addEventListener('submit', function(e) {{
                 e.preventDefault();
+
                 const name = this.name.value.trim();
                 const mobile = this.mobile.value.trim();
                 const email = this.email.value.trim();
                 const url = window.location.href;
 
-                fetch("/log-visitor", {{
-                    method: "POST",
-                    headers: {{ "Content-Type": "application/json" }},
+                if (!name || !mobile || !email) {{
+                    alert("Please fill all fields.");
+                    return;
+                }}
+
+                fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
                     body: JSON.stringify({{ name, mobile, email, url }})
-                }})
-                .then(() => {{
-                    localStorage.setItem("convai_form_submitted", (Date.now() + 86400000).toString());
-                    modal.style.display = "none";
-                    const realBtn = document.querySelector("elevenlabs-convai")?.shadowRoot?.querySelector('button[title="Start a call"]');
-                    realBtn?.click();
                 }});
+
+                localStorage.setItem("convai_form_submitted", (Date.now() + 86400000).toString());
+                modalEl.style.display = 'none';
+
+                const widget = document.querySelector('elevenlabs-convai');
+                const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
+                realBtn?.click();
             }});
         }});
     }})();
     """
 
-# --- Widget Script Route ---
+
+
+#--- Routes ---
 @app.route('/convai-widget.js')
-def serve_widget():
-    brand_key = request.args.get('brand', 'default').lower()
-    brand_config = BRANDS.get(brand_key, BRANDS['default'])
-
-    agent_id = brand_config["agent_id"]
-    branding = brand_config["branding"]
-
-    js = generate_widget_js(agent_id, branding)
+def serve_sybrant_widget():
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = generate_widget_js(agent_id, branding="Powered by Sybrant")
     return Response(js, mimetype='application/javascript')
 
-# --- Visitor Logging Route ---
+
+# @app.route('/convai-widget.js')
+# def serve_widget_js():
+#     agent_id = request.args.get('agent', 'DEFAULT_AGENT_ID')
+#     branding = request.args.get('branding', 'Powered by Your Company')
+#     js = generate_widget_js(agent_id, branding)
+#     return Response(js, mimetype='application/javascript')
+
+
 @app.route('/log-visitor', methods=['POST'])
 def log_visitor():
-    data = request.get_json()
-    required = ["name", "mobile", "email", "url"]
-
-    if not all(field in data and data[field] for field in required):
-        return jsonify({"status": "error", "message": "Missing required fields"}), 400
-
+    data = request.json
+    print("Visitor Info:", data)
     try:
-        response = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
-        return jsonify({"status": "success", "response": response.text})
+        res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
+        print("Google Sheet Response:", res.text)
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        print("Error sending to Google Sheet:", e)
+    return {"status": "ok"}
 
-# --- Basic Routes ---
+# @app.route('/log-visitor', methods=['POST'])
+# def log_visitor():
+#     data = request.json
+#     print("Received Visitor Info:", data)
+
+#     try:
+#         res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
+#         print("Google Sheet Response:", res.text)
+#         return {"status": "success", "google_response": res.text}
+#     except Exception as e:
+#         print("Error sending to Google Sheet:", e)
+#         return {"status": "error", "message": str(e)}, 500
+
+
+
+
 @app.route('/')
 def home():
-    return "Voice Widget Server is running!"
+    return "Voice Widget Server Running!"
 
 @app.route('/health')
 def health():
     return {"status": "healthy"}
 
-# --- Entry Point ---
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
