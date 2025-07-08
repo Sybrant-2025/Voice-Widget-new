@@ -11,7 +11,7 @@ GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV
 # --- Config: Brand-Based Agent and Branding ---
 BRANDS = {
     "sybrant": {
-        "agent_id": "agent_01jwnymxeaeg29wjmdm16pmf89",
+        "agent_id": "agent_01jx2adczxfw7rrv6n8ffbfsb1",
         "branding": "Powered by Sybrant"
     },
     "leaserush": {
