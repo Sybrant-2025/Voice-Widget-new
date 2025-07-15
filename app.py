@@ -5,17 +5,12 @@ import requests
 app = Flask(__name__)
 CORS(app)
 
-# --- Constants ---
-# GOOGLE_SHEET_WEBHOOK_URL = (
-#     'https://script.google.com/macros/s/'
-#     'AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
-# )
-
+# Google Sheet Webhook URL (for logging form submissions)
 GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
 
-
-
-# --- JS Generator ---
+# -----------------------------
+# JS GENERATOR
+# -----------------------------
 def generate_widget_js(agent_id, branding):
     return f"""
     (function() {{
@@ -49,15 +44,10 @@ def generate_widget_js(agent_id, branding):
                         text-align: right;
                         margin-top: 10px;
                         margin-bottom: 40px;
-                        margin-right: 0px;
                     }}
-
-                    /* Hide the yellow logo */
                     [class*="_avatar_"] {{
                         display: none !important;
                     }}
-
-                    /* Make wrapper transparent, not removed */
                     [class*="_box_"] {{
                         background: transparent !important;
                         box-shadow: none !important;
@@ -68,8 +58,6 @@ def generate_widget_js(agent_id, branding):
                         align-items: center !important;
                         justify-content: center !important;
                     }}
-
-                    /* Style button */
                     [class*="_btn_"] {{
                         border-radius: 30px !important;
                         padding: 10px 20px !important;
@@ -80,7 +68,6 @@ def generate_widget_js(agent_id, branding):
                         font-weight: 500;
                         font-size: 14px;
                     }}
-
                     div[part='feedback-button'], 
                     img[alt*='logo'] {{
                         display: none !important;
@@ -201,23 +188,16 @@ def generate_widget_js(agent_id, branding):
     }})();
     """
 
+# -----------------------------
+# ROUTES
+# -----------------------------
+@app.route('/')
+def home():
+    return "Voice Widget Server Running!"
 
-
-#--- Routes ---
-@app.route('/convai-widget.js')
-def serve_sybrant_widget():
-    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by Sybrant")
-    return Response(js, mimetype='application/javascript')
-
-
-# @app.route('/convai-widget.js')
-# def serve_widget_js():
-#     agent_id = request.args.get('agent', 'DEFAULT_AGENT_ID')
-#     branding = request.args.get('branding', 'Powered by Your Company')
-#     js = generate_widget_js(agent_id, branding)
-#     return Response(js, mimetype='application/javascript')
-
+@app.route('/health')
+def health():
+    return {"status": "healthy"}
 
 @app.route('/log-visitor', methods=['POST'])
 def log_visitor():
@@ -230,29 +210,26 @@ def log_visitor():
         print("Error sending to Google Sheet:", e)
     return {"status": "ok"}
 
-# @app.route('/log-visitor', methods=['POST'])
-# def log_visitor():
-#     data = request.json
-#     print("Received Visitor Info:", data)
+@app.route('/convai-widget.js')
+def serve_sybrant_widget():
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = generate_widget_js(agent_id, branding="Powered by Sybrant")
+    return Response(js, mimetype='application/javascript', headers={"Access-Control-Allow-Origin": "*"})
 
-#     try:
-#         res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
-#         print("Google Sheet Response:", res.text)
-#         return {"status": "success", "google_response": res.text}
-#     except Exception as e:
-#         print("Error sending to Google Sheet:", e)
-#         return {"status": "error", "message": str(e)}, 500
+@app.route('/successgyan')
+def serve_successgyan_widget():
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = generate_widget_js(agent_id, branding="Powered by successgyan")
+    return Response(js, mimetype='application/javascript', headers={"Access-Control-Allow-Origin": "*"})
 
+@app.route('/kfwcorp')
+def serve_kfwcorp_widget():
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = generate_widget_js(agent_id, branding="Powered by kfwcorp")
+    return Response(js, mimetype='application/javascript', headers={"Access-Control-Allow-Origin": "*"})
 
-
-
-@app.route('/')
-def home():
-    return "Voice Widget Server Running!"
-
-@app.route('/health')
-def health():
-    return {"status": "healthy"}
-
+# -----------------------------
+# MAIN
+# -----------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
