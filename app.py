@@ -5,12 +5,17 @@ import requests
 app = Flask(__name__)
 CORS(app)
 
-# Google Sheet Webhook URL (for logging form submissions)
+# --- Constants ---
+# GOOGLE_SHEET_WEBHOOK_URL = (
+#     'https://script.google.com/macros/s/'
+#     'AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
+# )
+
 GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
 
-# -----------------------------
-# JS GENERATOR
-# -----------------------------
+
+
+# --- JS Generator ---
 def generate_widget_js(agent_id, branding):
     return f"""
     (function() {{
@@ -44,10 +49,15 @@ def generate_widget_js(agent_id, branding):
                         text-align: right;
                         margin-top: 10px;
                         margin-bottom: 40px;
+                        margin-right: 0px;
                     }}
+
+                    /* Hide the yellow logo */
                     [class*="_avatar_"] {{
                         display: none !important;
                     }}
+
+                    /* Make wrapper transparent, not removed */
                     [class*="_box_"] {{
                         background: transparent !important;
                         box-shadow: none !important;
@@ -58,6 +68,8 @@ def generate_widget_js(agent_id, branding):
                         align-items: center !important;
                         justify-content: center !important;
                     }}
+
+                    /* Style button */
                     [class*="_btn_"] {{
                         border-radius: 30px !important;
                         padding: 10px 20px !important;
@@ -68,6 +80,7 @@ def generate_widget_js(agent_id, branding):
                         font-weight: 500;
                         font-size: 14px;
                     }}
+
                     div[part='feedback-button'], 
                     img[alt*='logo'] {{
                         display: none !important;
@@ -188,33 +201,21 @@ def generate_widget_js(agent_id, branding):
     }})();
     """
 
-# -----------------------------
-# ROUTES
-# -----------------------------
-@app.route('/')
-def home():
-    return "Voice Widget Server Running!"
 
-@app.route('/health')
-def health():
-    return {"status": "healthy"}
 
-@app.route('/log-visitor', methods=['POST'])
-def log_visitor():
-    data = request.json
-    print("Visitor Info:", data)
-    try:
-        res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
-        print("Google Sheet Response:", res.text)
-    except Exception as e:
-        print("Error sending to Google Sheet:", e)
-    return {"status": "ok"}
-
+#--- Routes ---
 @app.route('/convai-widget.js')
 def serve_sybrant_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
     js = generate_widget_js(agent_id, branding="Powered by Sybrant")
-    return Response(js, mimetype='application/javascript', headers={"Access-Control-Allow-Origin": "*"})
+    return Response(js, mimetype='application/javascript')
+
+
+# @app.route('/convai-widget.js')
+# def serve_sybrant_widget():
+#     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+#     js = generate_widget_js(agent_id, branding="Powered by Sybrant")
+#     return Response(js, mimetype='application/javascript', headers={"Access-Control-Allow-Origin": "*"})
 
 @app.route('/successgyan')
 def serve_successgyan_widget():
@@ -228,8 +229,78 @@ def serve_kfwcorp_widget():
     js = generate_widget_js(agent_id, branding="Powered by kfwcorp")
     return Response(js, mimetype='application/javascript', headers={"Access-Control-Allow-Origin": "*"})
 
-# -----------------------------
-# MAIN
-# -----------------------------
+
+
+# @app.route('/convai-widget.js')
+# def serve_widget_js():
+#     agent_id = request.args.get('agent', 'DEFAULT_AGENT_ID')
+#     branding = request.args.get('branding', 'Powered by Your Company')
+#     js = generate_widget_js(agent_id, branding)
+#     return Response(js, mimetype='application/javascript')
+
+
+@app.route('/log-visitor', methods=['POST'])
+def log_visitor():
+    data = request.json
+    print("Visitor Info:", data)
+    try:
+        res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
+        print("Google Sheet Response:", res.text)
+    except Exception as e:
+        print("Error sending to Google Sheet:", e)
+    return {"status": "ok"}
+
+# @app.route('/log-visitor', methods=['POST'])
+# def log_visitor():
+#     data = request.json
+#     print("Received Visitor Info:", data)
+
+#     try:
+#         res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
+#         print("Google Sheet Response:", res.text)
+#         return {"status": "success", "google_response": res.text}
+#     except Exception as e:
+#         print("Error sending to Google Sheet:", e)
+#         return {"status": "error", "message": str(e)}, 500
+
+
+@app.route('/demo/successgyan')
+def demo():
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head><title>Voice Assistant Demo</title></head>
+    <body>
+        <h2>Voice Assistant Demo</h2>
+        <script src="https://voizee.sybrant.com/successgyan?agent=agent_01k06m09xefx4vxwc0drtf6sje"></script>
+    </body>
+    </html>
+    """
+    return render_template_string(html)
+
+@app.route('/demo/kfwcorp')
+def demo():
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head><title>Voice Assistant Demo</title></head>
+    <body>
+        <h2>Voice Assistant Demo</h2>
+        <script src="https://voizee.sybrant.com/kfwcorp?agent=agent_01jzm4vq12f58bfgnyr07ac819"></script>
+    </body>
+    </html>
+    """
+    return render_template_string(html)
+
+
+
+@app.route('/')
+def home():
+    return "Voice Widget Server Running!"
+
+@app.route('/health')
+def health():
+    return {"status": "healthy"}
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
