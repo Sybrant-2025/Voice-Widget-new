@@ -276,14 +276,50 @@ def demo_myndwell():
     html = """
     <!DOCTYPE html>
     <html>
-    <head><title>Voice Assistant Demo</title></head>
+    <head>
+        <title>Myndwell Voice Assistant Demo</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin: 0;
+                padding: 0;
+                background: #f5f7fa;
+            }
+            .logo {
+                margin-top: 40px;
+            }
+            .widget-wrapper {
+                margin-top: 60px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 400px;
+                position: relative;
+            }
+            /* Override widget position via script injection */
+            script + elevenlabs-convai {
+                position: absolute !important;
+                bottom: 50% !important;
+                right: 50% !important;
+                transform: translate(50%, 50%) !important;
+                z-index: 1000 !important;
+            }
+        </style>
+    </head>
     <body>
-        <h2>myndwell Voice Assistant Demo</h2>
-        <script src="/myndwell?agent=agent_01k099ck2mf0tr5g558de7w0av"></script>
+        <div class="logo">
+            <img src="https://myndwell.io/wp-content/uploads/2022/11/logo.png" alt="Myndwell Logo" height="60">
+        </div>
+        <h2>Myndwell Voice Assistant Demo</h2>
+        <div class="widget-wrapper">
+            <script src="/myndwell?agent=agent_01k099ck2mf0tr5g558de7w0av"></script>
+        </div>
     </body>
     </html>
     """
     return render_template_string(html)
+
 
 
 # --- Health Check & Root ---
