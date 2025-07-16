@@ -222,6 +222,12 @@ def serve_kfwcorp_widget():
     js = generate_widget_js(agent_id, branding="Powered by kfwcorp")
     return Response(js, mimetype='application/javascript')
 
+@app.route('/myndwell')
+def serve_myndwell_widget():
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = generate_widget_js(agent_id, branding="Powered by myndwell")
+    return Response(js, mimetype='application/javascript')
+
 
 # --- Form Submission Logging ---
 @app.route('/log-visitor', methods=['POST'])
@@ -260,6 +266,20 @@ def demo_kfwcorp():
     <body>
         <h2>KFWCorp Voice Assistant Demo</h2>
         <script src="/kfwcorp?agent=agent_01jzm4vq12f58bfgnyr07ac819"></script>
+    </body>
+    </html>
+    """
+    return render_template_string(html)
+
+@app.route('/demo/myndwell')
+def demo_myndwell():
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head><title>Voice Assistant Demo</title></head>
+    <body>
+        <h2>myndwell Voice Assistant Demo</h2>
+        <script src="/myndwell?agent=agent_01k099ck2mf0tr5g558de7w0av"></script>
     </body>
     </html>
     """
