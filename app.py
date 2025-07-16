@@ -265,7 +265,7 @@ def log_visitor():
 
 
 @app.route('/demo/successgyan')
-def demo():
+def demo_successgyan():
     html = """
     <!DOCTYPE html>
     <html>
@@ -279,7 +279,7 @@ def demo():
     return render_template_string(html)
 
 @app.route('/demo/kfwcorp')
-def demo():
+def demo_kfwcorp():
     html = """
     <!DOCTYPE html>
     <html>
