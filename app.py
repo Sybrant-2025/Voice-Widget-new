@@ -277,7 +277,7 @@ def demo_myndwell():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Myndwell Voice Assistant Demo</title>
+        <title>Myndwell Voice Agent Demo</title>
         <style>
             body {
                 font-family: Arial, sans-serif;
