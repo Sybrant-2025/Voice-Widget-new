@@ -21,42 +21,67 @@ GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV
 def generate_widget_js(agent_id, branding):
     return f"""
     (function() {{
+        // Immediately apply global CSS to hide branding early (before widget loads)
+        const preloadStyle = document.createElement("style");
+        preloadStyle.textContent = `
+            [class*="poweredBy"],
+            div[part="branding"],
+            span:has(a[href*="elevenlabs"]),
+            a[href*="elevenlabs"],
+            span:has([href*="conversational"]),
+            a[href*="conversational"]),
+            [class*="_poweredBy_"],
+            [class*="branding"],
+            div[class*="branding"],
+            div[part="branding"] {{
+                display: none !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+                height: 0 !important;
+                font-size: 0 !important;
+                line-height: 0 !important;
+                pointer-events: none !important;
+            }}
+        `;
+        document.head.appendChild(preloadStyle);
+
+        // Inject the widget tag
         const tag = document.createElement("elevenlabs-convai");
         tag.setAttribute("agent-id", "{agent_id}");
         document.body.appendChild(tag);
 
+        // Inject widget script
         const script = document.createElement("script");
         script.src = "https://elevenlabs.io/convai-widget/index.js";
         script.async = true;
         document.body.appendChild(script);
 
+        // Observe the DOM for widget load and apply custom styles
         const observer = new MutationObserver(() => {{
             const widget = document.querySelector('elevenlabs-convai');
             if (!widget || !widget.shadowRoot) return;
             const shadowRoot = widget.shadowRoot;
 
-            // Hide branding if branding text is empty
-            if ("{branding}".trim() === "") {{
-                const hideStyle = document.createElement("style");
-                hideStyle.textContent = `
-                    elevenlabs-convai::part(branding),
-                    [part="branding"],
-                    [class*="poweredBy"],
-                    img[alt*="logo"],
-                    div[part="branding"] {{
-                        display: none !important;
-                    }}
-                `;
-                document.head.appendChild(hideStyle);
+            // Try to forcibly remove branding again if found inside Shadow DOM
+            const brandingElem = shadowRoot.querySelector('[class*="poweredBy"], div[part="branding"]');
+            if (brandingElem) {{
+                brandingElem.remove(); // REMOVE instead of customizing
             }}
 
             if (!shadowRoot.querySelector("#custom-style")) {{
                 const style = document.createElement("style");
                 style.id = "custom-style";
                 style.textContent = `
+                    div[part='branding'],
+                    a[href*="elevenlabs"],
+                    span:has(a[href*="elevenlabs"]) {{
+                        display: none !important;
+                    }}
+
                     [class*="_avatar_"] {{
                         display: none !important;
                     }}
+
                     [class*="_box_"] {{
                         background: transparent !important;
                         box-shadow: none !important;
@@ -67,6 +92,7 @@ def generate_widget_js(agent_id, branding):
                         align-items: center !important;
                         justify-content: center !important;
                     }}
+
                     [class*="_btn_"] {{
                         border-radius: 30px !important;
                         padding: 10px 20px !important;
@@ -77,7 +103,8 @@ def generate_widget_js(agent_id, branding):
                         font-weight: 500;
                         font-size: 14px;
                     }}
-                    div[part='feedback-button'], 
+
+                    div[part='feedback-button'],
                     img[alt*='logo'] {{
                         display: none !important;
                     }}
@@ -116,6 +143,7 @@ def generate_widget_js(agent_id, branding):
         }});
         observer.observe(document.body, {{ childList: true, subtree: true }});
 
+        // Visitor form modal logic
         window.addEventListener('DOMContentLoaded', () => {{
             const modal = document.createElement('div');
             modal.id = 'visitor-form-modal';
