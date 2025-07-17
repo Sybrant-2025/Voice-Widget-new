@@ -248,28 +248,100 @@ def demo_successgyan():
     html = """
     <!DOCTYPE html>
     <html>
-    <head><title>Voice Assistant Demo</title></head>
+    <head>
+        <title>SuccessGyan Voice Agent Demo</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin: 0;
+                padding: 0;
+                background: #f5f7fa;
+            }
+            .logo {
+                margin-top: 40px;
+            }
+            .widget-wrapper {
+                margin-top: 60px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 400px;
+                position: relative;
+            }
+            /* Override widget position via script injection */
+            script + elevenlabs-convai {
+                position: absolute !important;
+                bottom: 50% !important;
+                right: 50% !important;
+                transform: translate(50%, 50%) !important;
+                z-index: 1000 !important;
+            }
+        </style>
+    </head>
     <body>
+        <div class="logo">
+            <img src="https://successgyan.com/wp-content/uploads/2024/02/SG-logo-1@2x-150x67.png" alt="SuccessGyan Logo" height="60">
+        </div>
         <h2>SuccessGyan Voice Assistant Demo</h2>
-        <script src="/successgyan?agent=agent_01k06m09xefx4vxwc0drtf6sje"></script>
+        <div class="widget-wrapper">
+            <script src="/successgyan?agent=agent_01k06m09xefx4vxwc0drtf6sje"></script>
+        </div>
     </body>
     </html>
     """
     return render_template_string(html)
+
 
 @app.route('/demo/kfwcorp')
 def demo_kfwcorp():
     html = """
     <!DOCTYPE html>
     <html>
-    <head><title>Voice Assistant Demo</title></head>
+    <head>
+        <title>kfwcorp Voice Agent Demo</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin: 0;
+                padding: 0;
+                background: #f5f7fa;
+            }
+            .logo {
+                margin-top: 40px;
+            }
+            .widget-wrapper {
+                margin-top: 60px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 400px;
+                position: relative;
+            }
+            /* Override widget position via script injection */
+            script + elevenlabs-convai {
+                position: absolute !important;
+                bottom: 50% !important;
+                right: 50% !important;
+                transform: translate(50%, 50%) !important;
+                z-index: 1000 !important;
+            }
+        </style>
+    </head>
     <body>
+        <div class="logo">
+            <img src="https://kfwcorp.com/assets/img/logo-w.png" alt="KFWCorpl Logo" height="60">
+        </div>
         <h2>KFWCorp Voice Assistant Demo</h2>
-        <script src="/kfwcorp?agent=agent_01jzm4vq12f58bfgnyr07ac819"></script>
+        <div class="widget-wrapper">
+            <script src="/kfwcorp?agent=agent_01jzm4vq12f58bfgnyr07ac819"></script>
+        </div>
     </body>
     </html>
     """
     return render_template_string(html)
+
 
 @app.route('/demo/myndwell')
 def demo_myndwell():
