@@ -35,47 +35,28 @@ def generate_widget_js(agent_id, branding):
             if (!widget || !widget.shadowRoot) return;
             const shadowRoot = widget.shadowRoot;
 
-        if ("{branding}".trim() === "") {
-            const hideStyle = document.createElement("style");
-            hideStyle.textContent = `
-                elevenlabs-convai::part(branding),
-                [part="branding"],
-                [class*="poweredBy"],
-                img[alt*="logo"],
-                div[part="branding"] {
-                    display: none !important;
-                }
-            `;
-            document.head.appendChild(hideStyle);
-        }
-
-            # const brandingElem = shadowRoot.querySelector('[class*="poweredBy"], div[part="branding"]');
-            # if (brandingElem) {{
-            #     brandingElem.textContent = "{branding}";
-            # }}
-
-
+            // Hide branding if branding text is empty
+            if ("{branding}".trim() === "") {{
+                const hideStyle = document.createElement("style");
+                hideStyle.textContent = `
+                    elevenlabs-convai::part(branding),
+                    [part="branding"],
+                    [class*="poweredBy"],
+                    img[alt*="logo"],
+                    div[part="branding"] {{
+                        display: none !important;
+                    }}
+                `;
+                document.head.appendChild(hideStyle);
+            }}
 
             if (!shadowRoot.querySelector("#custom-style")) {{
                 const style = document.createElement("style");
                 style.id = "custom-style";
                 style.textContent = `
-                    div[part='branding'] {{
-                        font-size: 12px !important;
-                        font-family: Arial, sans-serif !important;
-                        color: #888 !important;
-                        text-align: right;
-                        margin-top: 10px;
-                        margin-bottom: 40px;
-                        margin-right: 0px;
-                    }}
-
-                    /* Hide the yellow logo */
                     [class*="_avatar_"] {{
                         display: none !important;
                     }}
-
-                    /* Make wrapper transparent, not removed */
                     [class*="_box_"] {{
                         background: transparent !important;
                         box-shadow: none !important;
@@ -86,8 +67,6 @@ def generate_widget_js(agent_id, branding):
                         align-items: center !important;
                         justify-content: center !important;
                     }}
-
-                    /* Style button */
                     [class*="_btn_"] {{
                         border-radius: 30px !important;
                         padding: 10px 20px !important;
@@ -98,7 +77,6 @@ def generate_widget_js(agent_id, branding):
                         font-weight: 500;
                         font-size: 14px;
                     }}
-
                     div[part='feedback-button'], 
                     img[alt*='logo'] {{
                         display: none !important;
@@ -218,6 +196,7 @@ def generate_widget_js(agent_id, branding):
         }});
     }})();
     """
+
 
 # --- Serve Branded Widget Scripts ---
 @app.route('/convai-widget.js')
