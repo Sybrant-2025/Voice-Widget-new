@@ -228,6 +228,12 @@ def serve_myndwell_widget():
     js = generate_widget_js(agent_id, branding="Powered by myndwell")
     return Response(js, mimetype='application/javascript')
 
+@app.route('/galent')
+def serve_myndwell_widget():
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = generate_widget_js(agent_id, branding="Powered by galent")
+    return Response(js, mimetype='application/javascript')
+
 
 # --- Form Submission Logging ---
 @app.route('/log-visitor', methods=['POST'])
@@ -388,6 +394,56 @@ def demo_myndwell():
         <h2>Myndwell Voice Assistant Demo</h2>
         <div class="widget-wrapper">
             <script src="/myndwell?agent=agent_01k099ck2mf0tr5g558de7w0av"></script>
+        </div>
+    </body>
+    </html>
+    """
+    return render_template_string(html)
+
+
+@app.route('/demo/galent')
+def demo_myndwell():
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Galent Voice Agent Demo</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin: 0;
+                padding: 0;
+                background: #f5f7fa;
+            }
+            .logo {
+                margin-top: 40px;
+            }
+            .widget-wrapper {
+                margin-top: 60px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 400px;
+                position: relative;
+            }
+            /* Override widget position via script injection */
+            script + elevenlabs-convai {
+                position: absolute !important;
+                bottom: 50% !important;
+                right: 50% !important;
+                transform: translate(50%, 50%) !important;
+                z-index: 1000 !important;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="logo">
+            <img src="https://galent.com/wp-content/themes/twentytwentyone/img/icons/galent-nav-logo.svg" alt="galent Logo" height="60">
+        </div>
+        <h2>Galent Voice Assistant Demo</h2>
+        <div class="widget-wrapper">
+            <script src="/galent?agent=agent_01k0bxx69dezk91kdpvgj9k8yn"></script>
         </div>
     </body>
     </html>
