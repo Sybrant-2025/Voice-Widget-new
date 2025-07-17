@@ -317,6 +317,28 @@ def demo_successgyan():
         <div class="widget-wrapper">
             <script src="/successgyan?agent=agent_01k06m09xefx4vxwc0drtf6sje"></script>
         </div>
+        <script>
+  const observer = new MutationObserver(() => {
+    const widget = document.querySelector('elevenlabs-convai');
+    if (!widget || !widget.shadowRoot) return;
+
+    const shadow = widget.shadowRoot;
+    const branding = shadow.querySelector('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"]');
+
+    if (branding) {
+      branding.remove(); // ✅ REMOVE instead of hiding
+    }
+
+    // Unhide widget once safe
+    const blocker = document.getElementById("branding-blocker");
+    if (blocker) blocker.remove();
+
+    // Stop observing once branding handled
+    observer.disconnect();
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+</script>
     </body>
     </html>
     """
@@ -368,6 +390,28 @@ def demo_kfwcorp():
         <div class="widget-wrapper">
             <script src="/kfwcorp?agent=agent_01jzm4vq12f58bfgnyr07ac819"></script>
         </div>
+        <script>
+  const observer = new MutationObserver(() => {
+    const widget = document.querySelector('elevenlabs-convai');
+    if (!widget || !widget.shadowRoot) return;
+
+    const shadow = widget.shadowRoot;
+    const branding = shadow.querySelector('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"]');
+
+    if (branding) {
+      branding.remove(); // ✅ REMOVE instead of hiding
+    }
+
+    // Unhide widget once safe
+    const blocker = document.getElementById("branding-blocker");
+    if (blocker) blocker.remove();
+
+    // Stop observing once branding handled
+    observer.disconnect();
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+</script>
     </body>
     </html>
     """
@@ -418,6 +462,28 @@ def demo_myndwell():
         <div class="widget-wrapper">
             <script src="/myndwell?agent=agent_01k099ck2mf0tr5g558de7w0av"></script>
         </div>
+        <script>
+  const observer = new MutationObserver(() => {
+    const widget = document.querySelector('elevenlabs-convai');
+    if (!widget || !widget.shadowRoot) return;
+
+    const shadow = widget.shadowRoot;
+    const branding = shadow.querySelector('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"]');
+
+    if (branding) {
+      branding.remove(); // ✅ REMOVE instead of hiding
+    }
+
+    // Unhide widget once safe
+    const blocker = document.getElementById("branding-blocker");
+    if (blocker) blocker.remove();
+
+    // Stop observing once branding handled
+    observer.disconnect();
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+</script>
     </body>
     </html>
     """
@@ -468,6 +534,29 @@ def demo_galent():
         <div class="widget-wrapper">
             <script src="/galent?agent=agent_01k0bxx69dezk91kdpvgj9k8yn"></script>
         </div>
+
+    <script>
+  const observer = new MutationObserver(() => {
+    const widget = document.querySelector('elevenlabs-convai');
+    if (!widget || !widget.shadowRoot) return;
+
+    const shadow = widget.shadowRoot;
+    const branding = shadow.querySelector('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"]');
+
+    if (branding) {
+      branding.remove(); // ✅ REMOVE instead of hiding
+    }
+
+    // Unhide widget once safe
+    const blocker = document.getElementById("branding-blocker");
+    if (blocker) blocker.remove();
+
+    // Stop observing once branding handled
+    observer.disconnect();
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+</script>    
     </body>
     </html>
     """
