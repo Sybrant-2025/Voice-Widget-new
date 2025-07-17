@@ -229,7 +229,7 @@ def serve_myndwell_widget():
     return Response(js, mimetype='application/javascript')
 
 @app.route('/galent')
-def serve_myndwell_widget():
+def serve_galent():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
     js = generate_widget_js(agent_id, branding="Powered by galent")
     return Response(js, mimetype='application/javascript')
@@ -402,7 +402,7 @@ def demo_myndwell():
 
 
 @app.route('/demo/galent')
-def demo_myndwell():
+def demo_galent():
     html = """
     <!DOCTYPE html>
     <html>
