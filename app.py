@@ -35,10 +35,26 @@ def generate_widget_js(agent_id, branding):
             if (!widget || !widget.shadowRoot) return;
             const shadowRoot = widget.shadowRoot;
 
-            const brandingElem = shadowRoot.querySelector('[class*="poweredBy"], div[part="branding"]');
-            if (brandingElem) {{
-                brandingElem.textContent = "{branding}";
-            }}
+            if ("{branding}".trim() === "") {
+            const hideStyle = document.createElement("style");
+            hideStyle.textContent = `
+            elevenlabs-convai::part(branding),
+            [part="branding"],
+            [class*="poweredBy"],
+            img[alt*="logo"],
+            div[part="branding"] {
+            display: none !important;
+            }
+            `;
+            document.head.appendChild(hideStyle);
+            }
+
+            # const brandingElem = shadowRoot.querySelector('[class*="poweredBy"], div[part="branding"]');
+            # if (brandingElem) {{
+            #     brandingElem.textContent = "{branding}";
+            # }}
+
+
 
             if (!shadowRoot.querySelector("#custom-style")) {{
                 const style = document.createElement("style");
