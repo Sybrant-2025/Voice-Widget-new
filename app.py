@@ -260,6 +260,7 @@ def demo_successgyan():
             }
             .logo {
                 margin-top: 40px;
+                background: #181A1C;
             }
             .widget-wrapper {
                 margin-top: 60px;
@@ -310,6 +311,7 @@ def demo_kfwcorp():
             }
             .logo {
                 margin-top: 40px;
+                background: #001F54;
             }
             .widget-wrapper {
                 margin-top: 60px;
