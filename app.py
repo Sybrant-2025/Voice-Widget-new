@@ -536,27 +536,38 @@ def demo_galent():
         </div>
 
     <script>
-  const observer = new MutationObserver(() => {
-    const widget = document.querySelector('elevenlabs-convai');
-    if (!widget || !widget.shadowRoot) return;
+function removeBrandingFromWidget() {
+  const widget = document.querySelector('elevenlabs-convai');
+  if (!widget || !widget.shadowRoot) return false;
 
-    const shadow = widget.shadowRoot;
-    const branding = shadow.querySelector('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"]');
+  const shadow = widget.shadowRoot;
+  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
 
-    if (branding) {
-      branding.remove(); // ✅ REMOVE instead of hiding
-    }
+  brandingElements.forEach(el => el.remove());
 
-    // Unhide widget once safe
-    const blocker = document.getElementById("branding-blocker");
-    if (blocker) blocker.remove();
+  // Optionally remove footer shadow or extra boxes
+  const footer = shadow.querySelector('[class*="_box_"]');
+  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
+    footer.remove();
+  }
 
-    // Stop observing once branding handled
-    observer.disconnect();
-  });
+  return brandingElements.length > 0;
+}
 
-  observer.observe(document.body, { childList: true, subtree: true });
-</script>    
+const tryRemove = () => {
+  const success = removeBrandingFromWidget();
+  if (!success) {
+    setTimeout(tryRemove, 300);  // retry until it appears
+  }
+};
+
+tryRemove(); // start the removal loop
+
+// Also attach MutationObserver in case of dynamic updates
+const observer = new MutationObserver(() => removeBrandingFromWidget());
+observer.observe(document.body, { childList: true, subtree: true });
+</script>
+
     </body>
     </html>
     """
