@@ -186,42 +186,43 @@ def generate_widget_js(agent_id, branding=None):
       const name = e.target.name.value.trim();
       const mobile = e.target.mobile.value.trim();
       const email = e.target.email.value.trim();
+      const url = window.location.href;
+
       if (!name || !mobile || !email) return alert("All fields are required");
 
-      fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, mobile, email, url })
-});
+      fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {{
+        method: 'POST',
+        headers: {{ 'Content-Type': 'application/json' }},
+        body: JSON.stringify({{ name, mobile, email, url }})
+      }});
 
-localStorage.setItem("convai_form_submitted", (Date.now() + 100000).toString());
-modalEl.style.display = 'none';
+      localStorage.setItem("convai_form_submitted", (Date.now() + 86400000).toString());
+      modal.style.display = 'none';
 
-// Delay before clicking the real Start Call button
-setTimeout(() => {{
-    const widget = document.querySelector('elevenlabs-convai');
-    const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
-    if (realBtn) {{
-        console.log("✅ Found real Start Call button. Triggering click.");
-        realBtn.click();
-    }} else {{
-        console.warn("⚠️ Start Call button not found. Retrying...");
-        setTimeout(() => {{
+      setTimeout(() => {{
+        const widget = document.querySelector('elevenlabs-convai');
+        const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
+        if (realBtn) {{
+          console.log("✅ Found real Start Call button. Triggering click.");
+          realBtn.click();
+        }} else {{
+          console.warn("⚠️ Start Call button not found. Retrying...");
+          setTimeout(() => {{
             const retryBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
             if (retryBtn) {{
-                console.log("✅ Found on retry. Clicking...");
-                retryBtn.click();
+              console.log("✅ Found on retry. Clicking...");
+              retryBtn.click();
             }} else {{
-                console.error("❌ Failed to find Start Call button after retry.");
+              console.error("❌ Failed to find Start Call button after retry.");
             }}
-        }}, 300);
-    }}
-}}, 300);
-
+          }}, 300);
+        }}
+      }}, 300);
     }};
   }});
 }})();
 """
+
 
 
 # Widget endpoints with explicit brand strings
