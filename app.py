@@ -116,6 +116,8 @@ def generate_widget_js(agent_id, branding=None):
     return f"""
 (function() {{
   console.log("[Widget] starting...");
+
+  // Hide branding
   const preloadStyle = document.createElement("style");
   preloadStyle.textContent = `
     [class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"]) {{
@@ -124,16 +126,20 @@ def generate_widget_js(agent_id, branding=None):
   `;
   document.head.appendChild(preloadStyle);
 
+  // Inject the ElevenLabs widget
   const tag = document.createElement("elevenlabs-convai");
   tag.setAttribute("agent-id", "{agent_id}");
   document.body.appendChild(tag);
+
   const script = document.createElement("script");
   script.src = "https://elevenlabs.io/convai-widget/index.js";
   script.async = true;
   document.body.appendChild(script);
 
   window.addEventListener('DOMContentLoaded', () => {{
-    console.log("[Widget] DOM loaded, injecting modal...");
+    console.log("[Widget] DOM loaded, injecting form modal...");
+
+    // Create modal
     const modal = document.createElement('div');
     modal.id = 'visitor-form-modal';
     modal.style = `
@@ -143,7 +149,7 @@ def generate_widget_js(agent_id, branding=None):
       align-items:center;justify-content:center;
     `;
     modal.innerHTML = `
-      <div style="background:#fff;padding:30px;border-radius:12px;max-width:320px;width:90%;text-align:center;">
+      <div style="background:#fff;padding:30px;border-radius:12px;max-width:320px;width:90%;text-align:center;position:relative;">
         <span id="close-form" style="cursor:pointer;position:absolute;top:8px;right:12px;">&times;</span>
         <h3>Tell us about you</h3>
         <form id="visitor-form">
@@ -156,9 +162,11 @@ def generate_widget_js(agent_id, branding=None):
     `;
     document.body.appendChild(modal);
 
+    // Modal controls
     modal.querySelector('#close-form').onclick = () => modal.style.display = 'none';
     window.onclick = e => e.target === modal && (modal.style.display = 'none');
 
+    // Hook into widget button once it loads
     const observer = new MutationObserver((_, obs) => {{
       const widget = document.querySelector('elevenlabs-convai');
       const btn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
@@ -169,11 +177,11 @@ def generate_widget_js(agent_id, branding=None):
         btn.parentElement.appendChild(copy);
         copy.onclick = e => {{
           e.preventDefault();
-          if (localStorage.getItem("convai_form_submitted") &&
-              Date.now() < parseInt(localStorage.getItem("convai_form_submitted"))) {{
-            btn.click();
+          const expiry = localStorage.getItem("convai_form_submitted");
+          if (expiry && Date.now() < parseInt(expiry)) {{
+            btn.click(); // Start call immediately
           }} else {{
-            modal.style.display = 'flex';
+            modal.style.display = 'flex'; // Show form
           }}
         }};
         obs.disconnect();
@@ -181,6 +189,7 @@ def generate_widget_js(agent_id, branding=None):
     }});
     observer.observe(document.body, {{ childList: true, subtree: true }});
 
+    // Form submit
     document.getElementById('visitor-form').onsubmit = e => {{
       e.preventDefault();
       const name = e.target.name.value.trim();
@@ -190,16 +199,40 @@ def generate_widget_js(agent_id, branding=None):
 
       if (!name || !mobile || !email) return alert("All fields are required");
 
+      // Submit to backend to update DB + Google Sheets
       fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {{
         method: 'POST',
         headers: {{ 'Content-Type': 'application/json' }},
         body: JSON.stringify({{ name, mobile, email, url }})
-      }});
+      }}).then(() => {{
+        localStorage.setItem("convai_form_submitted", (Date.now() + 5 * 60 * 1000).toString()); // 5 minutes cache
+        modal.style.display = 'none';
 
-    setTimeout(() => {{
-        const widget = document.querySelector('elevenlabs-convai');
-        const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
-           }};
+        // Delay then click real widget button
+        setTimeout(() => {{
+          const widget = document.querySelector('elevenlabs-convai');
+          const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
+          if (realBtn) {{
+            console.log("✅ Found real Start Call button. Clicking...");
+            realBtn.click();
+          }} else {{
+            console.warn("⚠️ Start Call button not found. Retrying...");
+            setTimeout(() => {{
+              const retryBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
+              if (retryBtn) {{
+                console.log("✅ Found on retry. Clicking...");
+                retryBtn.click();
+              }} else {{
+                console.error("❌ Failed to find Start Call button after retry.");
+              }}
+            }}, 300);
+          }}
+        }}, 300);
+      }}).catch(err => {{
+        console.error("❌ Error logging visitor:", err);
+        alert("Something went wrong. Please try again.");
+      }});
+    }};
   }});
 }})();
 """
