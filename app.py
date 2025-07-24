@@ -1,29 +1,24 @@
-from flask import Flask, request, Response
+from flask import Flask, request, Response, render_template_string
 from flask_cors import CORS
-from flask import render_template_string
 import requests
-
 
 app = Flask(__name__)
 CORS(app)
 
-# --- Constants ---
-# GOOGLE_SHEET_WEBHOOK_URL = (
-#     'https://script.google.com/macros/s/'
-#     'AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
-# )
-
+# Constants: Google Sheet Webhook URLs
 GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
-
-# GOOGLE_SHEET_WEBHOOK_URL_KFWCORP = 'https://script.google.com/macros/s/AKfycbxhzOgy-0_Iu-6MRSq7CjgG2xKQKtiZNxgcKWpnIV_9kS3E0uq4Kdl2E0vnsjuJxdLb/exec'
 GOOGLE_SHEET_WEBHOOK_URL_KFWCORP = 'https://script.google.com/macros/s/AKfycbzEyuAW9j3WbPlTAcnpml0uMXAx_UnpQrw0JjfWZ4ew7HxhJZt04Z31ItpBpfoFo9y1yw/exec'
+# Add other URLs as needed, example:
+GOOGLE_SHEET_WEBHOOK_URL_SUCCESS_GYAN = ''  # You can fill this if needed
+GOOGLE_SHEET_WEBHOOK_URL_SYBRANT = ''
+GOOGLE_SHEET_WEBHOOK_URL_GALENT = ''
+GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL = ''
 
-# --- JS Generator ---
-def generate_widget_js(agent_id, branding):
+# JS Generator (branding param is currently unused inside function, so you can remove it)
+def generate_widget_js(agent_id, branding=None):
     return f"""
 (function() {{
   console.log("[Widget] starting...");
-  // Hide branding early
   const preloadStyle = document.createElement("style");
   preloadStyle.textContent = `
     [class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"]) {{
@@ -32,7 +27,6 @@ def generate_widget_js(agent_id, branding):
   `;
   document.head.appendChild(preloadStyle);
 
-  // Inject widget
   const tag = document.createElement("elevenlabs-convai");
   tag.setAttribute("agent-id", "{agent_id}");
   document.body.appendChild(tag);
@@ -41,7 +35,6 @@ def generate_widget_js(agent_id, branding):
   script.async = true;
   document.body.appendChild(script);
 
-  // Setup modal logic
   window.addEventListener('DOMContentLoaded', () => {{
     console.log("[Widget] DOM loaded, injecting modal...");
     const modal = document.createElement('div');
@@ -69,7 +62,6 @@ def generate_widget_js(agent_id, branding):
     modal.querySelector('#close-form').onclick = () => modal.style.display = 'none';
     window.onclick = e => e.target == modal && (modal.style.display = 'none');
 
-    // Hook widget button after it's rendered in Shadow DOM
     const observer = new MutationObserver((_, obs) => {{
       const widget = document.querySelector('elevenlabs-convai');
       const btn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
@@ -112,89 +104,76 @@ def generate_widget_js(agent_id, branding):
 }})();
 """
 
-
-
-# --- Serve Branded Widget Scripts ---
+# Widget endpoints with explicit brand strings
 @app.route('/convai-widget.js')
-def serve_sybrant_widget():
+def serve_convai_widget():
     agent_id = request.args.get('agent', '')
-    return Response(generate_widget_js(agent_id, branding=brand), mimetype='application/javascript')
-
+    return Response(generate_widget_js(agent_id, branding=None), mimetype='application/javascript')
 
 @app.route('/successgyan')
 def serve_successgyan_widget():
     agent_id = request.args.get('agent', '')
-    return Response(generate_widget_js(agent_id, branding=brand), mimetype='application/javascript')
+    return Response(generate_widget_js(agent_id, branding="successgyan"), mimetype='application/javascript')
 
 @app.route('/kfwcorp')
 def serve_kfwcorp_widget():
     agent_id = request.args.get('agent', '')
-    return Response(generate_widget_js(agent_id, branding=brand), mimetype='application/javascript')
+    return Response(generate_widget_js(agent_id, branding="kfwcorp"), mimetype='application/javascript')
 
 @app.route('/myndwell')
 def serve_myndwell_widget():
     agent_id = request.args.get('agent', '')
-    return Response(generate_widget_js(agent_id, branding=brand), mimetype='application/javascript')
+    return Response(generate_widget_js(agent_id, branding="myndwell"), mimetype='application/javascript')
 
 @app.route('/galent')
-def serve_galent():
+def serve_galent_widget():
     agent_id = request.args.get('agent', '')
-    return Response(generate_widget_js(agent_id, branding=brand), mimetype='application/javascript')
+    return Response(generate_widget_js(agent_id, branding="galent"), mimetype='application/javascript')
 
-
-# --- Form Submission Logging ---
-# @app.route('/log-visitor', methods=['POST'])
-# def log_visitor():
-#     data = request.json
-#     print("Visitor Info:", data)
-#     try:
-#         res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
-#         print("Google Sheet Response:", res.text)
-#     except Exception as e:
-#         print("Error sending to Google Sheet:", e)
-#     return {"status": "ok"}
-
-# --- Form Submission Logging ---
+# Log visitor form submissions
 @app.route('/log-visitor', methods=['POST'])
 def log_visitor():
     data = request.json or {}
     print("=== log-visitor POST ===\n", data, "\nURL:", data.get('url'))
-    # Log master
+
+    # Master log
     try:
         res_all = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
         print("Master sheet:", res_all.status_code)
     except Exception as e:
         print("Error master:", e)
 
-    url = data.get('url','').lower()
-    for keyword, hook in {
+    url = data.get('url', '').lower()
+
+    # Map keywords to webhook URLs (make sure to fill them)
+    webhook_map = {
         "kfwcorp": GOOGLE_SHEET_WEBHOOK_URL_KFWCORP,
         "successgyan": GOOGLE_SHEET_WEBHOOK_URL_SUCCESS_GYAN,
         "sybrant": GOOGLE_SHEET_WEBHOOK_URL_SYBRANT,
         "galent": GOOGLE_SHEET_WEBHOOK_URL_GALENT,
         "myndwell": GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL,
-    }.items():
-        if keyword in url:
+    }
+
+    for keyword, hook in webhook_map.items():
+        if hook and keyword in url:
             try:
-                res_p = requests.post(hook, json=data)
-                print(f"{keyword} sheet:", res_p.status_code)
+                res = requests.post(hook, json=data)
+                print(f"{keyword} sheet:", res.status_code)
             except Exception as e:
                 print(f"Error {keyword} sheet:", e)
             break
-    return {"status":"ok"}
 
+    return {"status": "ok"}
 
-
-# --- Demo Pages ---
-# --- Demo Pages ---
-def render_demo(brand, logo_url):
+# Demo pages (inject correct agent IDs)
+def render_demo(brand, logo_url, agent_id):
     return f"""
 <!DOCTYPE html>
 <html>
 <head><title>{brand.title()} Demo</title></head>
 <body style="text-align:center;padding:20px;">
   <img src="{logo_url}" alt="{brand} logo" height="60"><h2>{brand.title()} Voice Demo</h2>
-  <script src="/{brand}?agent=TEST_AGENT_{brand.upper()}"></script>
+  <script src="/{brand}?agent={agent_id}"></script>
 </body>
 </html>"""
 
@@ -202,25 +181,26 @@ def render_demo(brand, logo_url):
 def demo_kfw():
     return render_template_string(render_demo(
         'kfwcorp',
-        'https://kfwcorp.com/assets/img/logo-w.png'
-    ).replace("TEST_AGENT_KFWCORP", "agent_01jzm4vq12f58bfgnyr07ac819"))
+        'https://kfwcorp.com/assets/img/logo-w.png',
+        'agent_01jzm4vq12f58bfgnyr07ac819'
+    ))
 
 @app.route('/demo/successgyan')
 def demo_successgyan():
     return render_template_string(render_demo(
         'successgyan',
-        'https://successgyan.com/wp-content/uploads/2024/02/SG-logo-1@2x-150x67.png'
-    ).replace("TEST_AGENT_SUCCESSGYAN", "agent_01k06m09xefx4vxwc0drtf6sje"))
+        'https://successgyan.com/wp-content/uploads/2024/02/SG-logo-1@2x-150x67.png',
+        'agent_01k06m09xefx4vxwc0drtf6sje'
+    ))
 
 @app.route('/demo/myndwell')
 def demo_myndwell():
     return render_template_string(render_demo(
         'myndwell',
-        'https://myndwell.io/wp-content/uploads/2022/11/logo.png'
-    ).replace("TEST_AGENT_MYNDWELL", "agent_01k099ck2mf0tr5g558de7w0av"))
+        'https://myndwell.io/wp-content/uploads/2022/11/logo.png',
+        'agent_01k099ck2mf0tr5g558de7w0av'
+    ))
 
-
-# --- Health Check & Root ---
 @app.route('/')
 def home():
     return "Voice Widget Server Running!"
@@ -229,7 +209,5 @@ def home():
 def health():
     return {"status": "healthy"}
 
-
-# --- Start Server ---
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
