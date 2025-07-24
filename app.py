@@ -357,7 +357,7 @@ def demo_successgyan():
         </div>
         <h2>SuccessGyan Voice Assistant Demo</h2>
         
-            <script src="/successgyan?agent=agent_01k06m09xefx4vxwc0drtf6sje"></script>
+            <script src="https://voizee.sybrant.com/successgyan?agent=agent_01k06m09xefx4vxwc0drtf6sje"></script>
         
             <script>
 function removeBrandingFromWidget() {
@@ -442,7 +442,7 @@ def demo_kfwcorp():
         
     </body>
     <footer>
-    <script src="/kfwcorp?agent=agent_01jzm4vq12f58bfgnyr07ac819"></script>
+    <script src="https://voizee.sybrant.com/kfwcorp?agent=agent_01jzm4vq12f58bfgnyr07ac819"></script>
     </footer>
     </html>
     """
@@ -491,7 +491,7 @@ def demo_myndwell():
         </div>
         <h2>Myndwell Voice Assistant Demo</h2>
         <div class="widget-wrapper">
-            <script src="/myndwell?agent=agent_01k099ck2mf0tr5g558de7w0av"></script>
+            <script src="https://voizee.sybrant.com/myndwell?agent=agent_01k099ck2mf0tr5g558de7w0av"></script>
         </div>
     <script>
 function removeBrandingFromWidget() {
@@ -573,7 +573,7 @@ def demo_galent():
         </div>
         <h2>Galent Voice Assistant Demo</h2>
         <div class="widget-wrapper">
-            <script src="/galent?agent=agent_01k0bxx69dezk91kdpvgj9k8yn"></script>
+            <script src="https://voizee.sybrant.com/galent?agent=agent_01k0bxx69dezk91kdpvgj9k8yn"></script>
         </div>
 
     <script>
