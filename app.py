@@ -443,38 +443,6 @@ def demo_kfwcorp():
     </body>
     <footer>
     <script src="/kfwcorp?agent=agent_01jzm4vq12f58bfgnyr07ac819"></script>
-      <script>
-function removeBrandingFromWidget() {
-  const widget = document.querySelector('elevenlabs-convai');
-  if (!widget || !widget.shadowRoot) return false;
-
-  const shadow = widget.shadowRoot;
-  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
-
-  brandingElements.forEach(el => el.remove());
-
-  // Optionally remove footer shadow or extra boxes
-  const footer = shadow.querySelector('[class*="_box_"]');
-  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
-    footer.remove();
-  }
-
-  return brandingElements.length > 0;
-}
-
-const tryRemove = () => {
-  const success = removeBrandingFromWidget();
-  if (!success) {
-    setTimeout(tryRemove, 300);  // retry until it appears
-  }
-};
-
-tryRemove(); // start the removal loop
-
-// Also attach MutationObserver in case of dynamic updates
-const observer = new MutationObserver(() => removeBrandingFromWidget());
-observer.observe(document.body, { childList: true, subtree: true });
-</script>
     </footer>
     </html>
     """
