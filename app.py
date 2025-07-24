@@ -92,7 +92,7 @@ def generate_widget_js(agent_id, branding=None):
       const mobile = e.target.mobile.value.trim();
       const email = e.target.email.value.trim();
       if (!name||!mobile||!email) return alert("All fields are required");
-      fetch(''https://voizee.sybrant.com/log-visitor', {{
+      fetch('https://voizee.sybrant.com/log-visitor', {{
         method:'POST', headers:{{'Content-Type':'application/json'}},
         body: JSON.stringify({{name, mobile, email, url: window.location.href}})
       }});
