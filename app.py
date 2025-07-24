@@ -198,27 +198,25 @@ localStorage.setItem("convai_form_submitted", (Date.now() + 100000).toString());
 modalEl.style.display = 'none';
 
 // Delay before clicking the real Start Call button
-setTimeout(() => {
+setTimeout(() => {{
     const widget = document.querySelector('elevenlabs-convai');
     const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
-    if (realBtn) {
+    if (realBtn) {{
         console.log("✅ Found real Start Call button. Triggering click.");
         realBtn.click();
-    } else {
+    }} else {{
         console.warn("⚠️ Start Call button not found. Retrying...");
-
-        // Try again after another 300ms if not found
-        setTimeout(() => {
+        setTimeout(() => {{
             const retryBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
-            if (retryBtn) {
+            if (retryBtn) {{
                 console.log("✅ Found on retry. Clicking...");
                 retryBtn.click();
-            } else {
+            }} else {{
                 console.error("❌ Failed to find Start Call button after retry.");
-            }
-        }, 300);
-    }
-}, 300);
+            }}
+        }}, 300);
+    }}
+}}, 300);
 
     }};
   }});
