@@ -113,31 +113,21 @@ GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL = ''
 # """
 
 
-def generate_widget_js(agent_id, branding):
+def generate_widget_js(agent_id, branding=None):
     return f"""
 (function() {{
-    console.log("[Widget] Initializing...");
+    console.log("[Widget] Starting...");
 
-    // Preload style to hide branding immediately
+    // Hide branding early
     const preloadStyle = document.createElement("style");
     preloadStyle.textContent = `
-        [class*="poweredBy"],
-        div[part="branding"],
-        span:has(a[href*="elevenlabs"]),
-        a[href*="elevenlabs"],
-        [class*="_poweredBy_"],
-        div[class*="branding"],
-        [part="branding"] {{
+        [class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"]) {{
             display: none !important;
-            opacity: 0 !important;
-            visibility: hidden !important;
-            height: 0 !important;
-            pointer-events: none !important;
         }}
     `;
     document.head.appendChild(preloadStyle);
 
-    // Inject ElevenLabs widget tag and script
+    // Inject the widget
     const tag = document.createElement("elevenlabs-convai");
     tag.setAttribute("agent-id", "{agent_id}");
     document.body.appendChild(tag);
@@ -147,43 +137,40 @@ def generate_widget_js(agent_id, branding):
     script.async = true;
     document.body.appendChild(script);
 
-    // Wait for DOM ready to inject form modal
+    // Create modal on DOM ready
     window.addEventListener('DOMContentLoaded', () => {{
-        // === Modal Setup ===
+        console.log("[Widget] DOM loaded, setting up modal...");
+
         const modal = document.createElement('div');
         modal.id = 'visitor-form-modal';
         Object.assign(modal.style, {{
             display: 'none',
             position: 'fixed',
-            zIndex: '99999',
-            top: '0',
-            left: '0',
-            width: '100%',
-            height: '100%',
+            top: '0', left: '0',
+            width: '100%', height: '100%',
             background: 'rgba(0, 0, 0, 0.6)',
+            zIndex: 99999,
             alignItems: 'center',
             justifyContent: 'center'
         }});
         modal.innerHTML = `
-            <div style="background: white; padding: 30px; border-radius: 10px; width: 320px; position: relative; font-family: sans-serif;">
-                <span id="close-form" style="position: absolute; top: 10px; right: 15px; cursor: pointer;">&times;</span>
+            <div style="background:#fff;padding:30px;border-radius:12px;max-width:320px;width:90%;position:relative;">
+                <span id="close-form" style="position:absolute;top:8px;right:12px;font-size:20px;cursor:pointer;">&times;</span>
+                <h3 style="margin-bottom:15px;">Tell us about you</h3>
                 <form id="visitor-form">
-                    <h3 style="margin-bottom: 15px;">Tell us about you</h3>
-                    <input type="text" name="name" placeholder="Name" required style="width:100%;margin:8px 0;padding:8px;" />
-                    <input type="tel" name="mobile" placeholder="Mobile (+91...)" required style="width:100%;margin:8px 0;padding:8px;" />
-                    <input type="email" name="email" placeholder="Email" required style="width:100%;margin:8px 0;padding:8px;" />
-                    <button type="submit" style="width:100%;padding:10px;margin-top:10px;background:#106FAB;color:#fff;border:none;border-radius:5px;">Start Call</button>
+                    <input name="name" placeholder="Name" required style="width:100%;margin:8px 0;padding:8px;" />
+                    <input name="mobile" type="tel" placeholder="Mobile" required style="width:100%;margin:8px 0;padding:8px;" />
+                    <input name="email" type="email" placeholder="Email" required style="width:100%;margin:8px 0;padding:8px;" />
+                    <button type="submit" style="width:100%;padding:10px;background:#106FAB;color:#fff;border:none;border-radius:4px;">Start Call</button>
                 </form>
             </div>
         `;
         document.body.appendChild(modal);
 
-        // Close modal logic
-        document.getElementById("close-form").onclick = () => modal.style.display = "none";
-        window.onclick = e => e.target === modal && (modal.style.display = "none");
+        document.getElementById('close-form').onclick = () => modal.style.display = 'none';
+        window.onclick = e => e.target === modal && (modal.style.display = 'none');
 
-        // Form submission handler
-        document.getElementById("visitor-form").onsubmit = e => {{
+        document.getElementById('visitor-form').onsubmit = e => {{
             e.preventDefault();
             const name = e.target.name.value.trim();
             const mobile = e.target.mobile.value.trim();
@@ -201,75 +188,71 @@ def generate_widget_js(agent_id, branding):
                 body: JSON.stringify({{ name, mobile, email, url }})
             }}).then(() => {{
                 localStorage.setItem("convai_form_submitted", (Date.now() + 5 * 60 * 1000).toString());
-                modal.style.display = "none";
-                attemptClickStartCall(5); // Retry up to 5 times
+                modal.style.display = 'none';
+                attemptStartCall(3);
             }}).catch(err => {{
-                console.error("Error submitting form:", err);
-                alert("Failed to log visitor. Please try again.");
+                console.error("❌ Error submitting form:", err);
+                alert("Something went wrong. Try again.");
             }});
         }};
     }});
 
-    // === Mutation Observer to monitor widget load and hook button ===
-    const observer = new MutationObserver(() => {{
-        const widget = document.querySelector("elevenlabs-convai");
-        const shadow = widget?.shadowRoot;
-        if (!shadow) return;
-
-        // Try to remove branding from inside Shadow DOM
-        const branding = shadow.querySelector("[part='branding'], [class*='poweredBy']");
-        branding?.remove();
-
-        const btn = shadow.querySelector('button[title="Start a call"]');
+    // MutationObserver to hook into Start Call button
+    const observer = new MutationObserver((_, obs) => {{
+        const widget = document.querySelector('elevenlabs-convai');
+        const btn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
         if (btn && !btn._hooked) {{
+            console.log("[Widget] Hooking Start Call button");
             btn._hooked = true;
-            console.log("Found Start Call button");
 
-            // Overlay invisible proxy to intercept first click
-            const overlay = document.createElement("div");
-            Object.assign(overlay.style, {{
-                position: 'absolute',
-                top: btn.offsetTop + 'px',
-                left: btn.offsetLeft + 'px',
-                width: btn.offsetWidth + 'px',
-                height: btn.offsetHeight + 'px',
-                background: 'transparent',
-                zIndex: '9999',
-                cursor: 'pointer'
-            }});
+            const copy = btn.cloneNode(true);
+            copy.innerText = btn.innerText;
+            copy.style.position = 'absolute';
+            copy.style.top = btn.offsetTop + 'px';
+            copy.style.left = btn.offsetLeft + 'px';
+            copy.style.width = btn.offsetWidth + 'px';
+            copy.style.height = btn.offsetHeight + 'px';
+            copy.style.background = 'transparent';
+            copy.style.border = 'none';
+            copy.style.cursor = 'pointer';
+
             btn.parentElement.style.position = 'relative';
-            btn.parentElement.appendChild(overlay);
+            btn.style.opacity = '0';
+            btn.parentElement.appendChild(copy);
 
-            overlay.onclick = e => {{
+            copy.addEventListener('click', e => {{
                 e.preventDefault();
                 const expiry = localStorage.getItem("convai_form_submitted");
                 if (expiry && Date.now() < parseInt(expiry)) {{
-                    console.log("Start call allowed, triggering...");
+                    console.log("[Widget] Form already submitted. Starting call...");
                     btn.click();
                 }} else {{
-                    document.getElementById('visitor-form-modal').style.display = 'flex';
+                    console.log("[Widget] Showing modal form");
+                    const modal = document.getElementById('visitor-form-modal');
+                    modal && (modal.style.display = 'flex');
                 }}
-            }};
+            }});
+            obs.disconnect();
         }}
     }});
     observer.observe(document.body, {{ childList: true, subtree: true }});
 
-    // === Retry click on original button after form submission ===
-    function attemptClickStartCall(retries) {{
+    function attemptStartCall(retries) {{
         const widget = document.querySelector('elevenlabs-convai');
         const btn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
         if (btn) {{
-            console.log("Retry click: Triggering real button");
+            console.log("[Widget] ✅ Start Call button found. Clicking...");
             btn.click();
         }} else if (retries > 0) {{
-            console.log("Retrying... attempts left:", retries);
-            setTimeout(() => attemptClickStartCall(retries - 1), 300);
+            console.warn("[Widget] ⏳ Retry clicking Start Call. Retries left:", retries);
+            setTimeout(() => attemptStartCall(retries - 1), 400);
         }} else {{
-            console.error("Failed to find Start Call button after retries.");
+            console.error("[Widget] ❌ Failed to click Start Call after retries.");
         }}
     }}
 }})();
 """
+
 
 
 
