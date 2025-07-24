@@ -92,13 +92,21 @@ def generate_widget_js(agent_id, branding=None):
       const mobile = e.target.mobile.value.trim();
       const email = e.target.email.value.trim();
       if (!name||!mobile||!email) return alert("All fields are required");
-      fetch('/log-visitor', {{
+      fetch(''https://voizee.sybrant.com/log-visitor', {{
         method:'POST', headers:{{'Content-Type':'application/json'}},
         body: JSON.stringify({{name, mobile, email, url: window.location.href}})
       }});
       localStorage.setItem("convai_form_submitted", (Date.now()+86400000).toString());
       modal.style.display = 'none';
-      setTimeout(() => btn.click(), 300);
+      setTimeout(() => {
+    const widget = document.querySelector('elevenlabs-convai');
+    const btn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
+    if (btn) {
+      btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+    } else {
+      console.warn("Start a call button not found");
+    }
+  }, 300);
     }};
   }});
 }})();
