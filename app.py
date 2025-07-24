@@ -15,8 +15,8 @@ CORS(app)
 
 GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
 
-GOOGLE_SHEET_WEBHOOK_URL_KFWCORP = 'https://script.google.com/macros/s/AKfycbxhzOgy-0_Iu-6MRSq7CjgG2xKQKtiZNxgcKWpnIV_9kS3E0uq4Kdl2E0vnsjuJxdLb/exec'
-
+# GOOGLE_SHEET_WEBHOOK_URL_KFWCORP = 'https://script.google.com/macros/s/AKfycbxhzOgy-0_Iu-6MRSq7CjgG2xKQKtiZNxgcKWpnIV_9kS3E0uq4Kdl2E0vnsjuJxdLb/exec'
+GOOGLE_SHEET_WEBHOOK_URL_KFWCORP = 'https://script.google.com/macros/s/AKfycbyz_hKcLbZFYFSN_4HUTpegNliZRTT0rIzRcnxpQO-vPKOVf6n9mbVNwPB_1NCHNctXGQ/exec'
 
 # --- JS Generator ---
 def generate_widget_js(agent_id, branding):
