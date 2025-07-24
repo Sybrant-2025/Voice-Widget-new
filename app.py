@@ -196,28 +196,14 @@ def generate_widget_js(agent_id, branding=None):
         body: JSON.stringify({{ name, mobile, email, url }})
       }});
 
-      localStorage.setItem("convai_form_submitted", (Date.now() + 86400000).toString());
-      modal.style.display = 'none';
 
-      setTimeout(() => {{
-        const widget = document.querySelector('elevenlabs-convai');
-        const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
-        if (realBtn) {{
-          console.log("✅ Found real Start Call button. Triggering click.");
-          realBtn.click();
-        }} else {{
-          console.warn("⚠️ Start Call button not found. Retrying...");
-          setTimeout(() => {{
-            const retryBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
-            if (retryBtn) {{
-              console.log("✅ Found on retry. Clicking...");
-              retryBtn.click();
-            }} else {{
-              console.error("❌ Failed to find Start Call button after retry.");
-            }}
-          }}, 300);
-        }}
-      }}, 300);
+     localStorage.setItem("convai_form_submitted", (Date.now() + 100000).toString());
+     modalEl.style.display = 'none';
+
+     const widget = document.querySelector('elevenlabs-convai');
+     const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
+    realBtn?.click();
+
     }};
   }});
 }})();
