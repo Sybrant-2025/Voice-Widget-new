@@ -136,12 +136,16 @@ def generate_widget_js(agent_id, branding=None):
     console.log("[Widget] DOM loaded, injecting modal...");
     const modal = document.createElement('div');
     modal.id = 'visitor-form-modal';
-    modal.style = `
-      display: none; position: fixed; z-index:9999;
-      top:0;left:0;width:100%;height:100%;
-      background: rgba(0,0,0,0.6);
-      align-items:center;justify-content:center;
-    `;
+    modal.setAttribute("style", `
+    display: none;
+    position: fixed;
+    z-index: 99999;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+`);
     modal.innerHTML = `
       <div style="background:#fff;padding:30px;border-radius:12px;max-width:320px;width:90%;text-align:center;">
         <span id="close-form" style="cursor:pointer;position:absolute;top:8px;right:12px;">&times;</span>
