@@ -15,6 +15,7 @@ CORS(app)
 
 GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
 
+GOOGLE_SHEET_WEBHOOK_URL_KFWCORP = 'https://script.google.com/macros/s/AKfycbxhzOgy-0_Iu-6MRSq7CjgG2xKQKtiZNxgcKWpnIV_9kS3E0uq4Kdl2E0vnsjuJxdLb/exec'
 
 
 # --- JS Generator ---
@@ -259,16 +260,57 @@ def serve_galent():
 
 
 # --- Form Submission Logging ---
+# @app.route('/log-visitor', methods=['POST'])
+# def log_visitor():
+#     data = request.json
+#     print("Visitor Info:", data)
+#     try:
+#         res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
+#         print("Google Sheet Response:", res.text)
+#     except Exception as e:
+#         print("Error sending to Google Sheet:", e)
+#     return {"status": "ok"}
+
+# --- Form Submission Logging ---
 @app.route('/log-visitor', methods=['POST'])
 def log_visitor():
-    data = request.json
+    data = request.json or {}
     print("Visitor Info:", data)
+
+    # Always log to the master sheet
     try:
-        res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
-        print("Google Sheet Response:", res.text)
+        res_all = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
+        print("All Sheet Response:", res_all.text)
     except Exception as e:
-        print("Error sending to Google Sheet:", e)
+        print("Error sending to master sheet:", e)
+
+    # Determine product based on URL
+    url = data.get("url", "").lower()
+    webhook_url = None
+
+    if "kfwcorp" in url:
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_KFWCORP
+    elif "successgyan" in url:
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_SUCCESS_GYAN
+    elif "sybrant" in url:
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_SYBRANT
+    elif "galent" in url:
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_GALENT
+    elif "myndwell" in url:
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL
+
+    # Log to product-specific sheet if matched
+    if webhook_url:
+        try:
+            res_product = requests.post(webhook_url, json=data)
+            print("Product Sheet Response:", res_product.text)
+        except Exception as e:
+            print(f"Error sending to product sheet ({webhook_url}):", e)
+    else:
+        print("No product-specific sheet found for URL:", url)
+
     return {"status": "ok"}
+
 
 
 # --- Demo Pages ---
@@ -314,9 +356,9 @@ def demo_successgyan():
             <img src="https://successgyan.com/wp-content/uploads/2024/02/SG-logo-1@2x-150x67.png" alt="SuccessGyan Logo" height="60">
         </div>
         <h2>SuccessGyan Voice Assistant Demo</h2>
-        <div class="widget-wrapper">
+        
             <script src="/successgyan?agent=agent_01k06m09xefx4vxwc0drtf6sje"></script>
-        </div>
+        
             <script>
 function removeBrandingFromWidget() {
   const widget = document.querySelector('elevenlabs-convai');
@@ -336,9 +378,9 @@ function removeBrandingFromWidget() {
   return brandingElements.length > 0;
 }
 
-const tryRemove = () => {
-  const success = removeBrandingFromWidget();
+const tryRemove = () => {randingFromWidget();
   if (!success) {
+  const success = removeB
     setTimeout(tryRemove, 300);  // retry until it appears
   }
 };
@@ -397,9 +439,10 @@ def demo_kfwcorp():
             <img src="https://kfwcorp.com/assets/img/logo-w.png" alt="KFWCorpl Logo" height="60">
         </div>
         <h2>KFWCorp Voice Assistant Demo</h2>
-        <div class="widget-wrapper">
-            <script src="/kfwcorp?agent=agent_01jzm4vq12f58bfgnyr07ac819"></script>
-        </div>
+        
+    </body>
+    <footer>
+    <script src="/kfwcorp?agent=agent_01jzm4vq12f58bfgnyr07ac819"></script>
       <script>
 function removeBrandingFromWidget() {
   const widget = document.querySelector('elevenlabs-convai');
@@ -432,7 +475,7 @@ tryRemove(); // start the removal loop
 const observer = new MutationObserver(() => removeBrandingFromWidget());
 observer.observe(document.body, { childList: true, subtree: true });
 </script>
-    </body>
+    </footer>
     </html>
     """
     return render_template_string(html)
