@@ -188,24 +188,38 @@ def generate_widget_js(agent_id, branding=None):
       const email = e.target.email.value.trim();
       if (!name || !mobile || !email) return alert("All fields are required");
 
-      fetch('https://voizee.sybrant.com/log-visitor', {{
-        method: 'POST',
-        headers: {{ 'Content-Type': 'application/json' }},
-        body: JSON.stringify({{ name, mobile, email, url: window.location.href }})
-      }});
+      fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, mobile, email, url })
+});
 
-      localStorage.setItem("convai_form_submitted", (Date.now() + 86400000).toString());
-      modal.style.display = 'none';
+localStorage.setItem("convai_form_submitted", (Date.now() + 100000).toString());
+modalEl.style.display = 'none';
 
-      setTimeout(() => {{
-        const widget = document.querySelector('elevenlabs-convai');
-        const btn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
-        if (btn) {{
-          btn.click();
-        }} else {{
-          console.warn("Start a call button not found");
-        }}
-      }}, 300);
+// Delay before clicking the real Start Call button
+setTimeout(() => {
+    const widget = document.querySelector('elevenlabs-convai');
+    const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
+    if (realBtn) {
+        console.log("✅ Found real Start Call button. Triggering click.");
+        realBtn.click();
+    } else {
+        console.warn("⚠️ Start Call button not found. Retrying...");
+
+        // Try again after another 300ms if not found
+        setTimeout(() => {
+            const retryBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
+            if (retryBtn) {
+                console.log("✅ Found on retry. Clicking...");
+                retryBtn.click();
+            } else {
+                console.error("❌ Failed to find Start Call button after retry.");
+            }
+        }, 300);
+    }
+}, 300);
+
     }};
   }});
 }})();
