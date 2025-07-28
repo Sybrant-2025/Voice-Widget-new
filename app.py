@@ -225,6 +225,7 @@ def generate_widget_js(agent_id, branding):
 
 
 
+
 # Widget endpoints with explicit brand strings
 @app.route('/convai-widget.js')
 def serve_convai_widget():
