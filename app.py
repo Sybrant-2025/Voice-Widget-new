@@ -1,20 +1,23 @@
-from flask import Flask, request, Response, render_template_string
+from flask import Flask, request, Response
 from flask_cors import CORS
+from flask import render_template_string
 import requests
+
 
 app = Flask(__name__)
 CORS(app)
 
-# Constants: Google Sheet Webhook URLs
-GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
-GOOGLE_SHEET_WEBHOOK_URL_KFWCORP = 'https://script.google.com/macros/s/AKfycbzEyuAW9j3WbPlTAcnpml0uMXAx_UnpQrw0JjfWZ4ew7HxhJZt04Z31ItpBpfoFo9y1yw/exec'
-# Add other URLs as needed, example:
-GOOGLE_SHEET_WEBHOOK_URL_SUCCESS_GYAN = ''  # You can fill this if needed
-GOOGLE_SHEET_WEBHOOK_URL_SYBRANT = ''
-GOOGLE_SHEET_WEBHOOK_URL_GALENT = ''
-GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL = ''
+# --- Constants ---
+# GOOGLE_SHEET_WEBHOOK_URL = (
+#     'https://script.google.com/macros/s/'
+#     'AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
+# )
 
-# JS Generator (branding param is currently unused inside function, so you can remove it)
+GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
+
+
+
+# --- JS Generator ---
 def generate_widget_js(agent_id, branding):
     return f"""
     (function() {{
@@ -223,147 +226,476 @@ def generate_widget_js(agent_id, branding):
     """
 
 
-
-
-
-# Widget endpoints with explicit brand strings
+# --- Serve Branded Widget Scripts ---
 @app.route('/convai-widget.js')
-def serve_convai_widget():
-    agent_id = request.args.get('agent', '')
-    return Response(generate_widget_js(agent_id, branding=None), mimetype='application/javascript')
+def serve_sybrant_widget():
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = generate_widget_js(agent_id, branding="Powered by Sybrant")
+    return Response(js, mimetype='application/javascript')
 
 @app.route('/successgyan')
 def serve_successgyan_widget():
-    agent_id = request.args.get('agent', '')
-    return Response(generate_widget_js(agent_id, branding="successgyan"), mimetype='application/javascript')
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = generate_widget_js(agent_id, branding="Powered by successgyan")
+    return Response(js, mimetype='application/javascript')
 
 @app.route('/kfwcorp')
 def serve_kfwcorp_widget():
-    agent_id = request.args.get('agent', '')
-    return Response(generate_widget_js(agent_id, branding="kfwcorp"), mimetype='application/javascript')
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = generate_widget_js(agent_id, branding="Powered by kfwcorp")
+    return Response(js, mimetype='application/javascript')
 
 @app.route('/myndwell')
 def serve_myndwell_widget():
-    agent_id = request.args.get('agent', '')
-    return Response(generate_widget_js(agent_id, branding="myndwell"), mimetype='application/javascript')
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = generate_widget_js(agent_id, branding="Powered by myndwell")
+    return Response(js, mimetype='application/javascript')
 
 @app.route('/galent')
-def serve_galent_widget():
-    agent_id = request.args.get('agent', '')
-    return Response(generate_widget_js(agent_id, branding="galent"), mimetype='application/javascript')
+def serve_galent():
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = generate_widget_js(agent_id, branding="Powered by galent")
+    return Response(js, mimetype='application/javascript')
 
-# Log visitor form submissions
+
+@app.route('/orientbell')
+def serve_orientbell():
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = generate_widget_js(agent_id, branding="Powered by orientbell")
+    return Response(js, mimetype='application/javascript')
+
+
+# --- Form Submission Logging ---
 @app.route('/log-visitor', methods=['POST'])
 def log_visitor():
-    data = request.json or {}
-    print("=== log-visitor POST ===\n", data, "\nURL:", data.get('url'))
-
-    # Master log
+    data = request.json
+    print("Visitor Info:", data)
     try:
-        res_all = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
-        print("Master sheet:", res_all.status_code)
+        res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
+        print("Google Sheet Response:", res.text)
     except Exception as e:
-        print("Error master:", e)
-
-    url = data.get('url', '').lower()
-
-    # Map keywords to webhook URLs (make sure to fill them)
-    webhook_map = {
-        "kfwcorp": GOOGLE_SHEET_WEBHOOK_URL_KFWCORP,
-        "successgyan": GOOGLE_SHEET_WEBHOOK_URL_SUCCESS_GYAN,
-        "sybrant": GOOGLE_SHEET_WEBHOOK_URL_SYBRANT,
-        "galent": GOOGLE_SHEET_WEBHOOK_URL_GALENT,
-        "myndwell": GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL,
-    }
-
-    for keyword, hook in webhook_map.items():
-        if hook and keyword in url:
-            try:
-                res = requests.post(hook, json=data)
-                print(f"{keyword} sheet:", res.status_code)
-            except Exception as e:
-                print(f"Error {keyword} sheet:", e)
-            break
-
+        print("Error sending to Google Sheet:", e)
     return {"status": "ok"}
 
-# Demo pages (inject correct agent IDs)
-def render_demo(brand, logo_url, agent_id):
-    return f"""
+
+# --- Demo Pages ---
+@app.route('/demo/successgyan')
+def demo_successgyan():
+    html = """
     <!DOCTYPE html>
     <html>
-    <head><title>{brand.title()} Demo</title></head>
-    <body style="text-align:center;padding:20px;">
-        <img src="{logo_url}" alt="{brand} logo" height="60">
-        <h2>{brand.title()} Voice Demo</h2>
-        <script src="/{brand}?agent={agent_id}"></script>
+    <head>
+        <title>SuccessGyan Voice Agent Demo</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin: 0;
+                padding: 0;
+                background: #f5f7fa;
+            }
+            .logo {
+                margin-top: 40px;
+                background: #181A1C;
+            }
+            .widget-wrapper {
+                margin-top: 60px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 400px;
+                position: relative;
+            }
+            /* Override widget position via script injection */
+            script + elevenlabs-convai {
+                position: absolute !important;
+                bottom: 50% !important;
+                right: 50% !important;
+                transform: translate(50%, 50%) !important;
+                z-index: 1000 !important;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="logo">
+            <img src="https://successgyan.com/wp-content/uploads/2024/02/SG-logo-1@2x-150x67.png" alt="SuccessGyan Logo" height="60">
+        </div>
+        <h2>SuccessGyan Voice Assistant Demo</h2>
+        <div class="widget-wrapper">
+            <script src="/successgyan?agent=agent_01k06m09xefx4vxwc0drtf6sje"></script>
+        </div>
+            <script>
+function removeBrandingFromWidget() {
+  const widget = document.querySelector('elevenlabs-convai');
+  if (!widget || !widget.shadowRoot) return false;
 
-        <script>
-        function customizeConvaiWidget() {{
-            const convaiEl = document.querySelector("elevenlabs-convai");
-            if (!convaiEl || !convaiEl.shadowRoot) {{
-                setTimeout(customizeConvaiWidget, 300);
-                return;
-            }}
+  const shadow = widget.shadowRoot;
+  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
 
-            const shadow = convaiEl.shadowRoot;
+  brandingElements.forEach(el => el.remove());
 
-            // Hide avatar
-            const avatar = shadow.querySelector("._avatar_1f9vw_68");
-            if (avatar) avatar.style.display = "none";
+  // Optionally remove footer shadow or extra boxes
+  const footer = shadow.querySelector('[class*="_box_"]');
+  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
+    footer.remove();
+  }
 
-            // Transparent chat box
-            const box = shadow.querySelector("._box_1f9vw_39");
-            if (box) {{
-                box.style.backgroundColor = "transparent";
-                box.style.boxShadow = "none";
-                box.style.border = "none";
-                box.style.outline = "none";
-            }}
-        }}
+  return brandingElements.length > 0;
+}
 
-        window.addEventListener("DOMContentLoaded", () => {{
-            setTimeout(customizeConvaiWidget, 1000);
-        }});
-        </script>
+const tryRemove = () => {
+  const success = removeBrandingFromWidget();
+  if (!success) {
+    setTimeout(tryRemove, 300);  // retry until it appears
+  }
+};
+
+tryRemove(); // start the removal loop
+
+// Also attach MutationObserver in case of dynamic updates
+const observer = new MutationObserver(() => removeBrandingFromWidget());
+observer.observe(document.body, { childList: true, subtree: true });
+</script>
     </body>
     </html>
     """
+    return render_template_string(html)
 
 
 @app.route('/demo/kfwcorp')
-def demo_kfw():
-    return render_template_string(render_demo(
-        'kfwcorp',
-        'https://kfwcorp.com/assets/img/logo-w.png',
-        'agent_01jzm4vq12f58bfgnyr07ac819'
-    ))
+def demo_kfwcorp():
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>kfwcorp Voice Agent Demo</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin: 0;
+                padding: 0;
+                background: #f5f7fa;
+            }
+            .logo {
+                margin-top: 40px;
+                background: #001F54;
+            }
+            .widget-wrapper {
+                margin-top: 60px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 400px;
+                position: relative;
+            }
+            /* Override widget position via script injection */
+            script + elevenlabs-convai {
+                position: absolute !important;
+                bottom: 50% !important;
+                right: 50% !important;
+                transform: translate(50%, 50%) !important;
+                z-index: 1000 !important;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="logo">
+            <img src="https://kfwcorp.com/assets/img/logo-w.png" alt="KFWCorpl Logo" height="60">
+        </div>
+        <h2>KFWCorp Voice Assistant Demo</h2>
+        <div class="widget-wrapper">
+            <script src="/kfwcorp?agent=agent_01jzm4vq12f58bfgnyr07ac819"></script>
+        </div>
+      <script>
+function removeBrandingFromWidget() {
+  const widget = document.querySelector('elevenlabs-convai');
+  if (!widget || !widget.shadowRoot) return false;
 
-@app.route('/demo/successgyan')
-def demo_successgyan():
-    return render_template_string(render_demo(
-        'successgyan',
-        'https://successgyan.com/wp-content/uploads/2024/02/SG-logo-1@2x-150x67.png',
-        'agent_01k06m09xefx4vxwc0drtf6sje'
-    ))
+  const shadow = widget.shadowRoot;
+  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
+
+  brandingElements.forEach(el => el.remove());
+
+  // Optionally remove footer shadow or extra boxes
+  const footer = shadow.querySelector('[class*="_box_"]');
+  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
+    footer.remove();
+  }
+
+  return brandingElements.length > 0;
+}
+
+const tryRemove = () => {
+  const success = removeBrandingFromWidget();
+  if (!success) {
+    setTimeout(tryRemove, 300);  // retry until it appears
+  }
+};
+
+tryRemove(); // start the removal loop
+
+// Also attach MutationObserver in case of dynamic updates
+const observer = new MutationObserver(() => removeBrandingFromWidget());
+observer.observe(document.body, { childList: true, subtree: true });
+</script>
+    </body>
+    </html>
+    """
+    return render_template_string(html)
+
 
 @app.route('/demo/myndwell')
 def demo_myndwell():
-    return render_template_string(render_demo(
-        'myndwell',
-        'https://myndwell.io/wp-content/uploads/2022/11/logo.png',
-        'agent_01k099ck2mf0tr5g558de7w0av'
-    ))
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Myndwell Voice Agent Demo</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin: 0;
+                padding: 0;
+                background: #f5f7fa;
+            }
+            .logo {
+                margin-top: 40px;
+            }
+            .widget-wrapper {
+                margin-top: 60px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 400px;
+                position: relative;
+            }
+            /* Override widget position via script injection */
+            script + elevenlabs-convai {
+                position: absolute !important;
+                bottom: 50% !important;
+                right: 50% !important;
+                transform: translate(50%, 50%) !important;
+                z-index: 1000 !important;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="logo">
+            <img src="https://myndwell.io/wp-content/uploads/2022/11/logo.png" alt="Myndwell Logo" height="60">
+        </div>
+        <h2>Myndwell Voice Assistant Demo</h2>
+        <div class="widget-wrapper">
+            <script src="/myndwell?agent=agent_01k099ck2mf0tr5g558de7w0av"></script>
+        </div>
+    <script>
+function removeBrandingFromWidget() {
+  const widget = document.querySelector('elevenlabs-convai');
+  if (!widget || !widget.shadowRoot) return false;
+
+  const shadow = widget.shadowRoot;
+  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
+
+  brandingElements.forEach(el => el.remove());
+
+  // Optionally remove footer shadow or extra boxes
+  const footer = shadow.querySelector('[class*="_box_"]');
+  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
+    footer.remove();
+  }
+
+  return brandingElements.length > 0;
+}
+
+const tryRemove = () => {
+  const success = removeBrandingFromWidget();
+  if (!success) {
+    setTimeout(tryRemove, 300);  // retry until it appears
+  }
+};
+
+tryRemove(); // start the removal loop
+
+// Also attach MutationObserver in case of dynamic updates
+const observer = new MutationObserver(() => removeBrandingFromWidget());
+observer.observe(document.body, { childList: true, subtree: true });
+</script>
+    </body>
+    </html>
+    """
+    return render_template_string(html)
+
+
+@app.route('/demo/galent')
+def demo_galent():
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Galent Voice Agent Demo</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin: 0;
+                padding: 0;
+                background: #f5f7fa;
+            }
+            .logo {
+                margin-top: 40px;
+            }
+            .widget-wrapper {
+                margin-top: 60px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 400px;
+                position: relative;
+            }
+            /* Override widget position via script injection */
+            script + elevenlabs-convai {
+                position: absolute !important;
+                bottom: 50% !important;
+                right: 50% !important;
+                transform: translate(50%, 50%) !important;
+                z-index: 1000 !important;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="logo">
+            <img src="https://galent.com/wp-content/themes/twentytwentyone/img/icons/galent-nav-logo.svg" alt="galent Logo" height="60">
+        </div>
+        <h2>Galent Voice Assistant Demo</h2>
+        <div class="widget-wrapper">
+            <script src="/galent?agent=agent_01k0bxx69dezk91kdpvgj9k8yn"></script>
+        </div>
+
+    <script>
+function removeBrandingFromWidget() {
+  const widget = document.querySelector('elevenlabs-convai');
+  if (!widget || !widget.shadowRoot) return false;
+
+  const shadow = widget.shadowRoot;
+  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
+
+  brandingElements.forEach(el => el.remove());
+
+  // Optionally remove footer shadow or extra boxes
+  const footer = shadow.querySelector('[class*="_box_"]');
+  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
+    footer.remove();
+  }
+
+  return brandingElements.length > 0;
+}
+
+const tryRemove = () => {
+  const success = removeBrandingFromWidget();
+  if (!success) {
+    setTimeout(tryRemove, 300);  // retry until it appears
+  }
+};
+
+tryRemove(); // start the removal loop
+
+// Also attach MutationObserver in case of dynamic updates
+const observer = new MutationObserver(() => removeBrandingFromWidget());
+observer.observe(document.body, { childList: true, subtree: true });
+</script>
+
+    </body>
+    </html>
+    """
+    return render_template_string(html)
+
 
 @app.route('/demo/orientbell')
 def demo_orientbell():
-    return render_template_string(render_demo(
-        'Orientbell',
-        'https://tiles.orientbell.com/landingpage/logo/logo.png',
-        'agent_0501k16aqfe5f0xvnp0eg2c532bt'
-    ))
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>orientbell Voice Agent Demo</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin: 0;
+                padding: 0;
+                background: #f5f7fa;
+            }
+            .logo {
+                margin-top: 40px;
+            }
+            .widget-wrapper {
+                margin-top: 60px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 400px;
+                position: relative;
+            }
+            /* Override widget position via script injection */
+            script + elevenlabs-convai {
+                position: absolute !important;
+                bottom: 50% !important;
+                right: 50% !important;
+                transform: translate(50%, 50%) !important;
+                z-index: 1000 !important;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="logo">
+            <img src="https://tiles.orientbell.com/landingpage/logo/logo.png" alt="galent Logo" height="60">
+        </div>
+        <h2>orientbell Voice Assistant Demo</h2>
+        <div class="widget-wrapper">
+            <script src="https://voizee.sybrant.com/orientbell?agent=agent_0501k16aqfe5f0xvnp0eg2c532bt"></script>
+        </div>
+
+    <script>
+function removeBrandingFromWidget() {
+  const widget = document.querySelector('elevenlabs-convai');
+  if (!widget || !widget.shadowRoot) return false;
+
+  const shadow = widget.shadowRoot;
+  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
+
+  brandingElements.forEach(el => el.remove());
+
+  // Optionally remove footer shadow or extra boxes
+  const footer = shadow.querySelector('[class*="_box_"]');
+  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
+    footer.remove();
+  }
+
+  return brandingElements.length > 0;
+}
+
+const tryRemove = () => {
+  const success = removeBrandingFromWidget();
+  if (!success) {
+    setTimeout(tryRemove, 300);  // retry until it appears
+  }
+};
+
+tryRemove(); // start the removal loop
+
+// Also attach MutationObserver in case of dynamic updates
+const observer = new MutationObserver(() => removeBrandingFromWidget());
+observer.observe(document.body, { childList: true, subtree: true });
+</script>
+
+    </body>
+    </html>
+    """
+    return render_template_string(html)    
 
 
+# --- Health Check & Root ---
 @app.route('/')
 def home():
     return "Voice Widget Server Running!"
@@ -372,5 +704,7 @@ def home():
 def health():
     return {"status": "healthy"}
 
+
+# --- Start Server ---
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
