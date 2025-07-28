@@ -289,45 +289,46 @@ def log_visitor():
 # Demo pages (inject correct agent IDs)
 def render_demo(brand, logo_url, agent_id):
     return f"""
-<!DOCTYPE html>
-<html>
-<head><title>{brand.title()} Demo</title></head>
-<body style="text-align:center;padding:20px;">
-  <img src="{logo_url}" alt="{brand} logo" height="60"><h2>{brand.title()} Voice Demo</h2>
-  <script src="/{brand}?agent={agent_id}"></script>
-</body>
-<footer>
-		<script>
-	  function customizeConvaiWidget() {
-    	const convaiEl = document.querySelector("elevenlabs-convai");
-    	if (!convaiEl || !convaiEl.shadowRoot) {
-      	setTimeout(customizeConvaiWidget, 300);
-      	return;
-    	}
+    <!DOCTYPE html>
+    <html>
+    <head><title>{brand.title()} Demo</title></head>
+    <body style="text-align:center;padding:20px;">
+        <img src="{logo_url}" alt="{brand} logo" height="60">
+        <h2>{brand.title()} Voice Demo</h2>
+        <script src="/{brand}?agent={agent_id}"></script>
 
-    	const shadow = convaiEl.shadowRoot;
+        <script>
+        function customizeConvaiWidget() {{
+            const convaiEl = document.querySelector("elevenlabs-convai");
+            if (!convaiEl || !convaiEl.shadowRoot) {{
+                setTimeout(customizeConvaiWidget, 300);
+                return;
+            }}
 
-    // Hide avatar
-    	const avatar = shadow.querySelector("._avatar_1f9vw_68");
-    	if (avatar) avatar.style.display = "none";
+            const shadow = convaiEl.shadowRoot;
 
-    // Make chat box fully transparent with no outline, shadow, or border
-    	const box = shadow.querySelector("._box_1f9vw_39");
-    	if (box) {
-      	box.style.backgroundColor = "transparent";
-      	box.style.boxShadow = "none";
-      	box.style.border = "none";
-      	box.style.outline = "none";
-    	}
-  	}
+            // Hide avatar
+            const avatar = shadow.querySelector("._avatar_1f9vw_68");
+            if (avatar) avatar.style.display = "none";
 
-  	window.addEventListener("DOMContentLoaded", () => {
-    	setTimeout(customizeConvaiWidget, 1000); // Delay to ensure widget loads
-  	});
-	</script>
+            // Transparent chat box
+            const box = shadow.querySelector("._box_1f9vw_39");
+            if (box) {{
+                box.style.backgroundColor = "transparent";
+                box.style.boxShadow = "none";
+                box.style.border = "none";
+                box.style.outline = "none";
+            }}
+        }}
 
-</footer>
-</html>"""
+        window.addEventListener("DOMContentLoaded", () => {{
+            setTimeout(customizeConvaiWidget, 1000);
+        }});
+        </script>
+    </body>
+    </html>
+    """
+
 
 @app.route('/demo/kfwcorp')
 def demo_kfw():
