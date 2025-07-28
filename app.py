@@ -296,6 +296,37 @@ def render_demo(brand, logo_url, agent_id):
   <img src="{logo_url}" alt="{brand} logo" height="60"><h2>{brand.title()} Voice Demo</h2>
   <script src="/{brand}?agent={agent_id}"></script>
 </body>
+<footer>
+		<script>
+	  function customizeConvaiWidget() {
+    	const convaiEl = document.querySelector("elevenlabs-convai");
+    	if (!convaiEl || !convaiEl.shadowRoot) {
+      	setTimeout(customizeConvaiWidget, 300);
+      	return;
+    	}
+
+    	const shadow = convaiEl.shadowRoot;
+
+    // Hide avatar
+    	const avatar = shadow.querySelector("._avatar_1f9vw_68");
+    	if (avatar) avatar.style.display = "none";
+
+    // Make chat box fully transparent with no outline, shadow, or border
+    	const box = shadow.querySelector("._box_1f9vw_39");
+    	if (box) {
+      	box.style.backgroundColor = "transparent";
+      	box.style.boxShadow = "none";
+      	box.style.border = "none";
+      	box.style.outline = "none";
+    	}
+  	}
+
+  	window.addEventListener("DOMContentLoaded", () => {
+    	setTimeout(customizeConvaiWidget, 1000); // Delay to ensure widget loads
+  	});
+	</script>
+
+</footer>
 </html>"""
 
 @app.route('/demo/kfwcorp')
@@ -321,6 +352,15 @@ def demo_myndwell():
         'https://myndwell.io/wp-content/uploads/2022/11/logo.png',
         'agent_01k099ck2mf0tr5g558de7w0av'
     ))
+
+@app.route('/demo/orientbell ')
+def demo_orientbell():
+    return render_template_string(render_demo(
+        'Orientbell',
+        'https://tiles.orientbell.com/landingpage/logo/logo.png',
+        'agent_0501k16aqfe5f0xvnp0eg2c532bt'
+    ))
+
 
 @app.route('/')
 def home():
