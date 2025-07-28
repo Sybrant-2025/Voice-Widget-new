@@ -354,7 +354,7 @@ def demo_myndwell():
         'agent_01k099ck2mf0tr5g558de7w0av'
     ))
 
-@app.route('/demo/orientbell ')
+@app.route('/demo/orientbell')
 def demo_orientbell():
     return render_template_string(render_demo(
         'Orientbell',
