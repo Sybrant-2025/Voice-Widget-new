@@ -285,7 +285,7 @@ def demo_successgyan():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>SuccessGyan Voice Agent Demo</title>
+        <title>SuccessGyan Voizee Assistant Demo</title>
         <style>
             body {
                 font-family: Arial, sans-serif;
@@ -368,7 +368,7 @@ def demo_kfwcorp():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>kfwcorp Voice Agent Demo</title>
+        <title>kfwcorp Voizee Assistant Demo</title>
         <style>
             body {
                 font-family: Arial, sans-serif;
@@ -451,7 +451,7 @@ def demo_myndwell():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Myndwell Voice Agent Demo</title>
+        <title>Myndwell Voizee Assistant Demo</title>
         <style>
             body {
                 font-family: Arial, sans-serif;
@@ -533,7 +533,7 @@ def demo_galent():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Galent Voice Agent Demo</title>
+        <title>Galent Voizee Assistant Demo</title>
         <style>
             body {
                 font-family: Arial, sans-serif;
@@ -617,7 +617,7 @@ def demo_orientbell():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>orientbell Voizee Agent Demo</title>
+        <title>orientbell Voizee Assistantt Demo</title>
         <style>
             body {
                 font-family: Arial, sans-serif;
@@ -651,7 +651,7 @@ def demo_orientbell():
         <div class="logo">
             <img src="https://tiles.orientbell.com/landingpage/logo/logo.png" alt="galent Logo" height="60">
         </div>
-        <h2>orientbell Voice Assistant Demo</h2>
+        <h2>Orientbell Voizee Assistant Demo</h2>
         <div class="widget-wrapper">
             <script src="https://voizee.sybrant.com/orientbell?agent=agent_0501k16aqfe5f0xvnp0eg2c532bt"></script>
         </div>
