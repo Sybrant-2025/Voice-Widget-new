@@ -320,7 +320,7 @@ def demo_successgyan():
         <div class="logo">
             <img src="https://successgyan.com/wp-content/uploads/2024/02/SG-logo-1@2x-150x67.png" alt="SuccessGyan Logo" height="60">
         </div>
-        <h2>SuccessGyan Voice Assistant Demo</h2>
+        <h2>SuccessGyan Voizee Assistant Demo</h2>
         <div class="widget-wrapper">
             <script src="/successgyan?agent=agent_01k06m09xefx4vxwc0drtf6sje"></script>
         </div>
@@ -403,7 +403,7 @@ def demo_kfwcorp():
         <div class="logo">
             <img src="https://kfwcorp.com/assets/img/logo-w.png" alt="KFWCorpl Logo" height="60">
         </div>
-        <h2>KFWCorp Voice Assistant Demo</h2>
+        <h2>KFWCorp Voizee Assistant Demo</h2>
         <div class="widget-wrapper">
             <script src="/kfwcorp?agent=agent_01jzm4vq12f58bfgnyr07ac819"></script>
         </div>
@@ -485,7 +485,7 @@ def demo_myndwell():
         <div class="logo">
             <img src="https://myndwell.io/wp-content/uploads/2022/11/logo.png" alt="Myndwell Logo" height="60">
         </div>
-        <h2>Myndwell Voice Assistant Demo</h2>
+        <h2>Myndwell Voizee Assistant Demo</h2>
         <div class="widget-wrapper">
             <script src="/myndwell?agent=agent_01k099ck2mf0tr5g558de7w0av"></script>
         </div>
@@ -567,7 +567,7 @@ def demo_galent():
         <div class="logo">
             <img src="https://galent.com/wp-content/themes/twentytwentyone/img/icons/galent-nav-logo.svg" alt="galent Logo" height="60">
         </div>
-        <h2>Galent Voice Assistant Demo</h2>
+        <h2>Galent Voizee Assistant Demo</h2>
         <div class="widget-wrapper">
             <script src="/galent?agent=agent_01k0bxx69dezk91kdpvgj9k8yn"></script>
         </div>
@@ -617,7 +617,7 @@ def demo_orientbell():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>orientbell Voice Agent Demo</title>
+        <title>orientbell Voizee Agent Demo</title>
         <style>
             body {
                 font-family: Arial, sans-serif;
