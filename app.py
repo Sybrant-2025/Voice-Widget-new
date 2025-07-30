@@ -759,33 +759,19 @@ def demo_preludesys():
             }
             .logo {
                 margin-top: 40px;
+                background: #000000;
             }
-            .widget-wrapper {
-                margin-top: 60px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 400px;
-                position: relative;
-            }
-            /* Override widget position via script injection */
-            script + elevenlabs-convai {
-                position: absolute !important;
-                bottom: 50% !important;
-                right: 50% !important;
-                transform: translate(50%, 50%) !important;
-                z-index: 1000 !important;
-            }
+            
         </style>
     </head>
     <body>
         <div class="logo">
-            <img src="https://preludesys.com/wp-content/themes/preludesys/images/logo.svg" alt="galent Logo" height="60">
+            <img src="https://preludesys.com/wp-content/themes/preludesys/images/logo.svg" alt="preludesys Logo" height="60">
         </div>
         <h2>Preludesys Voizee Assistant Demo</h2>
-        <div class="widget-wrapper">
-            <script src="https://voizee.sybrant.com/preludesys?agent=agent_3501k18965z0fetshdah8ressxza"></script>
-        </div>
+        
+    
+    <script src="https://voizee.sybrant.com/preludesys?agent=agent_3501k18965z0fetshdah8ressxza"></script>  
 
     <script>
 function removeBrandingFromWidget() {
