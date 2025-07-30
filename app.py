@@ -15,6 +15,11 @@ CORS(app)
 
 GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
 
+GOOGLE_SHEET_WEBHOOK_URL_DEFAULT = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
+GOOGLE_SHEET_WEBHOOK_URL_KFWCORP = ''
+GOOGLE_SHEET_WEBHOOK_URL_SUCCESSGYAN = 'https://script.google.com/macros/s/AKfycbyASM8a0kZ649kxqvzmkOiyYbFpdXobDPCUYEF0y3CK-409iEe9dgWnsYp5dhCCOmrLhw/exec'
+
+
 
 
 # --- JS Generator ---
@@ -211,7 +216,7 @@ def generate_widget_js(agent_id, branding):
                 fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {{
                     method: 'POST',
                     headers: {{ 'Content-Type': 'application/json' }},
-                    body: JSON.stringify({{ name, mobile, email, url }})
+                    body: JSON.stringify({{ name, mobile, email, url, brand: "{brand}" }})
                 }});
 
                 localStorage.setItem("convai_form_submitted", (Date.now() + 86400000).toString());
@@ -236,46 +241,68 @@ def serve_sybrant_widget():
 @app.route('/successgyan')
 def serve_successgyan_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by successgyan")
+    js = generate_widget_js(agent_id, branding="Powered by successgyan", brand="successgyan")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/kfwcorp')
 def serve_kfwcorp_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by kfwcorp")
+    js = generate_widget_js(agent_id, branding="Powered by kfwcorp", brand="kfwcorp")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/myndwell')
 def serve_myndwell_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by myndwell")
+    js = generate_widget_js(agent_id, branding="Powered by myndwell", brand="myndwell")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/galent')
 def serve_galent():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by galent")
+    js = generate_widget_js(agent_id, branding="Powered by galent", brand="galent")
     return Response(js, mimetype='application/javascript')
 
 
 @app.route('/orientbell')
 def serve_orientbell():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by orientbell")
+    js = generate_widget_js(agent_id, branding="Powered by orientbell", brand="orientbell")
     return Response(js, mimetype='application/javascript')
 
 
 # --- Form Submission Logging ---
+# @app.route('/log-visitor', methods=['POST'])
+# def log_visitor():
+#     data = request.json
+#     print("Visitor Info:", data)
+#     try:
+#         res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
+#         print("Google Sheet Response:", res.text)
+#     except Exception as e:
+#         print("Error sending to Google Sheet:", e)
+#     return {"status": "ok"}
+
+
 @app.route('/log-visitor', methods=['POST'])
 def log_visitor():
     data = request.json
-    print("Visitor Info:", data)
+    brand = data.get("brand", "").lower()
+
+    if brand == "successgyan":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_SUCCESSGYAN
+    elif brand == "kfwcorp":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_KFWCORP
+    else:
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
+
     try:
-        res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
-        print("Google Sheet Response:", res.text)
+        res = requests.post(webhook_url, json=data)
+        print(f"[{brand}] Google Sheet Response: {res.text}")
     except Exception as e:
-        print("Error sending to Google Sheet:", e)
+        print(f"Error sending to Google Sheet for brand '{brand}':", e)
+
     return {"status": "ok"}
+
 
 
 # --- Demo Pages ---
