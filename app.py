@@ -21,6 +21,7 @@ GOOGLE_SHEET_WEBHOOK_URL_SUCCESSGYAN = 'https://script.google.com/macros/s/AKfyc
 GOOGLE_SHEET_WEBHOOK_URL_ORIENTBELL = 'https://script.google.com/macros/s/AKfycbzA7qpkwQJBpbXb3-rLWoKzXEuR4wD2gcDY8zzTTeIn00Vu_M7FrAw8n0X26F5meJVCqw/exec'
 GOOGLE_SHEET_WEBHOOK_URL_GALENT = 'https://script.google.com/macros/s/AKfycbzZrTfc6KbWz0L98YjhWiID1Wwwhcg4_MLybcKF4plbCYzOcVMQgsPsS-cnPv5nKxVPSw/exec'
 GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL = 'https://script.google.com/macros/s/AKfycbz52ul8_xCPMWLfRFuuQxqPfgo_YgpnkPgpdsfSlfE_X17SAoVVCjK0B5efxPhfmrXImA/exec'
+GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS = 'https://script.google.com/macros/s/AKfycbwZpUmj42D_GB3AgxTqSSdQcua2byy5dvFr7dO5jJBhYrUDNhulPj-RxLtWwlz_87T5Pg/exec'
 
 
 
@@ -272,6 +273,12 @@ def serve_orientbell():
     js = generate_widget_js(agent_id, branding="Powered by orientbell", brand="orientbell")
     return Response(js, mimetype='application/javascript')
 
+@app.route('/preludesys')
+def serve_preludesys():
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = generate_widget_js(agent_id, branding="Powered by preludesys", brand="preludesys")
+    return Response(js, mimetype='application/javascript')
+
 
 # --- Form Submission Logging ---
 # @app.route('/log-visitor', methods=['POST'])
@@ -301,6 +308,8 @@ def log_visitor():
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_GALENT
     elif brand == "myndwell":
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL
+    elif brand == "preludesys":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS
     else:
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
 
@@ -690,6 +699,92 @@ def demo_orientbell():
         <h2>Orientbell Voizee Assistant Demo</h2>
         <div class="widget-wrapper">
             <script src="https://voizee.sybrant.com/orientbell?agent=agent_0501k16aqfe5f0xvnp0eg2c532bt"></script>
+        </div>
+
+    <script>
+function removeBrandingFromWidget() {
+  const widget = document.querySelector('elevenlabs-convai');
+  if (!widget || !widget.shadowRoot) return false;
+
+  const shadow = widget.shadowRoot;
+  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
+
+  brandingElements.forEach(el => el.remove());
+
+  // Optionally remove footer shadow or extra boxes
+  const footer = shadow.querySelector('[class*="_box_"]');
+  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
+    footer.remove();
+  }
+
+  return brandingElements.length > 0;
+}
+
+const tryRemove = () => {
+  const success = removeBrandingFromWidget();
+  if (!success) {
+    setTimeout(tryRemove, 300);  // retry until it appears
+  }
+};
+
+tryRemove(); // start the removal loop
+
+// Also attach MutationObserver in case of dynamic updates
+const observer = new MutationObserver(() => removeBrandingFromWidget());
+observer.observe(document.body, { childList: true, subtree: true });
+</script>
+
+    </body>
+    </html>
+    """
+    return render_template_string(html)    
+
+
+
+
+@app.route('/demo/preludesys')
+def demo_preludesys():
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Preludesys Voizee Assistantt Demo</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin: 0;
+                padding: 0;
+                background: #f5f7fa;
+            }
+            .logo {
+                margin-top: 40px;
+            }
+            .widget-wrapper {
+                margin-top: 60px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 400px;
+                position: relative;
+            }
+            /* Override widget position via script injection */
+            script + elevenlabs-convai {
+                position: absolute !important;
+                bottom: 50% !important;
+                right: 50% !important;
+                transform: translate(50%, 50%) !important;
+                z-index: 1000 !important;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="logo">
+            <img src="https://preludesys.com/wp-content/themes/preludesys/images/logo.svg" alt="galent Logo" height="60">
+        </div>
+        <h2>Preludesys Voizee Assistant Demo</h2>
+        <div class="widget-wrapper">
+            <script src="https://voizee.sybrant.com/preludesys?agent=agent_3501k18965z0fetshdah8ressxza"></script>
         </div>
 
     <script>
