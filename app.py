@@ -19,6 +19,7 @@ GOOGLE_SHEET_WEBHOOK_URL_DEFAULT = 'https://script.google.com/macros/s/AKfycbwrk
 GOOGLE_SHEET_WEBHOOK_URL_KFWCORP = 'https://script.google.com/macros/s/AKfycbxy0M-bIHt92nT_FxpyIHXTxqU1UX-bhvoJkVbgfFzb2ZlmY79WUubg2xlvE6pwdus/exec'
 GOOGLE_SHEET_WEBHOOK_URL_SUCCESSGYAN = 'https://script.google.com/macros/s/AKfycbyASM8a0kZ649kxqvzmkOiyYbFpdXobDPCUYEF0y3CK-409iEe9dgWnsYp5dhCCOmrLhw/exec'
 GOOGLE_SHEET_WEBHOOK_URL_ORIENTBELL = 'https://script.google.com/macros/s/AKfycbzA7qpkwQJBpbXb3-rLWoKzXEuR4wD2gcDY8zzTTeIn00Vu_M7FrAw8n0X26F5meJVCqw/exec'
+GOOGLE_SHEET_WEBHOOK_URL_GALENT = 'https://script.google.com/macros/s/AKfycbzZrTfc6KbWz0L98YjhWiID1Wwwhcg4_MLybcKF4plbCYzOcVMQgsPsS-cnPv5nKxVPSw/exec'
 
 
 
@@ -295,6 +296,8 @@ def log_visitor():
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_KFWCORP
     elif brand == "orientbell":
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_ORIENTBELL
+    elif brand == "orientbell":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_GALENT
     else:
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
 
