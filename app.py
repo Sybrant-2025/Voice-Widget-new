@@ -23,7 +23,7 @@ GOOGLE_SHEET_WEBHOOK_URL_SUCCESSGYAN = 'https://script.google.com/macros/s/AKfyc
 
 
 # --- JS Generator ---
-def generate_widget_js(agent_id, branding):
+def generate_widget_js(agent_id, branding, brand=""):
     return f"""
     (function() {{
         // Immediately apply global CSS to hide branding early (before widget loads)
