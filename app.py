@@ -279,11 +279,6 @@ def serve_preludesys():
     js = generate_widget_js(agent_id, branding="Powered by preludesys", brand="preludesys")
     return Response(js, mimetype='application/javascript')
 
-# app.py
-from flask import Flask, request, Response
-
-app = Flask(__name__)
-
 @app.route('/test')
 def serve_widget_script():
     agent_id = request.args.get('agent')
