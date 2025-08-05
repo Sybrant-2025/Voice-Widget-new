@@ -279,6 +279,67 @@ def serve_preludesys():
     js = generate_widget_js(agent_id, branding="Powered by preludesys", brand="preludesys")
     return Response(js, mimetype='application/javascript')
 
+# app.py
+from flask import Flask, request, Response
+
+app = Flask(__name__)
+
+@app.route('/test')
+def serve_widget_script():
+    agent_id = request.args.get('agent')
+    if not agent_id:
+        return Response("// Missing 'agent' parameter", mimetype='application/javascript')
+
+    js_code = f"""
+    // Inject ElevenLabs Widget with Branding Removed
+    (function() {{
+        const script = document.createElement('script');
+        script.src = 'https://cdn.elevenlabs.io/voice-widget/0.2.1/voice-widget.min.js';
+        script.type = 'module';
+        script.onload = () => {{
+            const widget = document.createElement('elevenlabs-convai');
+            widget.setAttribute('agent-id', '{agent_id}');
+            widget.style.position = 'fixed';
+            widget.style.bottom = '20px';
+            widget.style.right = '20px';
+            widget.style.zIndex = '9999';
+            document.body.appendChild(widget);
+        }};
+        document.head.appendChild(script);
+
+        function removeBranding() {{
+            try {{
+                const widget = document.querySelector('elevenlabs-convai');
+                if (!widget || !widget.shadowRoot) return false;
+                const shadow = widget.shadowRoot;
+                const branding = shadow.querySelectorAll(
+                    '[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])'
+                );
+                branding.forEach(el => el.remove());
+                const footer = shadow.querySelector('[class*="_box_"]');
+                if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) footer.remove();
+                return branding.length > 0;
+            }} catch (e) {{
+                return false;
+            }}
+        }}
+
+        function tryRemove(retries = 50) {{
+            const done = removeBranding();
+            if (!done && retries > 0) {{
+                setTimeout(() => tryRemove(retries - 1), 300);
+            }}
+        }}
+
+        tryRemove();
+
+        const observer = new MutationObserver(() => removeBranding());
+        observer.observe(document.body, {{ childList: true, subtree: true }});
+    }})();
+    """
+    return Response(js_code, mimetype='application/javascript')
+
+
 
 # --- Form Submission Logging ---
 # @app.route('/log-visitor', methods=['POST'])
@@ -734,6 +795,56 @@ const observer = new MutationObserver(() => removeBrandingFromWidget());
 observer.observe(document.body, { childList: true, subtree: true });
 </script>
 
+    </body>
+    </html>
+    """
+    return render_template_string(html)    
+
+
+@app.route('/demo/test')
+def demo_test():
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>orientbell Voizee Assistantt Demo</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin: 0;
+                padding: 0;
+                background: #f5f7fa;
+            }
+            .logo {
+                margin-top: 40px;
+            }
+            .widget-wrapper {
+                margin-top: 60px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 400px;
+                position: relative;
+            }
+            /* Override widget position via script injection */
+            script + elevenlabs-convai {
+                position: absolute !important;
+                bottom: 50% !important;
+                right: 50% !important;
+                transform: translate(50%, 50%) !important;
+                z-index: 1000 !important;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="logo">
+            <img src="https://tiles.orientbell.com/landingpage/logo/logo.png" alt="galent Logo" height="60">
+        </div>
+        <h2>Orientbell Voizee Assistant Demo</h2>
+        <div class="widget-wrapper">
+            <script src="https://voizee.sybrant.com/test?agent=agent_0501k16aqfe5f0xvnp0eg2c532bt"></script>
+        </div>
     </body>
     </html>
     """
