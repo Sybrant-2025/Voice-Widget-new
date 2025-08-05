@@ -304,7 +304,7 @@ def log_visitor():
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_KFWCORP
     elif brand == "orientbell":
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_ORIENTBELL
-    elif brand == "orientbell":
+    elif brand == "galent":
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_GALENT
     elif brand == "myndwell":
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL
