@@ -286,40 +286,52 @@ def serve_widget_script():
         return Response("// Missing 'agent' parameter", mimetype='application/javascript')
 
     js_code = f"""
-function removeBrandingFromWidget() {
-  const widget = document.querySelector('elevenlabs-convai');
-  if (!widget || !widget.shadowRoot) return false;
+    // Inject ElevenLabs widget
+    (function() {{
+        const script = document.createElement('script');
+        script.src = 'https://cdn.elevenlabs.io/voice-widget/0.2.1/voice-widget.min.js';
+        script.type = 'module';
+        script.onload = () => {{
+            const widget = document.createElement('elevenlabs-convai');
+            widget.setAttribute('agent-id', '{agent_id}');
+            document.body.appendChild(widget);
+        }};
+        document.head.appendChild(script);
 
-  const shadow = widget.shadowRoot;
-  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
+        function removeBrandingFromWidget() {{
+            const widget = document.querySelector('elevenlabs-convai');
+            if (!widget || !widget.shadowRoot) return false;
 
-  brandingElements.forEach(el => el.remove());
+            const shadow = widget.shadowRoot;
+            const brandingElements = shadow.querySelectorAll(
+                '[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])'
+            );
 
-  // Optionally remove footer shadow or extra boxes
-  const footer = shadow.querySelector('[class*="_box_"]');
-  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
-    footer.remove();
-  }
+            brandingElements.forEach(el => el.remove());
 
-  return brandingElements.length > 0;
-}
+            const footer = shadow.querySelector('[class*="_box_"]');
+            if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {{
+                footer.remove();
+            }}
 
-const tryRemove = () => {
-  const success = removeBrandingFromWidget();
-  if (!success) {
-    setTimeout(tryRemove, 300);  // retry until it appears
-  }
-};
+            return brandingElements.length > 0;
+        }}
 
-tryRemove(); // start the removal loop
+        const tryRemove = () => {{
+            const success = removeBrandingFromWidget();
+            if (!success) {{
+                setTimeout(tryRemove, 300);
+            }}
+        }};
 
-// Also attach MutationObserver in case of dynamic updates
-const observer = new MutationObserver(() => removeBrandingFromWidget());
-observer.observe(document.body, { childList: true, subtree: true });
+        tryRemove();
+
+        const observer = new MutationObserver(() => removeBrandingFromWidget());
+        observer.observe(document.body, {{ childList: true, subtree: true }});
+    }})();
     """
+
     return Response(js_code, mimetype='application/javascript')
-
-
 
 # --- Form Submission Logging ---
 # @app.route('/log-visitor', methods=['POST'])
