@@ -22,7 +22,7 @@ GOOGLE_SHEET_WEBHOOK_URL_ORIENTBELL = 'https://script.google.com/macros/s/AKfycb
 GOOGLE_SHEET_WEBHOOK_URL_GALENT = 'https://script.google.com/macros/s/AKfycbzZrTfc6KbWz0L98YjhWiID1Wwwhcg4_MLybcKF4plbCYzOcVMQgsPsS-cnPv5nKxVPSw/exec'
 GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL = 'https://script.google.com/macros/s/AKfycbz52ul8_xCPMWLfRFuuQxqPfgo_YgpnkPgpdsfSlfE_X17SAoVVCjK0B5efxPhfmrXImA/exec'
 GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS = 'https://script.google.com/macros/s/AKfycbwZpUmj42D_GB3AgxTqSSdQcua2byy5dvFr7dO5jJBhYrUDNhulPj-RxLtWwlz_87T5Pg/exec'
-
+GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbwLV_WE3fs1ocw_PhFpWdwC9uASNU2wbD0Uuhk-2WHte5T12c0sWOg2Pq5VtmlAIvDM/exec'
 
 
 
@@ -279,59 +279,12 @@ def serve_preludesys():
     js = generate_widget_js(agent_id, branding="Powered by preludesys", brand="preludesys")
     return Response(js, mimetype='application/javascript')
 
-@app.route('/test')
-def serve_widget_script():
-    agent_id = request.args.get('agent')
-    if not agent_id:
-        return Response("// Missing 'agent' parameter", mimetype='application/javascript')
+@app.route('/cfobridge')
+def serve_cfobridge():
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = generate_widget_js(agent_id, branding="Powered by cfobridge", brand="cfobridge")
+    return Response(js, mimetype='application/javascript')
 
-    js_code = f"""
-// Inject ElevenLabs Widget
-(function() {{
-    const script = document.createElement('script');
-    script.src = 'https://cdn.elevenlabs.io/voice-widget/0.2.1/voice-widget.min.js';
-    script.type = 'module';
-    script.onload = () => {{
-        const widget = document.createElement('elevenlabs-convai');
-        widget.setAttribute('agent-id', '{agent_id}');
-        document.body.appendChild(widget);
-    }};
-    document.head.appendChild(script);
-
-    function removeBrandingFromWidget() {{
-        const widget = document.querySelector('elevenlabs-convai');
-        if (!widget || !widget.shadowRoot) return false;
-
-        const shadow = widget.shadowRoot;
-        const brandingElements = shadow.querySelectorAll(
-            '[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])'
-        );
-
-        brandingElements.forEach(el => el.remove());
-
-        const footer = shadow.querySelector('[class*="_box_"]');
-        if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {{
-            footer.remove();
-        }}
-
-        return brandingElements.length > 0;
-    }}
-
-    const tryRemove = () => {{
-        const success = removeBrandingFromWidget();
-        if (!success) {{
-            setTimeout(tryRemove, 300);
-        }}
-    }};
-
-    tryRemove();
-
-    const observer = new MutationObserver(() => removeBrandingFromWidget());
-    observer.observe(document.body, {{ childList: true, subtree: true }});
-}})();
-    """
-
-    return Response(js_code, mimetype='application/javascript')
 
 
 # --- Form Submission Logging ---
@@ -364,6 +317,8 @@ def log_visitor():
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL
     elif brand == "preludesys":
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS
+    elif brand == "cfobridge":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE
     else:
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
 
@@ -915,7 +870,76 @@ observer.observe(document.body, { childList: true, subtree: true });
     """
     return render_template_string(html)    
 
+@app.route('/demo/cfobridge')
+def demo_cfobridge():
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>CFOBridge Voizee Assistantt Demo</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin: 0;
+                padding: 0;
+                background: #f5f7fa;
+            }
+            .logo {
+                margin-top: 40px;
+                background: #000000;
+            }
+            
+        </style>
+    </head>
+    <body>
+        <div class="logo">
+            <img src="https://cfobridge.com/assets/images/logo.webp" alt="cfobridge Logo" height="60">
+        </div>
+        <h2>CFOBridge Voizee Assistant Demo</h2>
+        
+    
+    <script src="https://voizee.sybrant.com/cfobridge?agent=agent_3201k2c2hxn4e0stk07tkjmgj4e5"></script>  
 
+    <script>
+function removeBrandingFromWidget() {
+  const widget = document.querySelector('elevenlabs-convai');
+  if (!widget || !widget.shadowRoot) return false;
+
+  const shadow = widget.shadowRoot;
+  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
+
+  brandingElements.forEach(el => el.remove());
+
+  // Optionally remove footer shadow or extra boxes
+  const footer = shadow.querySelector('[class*="_box_"]');
+  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
+    footer.remove();
+  }
+
+  return brandingElements.length > 0;
+}
+
+const tryRemove = () => {
+  const success = removeBrandingFromWidget();
+  if (!success) {
+    setTimeout(tryRemove, 300);  // retry until it appears
+  }
+};
+
+tryRemove(); // start the removal loop
+
+// Also attach MutationObserver in case of dynamic updates
+const observer = new MutationObserver(() => removeBrandingFromWidget());
+observer.observe(document.body, { childList: true, subtree: true });
+</script>
+
+    </body>
+    </html>
+    """
+    return render_template_string(html) 
+
+    
 # --- Health Check & Root ---
 @app.route('/')
 def home():
