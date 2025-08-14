@@ -23,7 +23,7 @@ GOOGLE_SHEET_WEBHOOK_URL_GALENT = 'https://script.google.com/macros/s/AKfycbzZrT
 GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL = 'https://script.google.com/macros/s/AKfycbz52ul8_xCPMWLfRFuuQxqPfgo_YgpnkPgpdsfSlfE_X17SAoVVCjK0B5efxPhfmrXImA/exec'
 GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS = 'https://script.google.com/macros/s/AKfycbwZpUmj42D_GB3AgxTqSSdQcua2byy5dvFr7dO5jJBhYrUDNhulPj-RxLtWwlz_87T5Pg/exec'
 GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbwLV_WE3fs1ocw_PhFpWdwC9uASNU2wbD0Uuhk-2WHte5T12c0sWOg2Pq5VtmlAIvDM/exec'
-
+GOOGLE_SHEET_WEBHOOK_URL_SYBRANT = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
 
 
 # --- JS Generator ---
@@ -285,6 +285,12 @@ def serve_cfobridge():
     js = generate_widget_js(agent_id, branding="Powered by cfobridge", brand="cfobridge")
     return Response(js, mimetype='application/javascript')
 
+@app.route('/sybrant')
+def serve_sybrant():
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = generate_widget_js(agent_id, branding="Powered by cfobridge", brand="cfobridge")
+    return Response(js, mimetype='application/javascript')
+
 
 
 # --- Form Submission Logging ---
@@ -319,6 +325,8 @@ def log_visitor():
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS
     elif brand == "cfobridge":
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE
+    elif brand == "sybrant":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_SYBRANT
     else:
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
 
@@ -900,6 +908,76 @@ def demo_cfobridge():
         
     
     <script src="https://voizee.sybrant.com/cfobridge?agent=agent_3201k2c2hxn4e0stk07tkjmgj4e5"></script>  
+
+    <script>
+function removeBrandingFromWidget() {
+  const widget = document.querySelector('elevenlabs-convai');
+  if (!widget || !widget.shadowRoot) return false;
+
+  const shadow = widget.shadowRoot;
+  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
+
+  brandingElements.forEach(el => el.remove());
+
+  // Optionally remove footer shadow or extra boxes
+  const footer = shadow.querySelector('[class*="_box_"]');
+  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
+    footer.remove();
+  }
+
+  return brandingElements.length > 0;
+}
+
+const tryRemove = () => {
+  const success = removeBrandingFromWidget();
+  if (!success) {
+    setTimeout(tryRemove, 300);  // retry until it appears
+  }
+};
+
+tryRemove(); // start the removal loop
+
+// Also attach MutationObserver in case of dynamic updates
+const observer = new MutationObserver(() => removeBrandingFromWidget());
+observer.observe(document.body, { childList: true, subtree: true });
+</script>
+
+    </body>
+    </html>
+    """
+    return render_template_string(html) 
+
+
+@app.route('/demo/sybrant')
+def demo_sybrant():
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Sybrant Voizee Assistantt Demo</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin: 0;
+                padding: 0;
+                background: #f5f7fa;
+            }
+            .logo {
+                margin-top: 40px;
+                background: #000000;
+            }
+            
+        </style>
+    </head>
+    <body>
+        <div class="logo">
+            <img src="https://sybrant.com/wp-content/uploads/2025/05/sybrant.png" alt="Sybrant Logo" height="60">
+        </div>
+        <h2>Sybrant Voizee Assistant Demo</h2>
+        
+    
+    <script src="https://voizee.sybrant.com/sybrant?agent=agent_01jx2adczxfw7rrv6n8ffbfsb1"></script>  
 
     <script>
 function removeBrandingFromWidget() {
