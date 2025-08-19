@@ -1031,6 +1031,19 @@ def demo_sybrant():
       box-shadow: 0 12px 28px rgba(0,0,0,0.15);
     }
 
+    .robot-image {
+  text-align: center;
+  margin: 20px 0 30px;
+}
+
+.robot-image img {
+  max-width: 280px;  /* keeps it responsive */
+  width: 100%;
+  height: auto;
+  display: inline-block;
+}
+
+
     .start-btn {
       margin-top: 20px;
       padding: 12px 24px;
@@ -1061,6 +1074,10 @@ def demo_sybrant():
     <h2>Sales Assistant Demo</h2>
     <p>Click <b>"Start a call"</b> and ask your questions about our services.</p>
     <p>We will customize this for your products / services.</p>
+  </div>
+
+    <div class="robot-image">
+    <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant.jpg" alt="Voizee Assistant" />
   </div>
 
       <script src="https://voizee.sybrant.com/sybrant?agent=agent_01jx2adczxfw7rrv6n8ffbfsb1"></script>  
