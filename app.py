@@ -1080,7 +1080,7 @@ def demo_sybrant():
     <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
   </div>
 
-      <script src="https://voizee.sybrant.com/sybrant?agent=agent_01jx2adczxfw7rrv6n8ffbfsb1"></script>  
+      <script src="https://voizee.sybrant.com/sybrant?agent=agent_01jwfxypsyfja9bjqhq5d1zp43"></script>  
 
     <script>
 function removeBrandingFromWidget() {
