@@ -948,7 +948,7 @@ observer.observe(document.body, { childList: true, subtree: true });
     return render_template_string(html) 
 
 
-@app.route('/demo/sybrant')
+
 @app.route('/demo/sybrant')
 def demo_sybrant():
     html = """
@@ -1033,7 +1033,7 @@ def demo_sybrant():
 
     .robot-image {
   text-align: center;
-  margin: 20px 0 30px;
+  margin: 20px 0 80px 30px;
 }
 
 .robot-image img {
@@ -1071,13 +1071,13 @@ def demo_sybrant():
 
   <div class="title-section">
     <h1>Sybrant Voizee</h1>
-    <h2>Sales Assistant Demo</h2>
-    <p>Click <b>"Start a call"</b> and ask your questions about our services.</p>
+    <h2>Sales Agent Demo</h2>
+    <p>Click <b>"Start a call"</b> and ask your questions about Sybrant Voizee.</p>
     <p>We will customize this for your products / services.</p>
   </div>
 
     <div class="robot-image">
-    <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant.jpg" alt="Voizee Assistant" />
+    <img src="https://sybrant.com/wp-content/uploads/2025/08/Sybrant_voizee-scaled-e1755604684557.png" alt="Voizee Assistant" />
   </div>
 
       <script src="https://voizee.sybrant.com/sybrant?agent=agent_01jx2adczxfw7rrv6n8ffbfsb1"></script>  
