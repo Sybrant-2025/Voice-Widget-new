@@ -1,4 +1,4 @@
-from flask import Flask, request, Response
++from flask import Flask, request, Response
 from flask_cors import CORS
 from flask import render_template_string
 import requests
@@ -1077,7 +1077,7 @@ def demo_sybrant():
   </div>
 
     <div class="robot-image">
-    <img src="https://sybrant.com/wp-content/uploads/2025/08/Sybrant_voizee-scaled-e1755604684557.png" alt="Voizee Assistant" />
+    <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
   </div>
 
       <script src="https://voizee.sybrant.com/sybrant?agent=agent_01jx2adczxfw7rrv6n8ffbfsb1"></script>  
