@@ -949,35 +949,121 @@ observer.observe(document.body, { childList: true, subtree: true });
 
 
 @app.route('/demo/sybrant')
+@app.route('/demo/sybrant')
 def demo_sybrant():
     html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Sybrant Voizee Assistantt Demo</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                text-align: center;
-                margin: 0;
-                padding: 0;
-                background: #f5f7fa;
-            }
-            .logo {
-                margin-top: 40px;
-                background: #000000;
-            }
-            
-        </style>
-    </head>
-    <body>
-        <div class="logo">
-            <img src="https://sybrant.com/wp-content/uploads/2025/05/sybrant.png" alt="Sybrant Logo" height="60">
-        </div>
-        <h2>Sybrant Voizee Assistant Demo</h2>
-        
-    
-    <script src="https://voizee.sybrant.com/sybrant?agent=agent_01jx2adczxfw7rrv6n8ffbfsb1"></script>  
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sybrant Voizee</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #f5f7fa, #e4ebf7);
+      color: #222;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    header {
+      display: flex;
+      justify-content: center;
+      margin-top: 40px;
+    }
+
+    .logo-box {
+      background: #000;
+      padding: 12px 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .logo-box img {
+      height: 60px;
+      display: block;
+    }
+
+    .title-section {
+      text-align: center;
+      margin: 40px 0 30px;
+    }
+
+    .title-section h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin: 0;
+      color: #222;
+    }
+
+    .title-section h2 {
+      font-size: 22px;
+      font-weight: 500;
+      margin: 10px 0;
+      color: #555;
+    }
+
+    .title-section p {
+      font-size: 16px;
+      margin: 6px 0;
+      color: #666;
+    }
+
+    .assistant-container {
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      padding: 30px;
+      max-width: 600px;
+      width: 90%;
+      text-align: center;
+      margin-bottom: 40px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .assistant-container:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+    }
+
+    .start-btn {
+      margin-top: 20px;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 30px;
+      border: none;
+      background: #0077ff;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .start-btn:hover {
+      background: #005ecc;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-box">
+      <img src="https://sybrant.com/wp-content/uploads/2025/05/sybrant.png" alt="Sybrant Logo">
+    </div>
+  </header>
+
+  <div class="title-section">
+    <h1>Sybrant Voizee</h1>
+    <h2>Sales Assistant Demo</h2>
+    <p>Click <b>"Start a call"</b> and ask your questions about our services.</p>
+    <p>We will customize this for your products / services.</p>
+  </div>
+
+      <script src="https://voizee.sybrant.com/sybrant?agent=agent_01jx2adczxfw7rrv6n8ffbfsb1"></script>  
 
     <script>
 function removeBrandingFromWidget() {
@@ -1012,10 +1098,12 @@ const observer = new MutationObserver(() => removeBrandingFromWidget());
 observer.observe(document.body, { childList: true, subtree: true });
 </script>
 
-    </body>
-    </html>
+
+</body>
+</html>
     """
-    return render_template_string(html) 
+    return render_template_string(html)
+
 
     
 # --- Health Check & Root ---
