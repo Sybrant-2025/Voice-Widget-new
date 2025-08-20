@@ -2,6 +2,10 @@ from flask import Flask, request, Response
 from flask_cors import CORS
 from flask import render_template_string
 import requests
+import os
+import datetime
+import requests
+
 
 
 app = Flask(__name__)
@@ -24,6 +28,64 @@ GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL = 'https://script.google.com/macros/s/AKfycbz5
 GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS = 'https://script.google.com/macros/s/AKfycbwZpUmj42D_GB3AgxTqSSdQcua2byy5dvFr7dO5jJBhYrUDNhulPj-RxLtWwlz_87T5Pg/exec'
 GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbwLV_WE3fs1ocw_PhFpWdwC9uASNU2wbD0Uuhk-2WHte5T12c0sWOg2Pq5VtmlAIvDM/exec'
 GOOGLE_SHEET_WEBHOOK_URL_SYBRANT = 'https://script.google.com/macros/s/AKfycbxw4RJYQkdWRN3Fu3Vakj5C8h2P-YUN4qJZQrzxjyDk8t2dCY6Wst3wV0pJ2e5h_nn-6Q/exec'
+
+LOG_FILE = "log.txt"
+
+def append_to_log(data, webhook_url):
+    """Save visitor data into log.txt (tab separated with webhook_url)"""
+    try:
+        row = [
+            datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            data.get("name", ""),
+            data.get("mobile", ""),
+            data.get("email", ""),
+            data.get("url", ""),
+            data.get("brand", ""),
+            webhook_url
+        ]
+        line = "    ".join(row)  # 4 spaces
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except Exception as e:
+        print("Error writing to log file:", e)
+
+
+def read_log():
+    """Read log.txt into list of dicts"""
+    if not os.path.exists(LOG_FILE):
+        return []
+    entries = []
+    with open(LOG_FILE, "r", encoding="utf-8") as f:
+        for line in f:
+            parts = line.strip().split("    ")
+            if len(parts) >= 7:
+                entries.append({
+                    "timestamp": parts[0],
+                    "name": parts[1],
+                    "mobile": parts[2],
+                    "email": parts[3],
+                    "url": parts[4],
+                    "brand": parts[5],
+                    "webhook_url": parts[6]
+                })
+    return entries
+
+
+def write_log(entries):
+    """Rewrite log.txt with pending (unsent) entries"""
+    with open(LOG_FILE, "w", encoding="utf-8") as f:
+        for e in entries:
+            row = [
+                e.get("timestamp", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+                e.get("name", ""),
+                e.get("mobile", ""),
+                e.get("email", ""),
+                e.get("url", ""),
+                e.get("brand", ""),
+                e.get("webhook_url", "")
+            ]
+            f.write("    ".join(row) + "\n")
+
 
 
 # --- JS Generator ---
@@ -288,8 +350,60 @@ def serve_cfobridge():
 @app.route('/sybrant')
 def serve_sybrant():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by cfobridge", brand="cfobridge")
+    js = generate_widget_js(agent_id, branding="Powered by cfobridge", brand="sybrant")
     return Response(js, mimetype='application/javascript')
+
+def get_webhook_url(brand):
+    brand = (brand or "").lower()
+    if brand == "successgyan":
+        return GOOGLE_SHEET_WEBHOOK_URL_SUCCESSGYAN
+    elif brand == "kfwcorp":
+        return GOOGLE_SHEET_WEBHOOK_URL_KFWCORP
+    elif brand == "orientbell":
+        return GOOGLE_SHEET_WEBHOOK_URL_ORIENTBELL
+    elif brand == "galent":
+        return GOOGLE_SHEET_WEBHOOK_URL_GALENT
+    elif brand == "myndwell":
+        return GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL
+    elif brand == "preludesys":
+        return GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS
+    elif brand == "cfobridge":
+        return GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE
+    elif brand == "sybrant":
+        return GOOGLE_SHEET_WEBHOOK_URL_SYBRANT
+    else:
+        return GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
+
+
+@app.route('/log-visitor', methods=['POST'])
+def log_visitor():
+    data = request.json
+    brand = data.get("brand", "").lower()
+    webhook_url = get_webhook_url(brand)
+
+    # --- Always log first (with webhook_url) ---
+    append_to_log(data, webhook_url)
+
+    # --- Retry sending all entries (including new one) ---
+    all_entries = read_log()
+    remaining = []
+
+    for entry in all_entries:
+        try:
+            res = requests.post(entry["webhook_url"], json=entry, timeout=10)
+            if res.status_code == 200:
+                print(f"[{entry['brand']}] Sent to Google Sheet: {entry}")
+            else:
+                print(f"[{entry['brand']}] Failed {res.status_code}, keeping in log")
+                remaining.append(entry)
+        except Exception as e:
+            print(f"Error sending to Google Sheet for {entry['brand']}: {e}")
+            remaining.append(entry)
+
+    # Keep only unsent
+    write_log(remaining)
+
+    return jsonify({"status": "ok", "pending": len(remaining)})
 
 
 
@@ -306,37 +420,37 @@ def serve_sybrant():
 #     return {"status": "ok"}
 
 
-@app.route('/log-visitor', methods=['POST'])
-def log_visitor():
-    data = request.json
-    brand = data.get("brand", "").lower()
+# @app.route('/log-visitor', methods=['POST'])
+# def log_visitor():
+#     data = request.json
+#     brand = data.get("brand", "").lower()
 
-    if brand == "successgyan":
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_SUCCESSGYAN
-    elif brand == "kfwcorp":
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_KFWCORP
-    elif brand == "orientbell":
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_ORIENTBELL
-    elif brand == "galent":
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_GALENT
-    elif brand == "myndwell":
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL
-    elif brand == "preludesys":
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS
-    elif brand == "cfobridge":
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE
-    elif brand == "sybrant":
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_SYBRANT
-    else:
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
+#     if brand == "successgyan":
+#         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_SUCCESSGYAN
+#     elif brand == "kfwcorp":
+#         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_KFWCORP
+#     elif brand == "orientbell":
+#         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_ORIENTBELL
+#     elif brand == "galent":
+#         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_GALENT
+#     elif brand == "myndwell":
+#         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL
+#     elif brand == "preludesys":
+#         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS
+#     elif brand == "cfobridge":
+#         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE
+#     elif brand == "sybrant":
+#         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_SYBRANT
+#     else:
+#         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
 
-    try:
-        res = requests.post(webhook_url, json=data)
-        print(f"[{brand}] Google Sheet Response: {res.text}")
-    except Exception as e:
-        print(f"Error sending to Google Sheet for brand '{brand}':", e)
+#     try:
+#         res = requests.post(webhook_url, json=data)
+#         print(f"[{brand}] Google Sheet Response: {res.text}")
+#     except Exception as e:
+#         print(f"Error sending to Google Sheet for brand '{brand}':", e)
 
-    return {"status": "ok"}
+#     return {"status": "ok"}
 
 
 
