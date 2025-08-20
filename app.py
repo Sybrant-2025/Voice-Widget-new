@@ -1183,6 +1183,15 @@ def demo_sybrant():
     .start-btn:hover {
       background: #005ecc;
     }
+
+    [class*="_status_1968y_121"] {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  font-size: 0 !important;
+}
   </style>
 </head>
 <body>
@@ -1212,7 +1221,7 @@ function removeBrandingFromWidget() {
   if (!widget || !widget.shadowRoot) return false;
 
   const shadow = widget.shadowRoot;
-  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
+  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"]), [class*="_status_1968y_121"]');
 
   brandingElements.forEach(el => el.remove());
 
