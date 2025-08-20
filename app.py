@@ -111,6 +111,16 @@ def generate_widget_js(agent_id, branding, brand=""):
                 height: 0 !important;
                 font-size: 0 !important;
                 line-height: 0 !important;
+                pointer-events: none !important;                
+            }}
+            div[part="branding"],
+            [class*="_status_1968y_121"] {{
+                display: none !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+                height: 0 !important;
+                font-size: 0 !important;
+                line-height: 0 !important;
                 pointer-events: none !important;
             }}
         `;
