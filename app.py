@@ -277,7 +277,7 @@ def write_log(entries):
 
 
 
---- JS Generator ---
+# --- JS Generator ---
 def generate_widget_js(agent_id, branding, brand=""):
     return f"""
     (function() {{
