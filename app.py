@@ -210,7 +210,7 @@ def generate_widget_js(agent_id, branding, brand=""):
                         }}
                     }});
                 }}
-            }}, 300);
+            }}, 100);
         }});
         observer.observe(document.body, {{ childList: true, subtree: true }});
 
