@@ -1033,6 +1033,33 @@ def demo_cfobridge():
     
     <script src="https://voizee.sybrant.com/cfobridge?agent=agent_3201k2c2hxn4e0stk07tkjmgj4e5"></script>  
 
+<script>
+  const styleEnhancerInterval = setInterval(() => {
+    const widget = document.querySelector("elevenlabs-convai");
+    const shadow = widget?.shadowRoot;
+    const realStart = shadow?.querySelector('button[title="Start a call"]');
+    const clone = shadow?.querySelector('button[title="Start a call"] + div > button');
+
+    if (clone && !clone._cfoStyled) {
+      clone._cfoStyled = true;
+      Object.assign(clone.style, {
+        backgroundColor: "#0b72e7",
+        color: "#fff",
+        border: "none",
+        padding: "14px 28px",
+        borderRadius: "8px",
+        fontSize: "16px",
+        fontWeight: "bold",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+        cursor: "pointer"
+      });
+
+      clearInterval(styleEnhancerInterval); // Stop retrying once styled
+    }
+  }, 300);
+</script>
+
+
     <script>
 function removeBrandingFromWidget() {
   const widget = document.querySelector('elevenlabs-convai');
