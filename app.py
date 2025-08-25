@@ -33,133 +33,110 @@ GOOGLE_SHEET_WEBHOOK_URL_SYBRANT = 'https://script.google.com/macros/s/AKfycbxw4
 
 
 # --- Core JS generator: instant modal + triple-guard injection + per-brand cache key ---
-def generate_widget_js2(agent_id, branding):
+def generate_widget_js2(agent_id, branding, brand=""):
     return f"""
     (function() {{
-        // --- 1. Hide branding immediately ---
+        // ---- Branding Mask ----
         const preloadStyle = document.createElement("style");
         preloadStyle.textContent = `
             [class*="poweredBy"],
             div[part="branding"],
             span:has(a[href*="elevenlabs"]),
             a[href*="elevenlabs"],
-            [class*="_poweredBy_"],
-            [class*="branding"],
-            div[class*="branding"],
-            div[part="branding"] {{
+            footer,
+            .footer, .powered-by {{
                 display: none !important;
-                opacity: 0 !important;
                 visibility: hidden !important;
-                height: 0 !important;
-                pointer-events: none !important;
+                opacity: 0 !important;
             }}
         `;
         document.head.appendChild(preloadStyle);
 
-        // --- 2. Inject widget ---
-        const tag = document.createElement("elevenlabs-convai");
-        tag.setAttribute("agent-id", "{agent_id}");
-        document.body.appendChild(tag);
-
-        const script = document.createElement("script");
-        script.src = "https://elevenlabs.io/convai-widget/index.js";
-        script.async = true;
-        document.body.appendChild(script);
-
-        // --- 3. Ensure modal exists (triple guard) ---
-        function ensureModal() {{
-            if (document.getElementById("visitor-form-modal")) return;
-            const modal = document.createElement('div');
-            modal.id = 'visitor-form-modal';
-            modal.style = `
-                display:none;position:fixed;z-index:99999;top:0;left:0;width:100%;height:100%;
-                background:rgba(0,0,0,0.6);align-items:center;justify-content:center;
-            `;
-            modal.innerHTML = `
-              <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); width: 320px; font-family: sans-serif; position: relative;">
-                <span id="close-form" style="position: absolute; top: 8px; right: 12px; cursor: pointer; font-size: 18px; font-weight: bold;">&times;</span>
+        // ---- Popup Form ----
+        const modal = document.createElement("div");
+        modal.id = "visitor-form-modal";
+        modal.style.cssText = `
+            display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+            background:rgba(0,0,0,0.5); z-index:99999; justify-content:center; align-items:center;
+        `;
+        modal.innerHTML = `
+            <div style="background:#fff; padding:20px; border-radius:12px; width:360px; font-family:sans-serif;">
+                <h3 style="margin-bottom:12px;">Enter your details</h3>
                 <form id="visitor-form">
-                  <h3 style="margin-bottom: 15px;">Tell us about you</h3>
-                  <input type="text" placeholder="Name" name="name" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
-                  <input type="tel" placeholder="Mobile (+91...)" name="mobile" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
-                  <input type="email" placeholder="Email" name="email" required style="margin-bottom: 20px; width: 100%; padding: 8px;" />
-                  <button type="submit" style="width: 100%; padding: 10px; background: #1e88e5; color: white; border: none; border-radius: 4px;">Start Call</button>
+                    <input name="name" placeholder="Your Name" required style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #ccc;border-radius:6px;" />
+                    <input name="email" type="email" placeholder="Your Email" required style="width:100%;margin-bottom:8px;padding:8px;border:1px solid #ccc;border-radius:6px;" />
+                    <input name="phone" placeholder="Your Phone" required style="width:100%;margin-bottom:12px;padding:8px;border:1px solid #ccc;border-radius:6px;" />
+                    <button type="submit" style="background:#007bff;color:#fff;border:none;padding:10px;width:100%;border-radius:6px;cursor:pointer;">Submit & Start Call</button>
                 </form>
-              </div>
-            `;
-            document.body.appendChild(modal);
+            </div>
+        `;
+        document.body.appendChild(modal);
 
-            const modalEl = document.getElementById('visitor-form-modal');
-            const closeForm = document.getElementById('close-form');
-            closeForm.onclick = () => modalEl.style.display = 'none';
-            window.onclick = (e) => {{ if (e.target === modalEl) modalEl.style.display = 'none'; }};
+        function openForm() {{ modal.style.display = "flex"; }}
+        function closeForm() {{ modal.style.display = "none"; }}
 
-            document.getElementById('visitor-form').addEventListener('submit', function(e) {{
+        // ---- Intercept Start Call ----
+        function hookWidget() {{
+            const widget = document.querySelector("elevenlabs-convai");
+            if (!widget || !widget.shadowRoot) return setTimeout(hookWidget, 500);
+
+            const startBtn = widget.shadowRoot.querySelector("button");
+            if (!startBtn) return setTimeout(hookWidget, 500);
+
+            // clone + replace original button
+            const clone = startBtn.cloneNode(true);
+            startBtn.parentNode.replaceChild(clone, startBtn);
+
+            clone.addEventListener("click", (e) => {{
                 e.preventDefault();
-                const name = this.name.value.trim();
-                const mobile = this.mobile.value.trim();
-                const email = this.email.value.trim();
-                const url = window.location.href;
+                openForm();
+            }});
 
-                if (!name || !mobile || !email) {{
-                    alert("Please fill all fields.");
-                    return;
+            console.log("[OK] Popup form hooked to Start Call");
+        }}
+        setTimeout(hookWidget, 1000);
+
+        // ---- Form Submit Handler ----
+        document.addEventListener("submit", async function(e) {{
+            if (e.target && e.target.id === "visitor-form") {{
+                e.preventDefault();
+                const formData = Object.fromEntries(new FormData(e.target).entries());
+
+                try {{
+                    await fetch("/log-visitor", {{
+                        method: "POST",
+                        headers: {{ "Content-Type": "application/json" }},
+                        body: JSON.stringify({{
+                            ...formData,
+                            brand: "{brand}",
+                            timestamp: new Date().toISOString()
+                        }})
+                    }});
+                }} catch(err) {{
+                    console.error("Failed to log visitor:", err);
                 }}
 
-                fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {{
-                    method: 'POST',
-                    headers: {{ 'Content-Type': 'application/json' }},
-                    body: JSON.stringify({{ name, mobile, email, url, brand: "{branding}" }})
-                }});
+                closeForm();
 
-                localStorage.setItem("convai_form_submitted", (Date.now() + 86400000).toString());
-                modalEl.style.display = 'none';
-
-                const widget = document.querySelector('elevenlabs-convai');
-                const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
-                realBtn?.click();
-            }});
-        }}
-
-        // --- 4. Observer to hook Start button ---
-        const observer = new MutationObserver(() => {{
-            ensureModal();
-            const widget = document.querySelector('elevenlabs-convai');
-            if (!widget || !widget.shadowRoot) return;
-            const shadowRoot = widget.shadowRoot;
-
-            // branding cleanup again
-            const brandingElem = shadowRoot.querySelector('[class*="poweredBy"], div[part="branding"]');
-            if (brandingElem) brandingElem.remove();
-
-            const startCallButton = shadowRoot.querySelector('button[title="Start a call"]');
-            if (startCallButton && !startCallButton._hooked) {{
-                startCallButton._hooked = true;
-                const clonedButton = startCallButton.cloneNode(true);
-                startCallButton.style.display = 'none';
-
-                clonedButton.style.cssText = "background:#0b72e7;color:#fff;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;";
-
-                startCallButton.parentElement.appendChild(clonedButton);
-
-                clonedButton.addEventListener('click', (e) => {{
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const expiry = localStorage.getItem("convai_form_submitted");
-                    if (expiry && Date.now() < parseInt(expiry)) {{
-                        startCallButton.click();
-                    }} else {{
-                        document.getElementById('visitor-form-modal').style.display = 'flex';
-                    }}
-                }});
+                // trigger real widget Start Call
+                const widget = document.querySelector("elevenlabs-convai");
+                if (widget && widget.shadowRoot) {{
+                    const realBtn = widget.shadowRoot.querySelector("button");
+                    if (realBtn) realBtn.click();
+                }}
             }}
         }});
-        observer.observe(document.body, {{ childList: true, subtree: true }});
 
-        // --- 5. Fallback: ensure modal after DOM ready ---
-        document.addEventListener("DOMContentLoaded", ensureModal);
+        // ---- Load Widget ----
+        window.addEventListener("DOMContentLoaded", () => {{
+            const widgetTag = document.createElement("elevenlabs-convai");
+            widgetTag.setAttribute("agent-id", "{agent_id}");
+            widgetTag.setAttribute("style", "position:fixed;bottom:20px;right:20px;z-index:9999;");
+            document.body.appendChild(widgetTag);
+        }});
     }})();
     """
+
 
 
 
