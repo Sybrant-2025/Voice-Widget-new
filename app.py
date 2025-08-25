@@ -33,7 +33,7 @@ GOOGLE_SHEET_WEBHOOK_URL_SYBRANT = 'https://script.google.com/macros/s/AKfycbxw4
 
 
 # --- Core JS generator: instant modal + triple-guard injection + per-brand cache key ---
-def generate_widget_js1(agent_id, branding):
+def generate_widget_js2(agent_id, branding):
     return f"""
     (function() {{
         const tag = document.createElement("elevenlabs-convai");
@@ -143,13 +143,13 @@ def generate_widget_js1(agent_id, branding):
                     return;
                 }}
 
-                fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {{
+                fetch('https://voice-widget-new-production.up.railway.app/log-visitor', {{
                     method: 'POST',
                     headers: {{ 'Content-Type': 'application/json' }},
                     body: JSON.stringify({{ name, mobile, email, url }})
                 }});
 
-                localStorage.setItem("convai_form_submitted", (Date.now() +  (1 * 24 * 60 * 60 * 1000)).toString());
+                localStorage.setItem("convai_form_submitted", (Date.now() + 5 * 60 * 1000).toString());
                 document.getElementById('visitor-form-modal').style.display = 'none';
 
                 const widget = document.querySelector('elevenlabs-convai');
@@ -426,7 +426,7 @@ def serve_galent():
 @app.route('/orientbell')
 def serve_orientbell():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js1(agent_id, branding="Powered by orientbell", brand="orientbell")
+    js = generate_widget_js(agent_id, branding="Powered by orientbell", brand="orientbell")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/preludesys')
@@ -445,6 +445,12 @@ def serve_cfobridge():
 def serve_sybrant():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
     js = generate_widget_js(agent_id, branding="Powered by sybrant", brand="sybrant")
+    return Response(js, mimetype='application/javascript')
+
+@app.route('/dhilaktest')
+def serve_dhilaktest():
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = generate_widget_js(agent_id, branding="Powered by dhilaktest", brand="dhilaktest")
     return Response(js, mimetype='application/javascript')
 
 
@@ -470,8 +476,12 @@ def get_webhook_url(brand):
         return GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS
     elif brand == "cfobridge":
         return GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE
+    elif brand == "ctobridge":
+        return GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE
     elif brand == "sybrant":
         return GOOGLE_SHEET_WEBHOOK_URL_SYBRANT
+    elif brand == "dhilaktest":
+        return GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
     else:
         return GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
 
@@ -555,7 +565,91 @@ def log_visitor():
 
 
 
-# --- Demo Pages ---
+
+# --- Demo Pages test ---
+@app.route('/demo/dhilaktest')
+def demo_dhilaktest():
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>dhilaktest Voizee Assistant Demo</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin: 0;
+                padding: 0;
+                background: #f5f7fa;
+            }
+            .logo {
+                margin-top: 40px;
+                background: #181A1C;
+            }
+            .widget-wrapper {
+                margin-top: 60px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 400px;
+                position: relative;
+            }
+            /* Override widget position via script injection */
+            script + elevenlabs-convai {
+                position: absolute !important;
+                bottom: 50% !important;
+                right: 50% !important;
+                transform: translate(50%, 50%) !important;
+                z-index: 1000 !important;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="logo">
+            <img src="https://successgyan.com/wp-content/uploads/2024/02/SG-logo-1@2x-150x67.png" alt="SuccessGyan Logo" height="60">
+        </div>
+        <h2>SuccessGyan Voizee Assistant Demo</h2>
+        <div class="widget-wrapper">
+            <script src="/dhilaktest?agent=agent_01jx28rjk1ftfvf5c6enxm70te"></script>
+        </div>
+            <script>
+function removeBrandingFromWidget() {
+  const widget = document.querySelector('elevenlabs-convai');
+  if (!widget || !widget.shadowRoot) return false;
+
+  const shadow = widget.shadowRoot;
+  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
+
+  brandingElements.forEach(el => el.remove());
+
+  // Optionally remove footer shadow or extra boxes
+  const footer = shadow.querySelector('[class*="_box_"]');
+  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
+    footer.remove();
+  }
+
+  return brandingElements.length > 0;
+}
+
+const tryRemove = () => {
+  const success = removeBrandingFromWidget();
+  if (!success) {
+    setTimeout(tryRemove, 300);  // retry until it appears
+  }
+};
+
+tryRemove(); // start the removal loop
+
+// Also attach MutationObserver in case of dynamic updates
+const observer = new MutationObserver(() => removeBrandingFromWidget());
+observer.observe(document.body, { childList: true, subtree: true });
+</script>
+    </body>
+    </html>
+    """
+    return render_template_string(html)
+
+# --- Demo Pages start ---
 @app.route('/demo/successgyan')
 def demo_successgyan():
     html = """
