@@ -1519,7 +1519,7 @@ def demo_ctobridge():
     }
 
     .logo-box {
-      background: #000;
+      # background: #000;
       padding: 12px 20px;
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
@@ -1624,9 +1624,9 @@ def demo_ctobridge():
     <p>Click <b>"Start a call"</b> and ask your questions about CTO Bridge Voizee.</p>
   </div>
 
-    <div class="robot-image">
-    <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
-  </div>
+  #   <div class="robot-image">
+  #   <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
+  # </div>
 
       <script src="https://voizee.sybrant.com/ctobridge?agent=agent_4801k3fnfz4nexdt8mfts31zx0rd"></script>  
 
