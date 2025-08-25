@@ -559,7 +559,14 @@ def serve_cfobridge():
 @app.route('/sybrant')
 def serve_sybrant():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by cfobridge", brand="sybrant")
+    js = generate_widget_js(agent_id, branding="Powered by sybrant", brand="sybrant")
+    return Response(js, mimetype='application/javascript')
+
+
+@app.route('/ctobridge')
+def serve_ctobridge():
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = generate_widget_js(agent_id, branding="Powered by ctobridge", brand="ctobridge")
     return Response(js, mimetype='application/javascript')
 
 def get_webhook_url(brand):
@@ -1480,6 +1487,187 @@ observer.observe(document.body, { childList: true, subtree: true });
     """
     return render_template_string(html)
 
+
+    
+
+@app.route('/demo/ctobridge')
+def demo_ctobridge():
+    html = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTO Bridge Voizee</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #f5f7fa, #e4ebf7);
+      color: #222;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    header {
+      display: flex;
+      justify-content: center;
+      margin-top: 40px;
+    }
+
+    .logo-box {
+      background: #000;
+      padding: 12px 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .logo-box img {
+      height: 60px;
+      display: block;
+    }
+
+    .title-section {
+      text-align: center;
+      margin: 40px 0 30px;
+    }
+
+    .title-section h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin: 0;
+      color: #222;
+    }
+
+    .title-section h2 {
+      font-size: 22px;
+      font-weight: 500;
+      margin: 10px 0;
+      color: #555;
+    }
+
+    .title-section p {
+      font-size: 16px;
+      margin: 6px 0;
+      color: #666;
+    }
+
+    .assistant-container {
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      padding: 30px;
+      max-width: 600px;
+      width: 90%;
+      text-align: center;
+      margin-bottom: 40px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .assistant-container:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+    }
+
+    .robot-image {
+  text-align: center;
+  margin: 20px 0 80px 30px;
+}
+
+.robot-image img {
+  max-width: 280px;  /* keeps it responsive */
+  width: 100%;
+  height: auto;
+  display: inline-block;
+}
+
+
+    .start-btn {
+      margin-top: 20px;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 30px;
+      border: none;
+      background: #0077ff;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .start-btn:hover {
+      background: #005ecc;
+    }
+
+    [class*="_status_1968y_121"] {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  font-size: 0 !important;
+}
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-box">
+      <img src="https://ctobridge.com/assets/img/logo.png" alt="CTOBridge Logo">
+    </div>
+  </header>
+
+  <div class="title-section">
+    <h1>CTO Bridge Voizee</h1>
+    <p>Click <b>"Start a call"</b> and ask your questions about CTO Bridge Voizee.</p>
+  </div>
+
+    <div class="robot-image">
+    <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
+  </div>
+
+      <script src="https://voizee.sybrant.com/ctobridge?agent=agent_4801k3fnfz4nexdt8mfts31zx0rd"></script>  
+
+    <script>
+function removeBrandingFromWidget() {
+  const widget = document.querySelector('elevenlabs-convai');
+  if (!widget || !widget.shadowRoot) return false;
+
+  const shadow = widget.shadowRoot;
+  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"]), [class*="_status_1968y_121"]');
+
+  brandingElements.forEach(el => el.remove());
+
+  // Optionally remove footer shadow or extra boxes
+  const footer = shadow.querySelector('[class*="_box_"]');
+  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
+    footer.remove();
+  }
+
+  return brandingElements.length > 0;
+}
+
+const tryRemove = () => {
+  const success = removeBrandingFromWidget();
+  if (!success) {
+    setTimeout(tryRemove, 300);  // retry until it appears
+  }
+};
+
+tryRemove(); // start the removal loop
+
+// Also attach MutationObserver in case of dynamic updates
+const observer = new MutationObserver(() => removeBrandingFromWidget());
+observer.observe(document.body, { childList: true, subtree: true });
+</script>
+
+
+</body>
+</html>
+    """
+    return render_template_string(html)
 
     
 # --- Health Check & Root ---
