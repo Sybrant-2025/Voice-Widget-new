@@ -174,91 +174,88 @@ def generate_widget_js2(agent_id, branding, brand=""):
         observer.observe(document.body, {{ childList: true, subtree: true }});
 
         // Visitor form modal logic
-        window.addEventListener('DOMContentLoaded', () => {{
-            const modal = document.createElement('div');
-            modal.id = 'visitor-form-modal';
-            modal.style = `
-                display: none;
-                position: fixed;
-                z-index: 99999;
-                top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0, 0, 0, 0.6);
-                align-items: center;
-                justify-content: center;
-            `;
+		// --- Visitor form modal (create immediately, not on DOMContentLoaded) ---
+		const modal = document.createElement('div');
+		modal.id = 'visitor-form-modal';
+		modal.style = `
+			display: none;
+			position: fixed;
+			z-index: 99999;
+			top: 0; left: 0; width: 100%; height: 100%;
+			background: rgba(0, 0, 0, 0.6);
+			align-items: center;
+			justify-content: center;
+		`;
+		
+		modal.innerHTML = `
+			<div id="form-container" style="
+				background: white;
+				padding: 30px;
+				border-radius: 12px;
+				box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+				width: 320px;
+				font-family: sans-serif;
+				position: relative;
+			">
+				<span id="close-form" style="
+					position: absolute;
+					top: 8px;
+					right: 12px;
+					cursor: pointer;
+					font-size: 18px;
+					font-weight: bold;
+				">&times;</span>
+		
+				<form id="visitor-form">
+					<h3 style="margin-bottom: 15px;">Tell us about you</h3>
+					<input type="text" placeholder="Name" name="name" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
+					<input type="tel" placeholder="Mobile (+91...)" name="mobile" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
+					<input type="email" placeholder="Email" name="email" required style="margin-bottom: 20px; width: 100%; padding: 8px;" />
+					<button type="submit" style="width: 100%; padding: 10px; background: #1e88e5; color: white; border: none; border-radius: 4px;">Start Call</button>
+				</form>
+			</div>
+		`;
+		document.body.appendChild(modal);
+		
+		// --- Form controls ---
+		const modalEl = document.getElementById('visitor-form-modal');
+		const closeForm = document.getElementById('close-form');
+		closeForm.onclick = () => modalEl.style.display = 'none';
+		window.onclick = (e) => { if (e.target === modalEl) modalEl.style.display = 'none'; };
+		
+		document.getElementById("visitor-form").addEventListener("submit", async function(e) {
+			e.preventDefault();
+		
+			const data = {
+				name: this.name.value,
+				mobile: this.mobile.value,
+				email: this.email.value,
+				brand: "{brand}"
+			};
+		
+			try {
+				await fetch("/log-visitor", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(data)
+				});
+				console.log("[OK] Visitor logged");
+		
+				localStorage.setItem("convai_form_submitted", Date.now() + 86400000);
+			} catch (err) {
+				console.error("[ERR] Failed to log visitor", err);
+			}
+		
+			document.getElementById("visitor-form-modal").style.display = "none";
+		
+			// ✅ Start the actual call
+			const startBtn = document.querySelector("elevenlabs-convai").shadowRoot.querySelector('button[title="Start a call"]');
+			if (startBtn) startBtn.click();
+		});
 
-            modal.innerHTML = `
-                <div id="form-container" style="
-                    background: white;
-                    padding: 30px;
-                    border-radius: 12px;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-                    width: 320px;
-                    font-family: sans-serif;
-                    position: relative;
-                ">
-                    <span id="close-form" style="
-                        position: absolute;
-                        top: 8px;
-                        right: 12px;
-                        cursor: pointer;
-                        font-size: 18px;
-                        font-weight: bold;
-                    ">&times;</span>
-
-                    <form id="visitor-form">
-                        <h3 style="margin-bottom: 15px;">Tell us about you</h3>
-                        <input type="text" placeholder="Name" name="name" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
-                        <input type="tel" placeholder="Mobile (+91...)" name="mobile" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
-                        <input type="email" placeholder="Email" name="email" required style="margin-bottom: 20px; width: 100%; padding: 8px;" />
-                        <button type="submit" style="width: 100%; padding: 10px; background: #1e88e5; color: white; border: none; border-radius: 4px;">Start Call</button>
-                    </form>
-                </div>
-            `;
-            document.body.appendChild(modal);
-
-            const modalEl = document.getElementById('visitor-form-modal');
-            const closeForm = document.getElementById('close-form');
-
-            closeForm.onclick = () => modalEl.style.display = 'none';
-            window.onclick = (e) => {{
-                if (e.target === modalEl) modalEl.style.display = 'none';
-            }};
-
-            document.getElementById("visitor-form").addEventListener("submit", async function(e) {{
-                e.preventDefault();
-            
-                const data = {{
-                    name: this.name.value,
-                    mobile: this.mobile.value,
-                    email: this.email.value,
-                    brand: "{brand}"
-                }};
-            
-                try {{
-                    await fetch("/log-visitor", {{
-                        method: "POST",
-                        headers: {{ "Content-Type": "application/json" }},
-                        body: JSON.stringify(data)
-                    }});
-                    console.log("[OK] Visitor logged");
-            
-                    // Save expiry (e.g., valid for 24h = 86400000 ms)
-                    localStorage.setItem("convai_form_submitted", Date.now() + 150000);
-                }} catch (err) {{
-                    console.error("[ERR] Failed to log visitor", err);
-                }}
-            
-                document.getElementById("visitor-form-modal").style.display = "none";
-            
-                // ✅ Now start the actual call
-                const startBtn = document.querySelector("elevenlabs-convai").shadowRoot.querySelector('button[title="Start a call"]');
-                if (startBtn) startBtn.click();
-            }});
         }});
     }})();
     """
-
 
 
 
