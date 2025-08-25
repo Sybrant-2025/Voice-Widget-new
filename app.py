@@ -244,7 +244,7 @@ def generate_widget_js2(agent_id, branding, brand=""):
                     console.log("[OK] Visitor logged");
             
                     // Save expiry (e.g., valid for 24h = 86400000 ms)
-                    localStorage.setItem("convai_form_submitted", Date.now() + 86400000);
+                    localStorage.setItem("convai_form_submitted", Date.now() + 150000);
                 }} catch (err) {{
                     console.error("[ERR] Failed to log visitor", err);
                 }}
