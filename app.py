@@ -454,7 +454,7 @@ def serve_galent():
 @app.route('/orientbell')
 def serve_orientbell():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by orientbell", brand="orientbell")
+    js = generate_widget_js1(agent_id, branding="Powered by orientbell", brand="orientbell")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/preludesys')
