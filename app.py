@@ -608,9 +608,9 @@ def demo_dhilaktest():
             <img src="https://successgyan.com/wp-content/uploads/2024/02/SG-logo-1@2x-150x67.png" alt="SuccessGyan Logo" height="60">
         </div>
         <h2>SuccessGyan Voizee Assistant Demo</h2>
-        <div class="widget-wrapper">
-            <script src="/dhilaktest?agent=agent_01jx28rjk1ftfvf5c6enxm70te"></script>
-        </div>
+        
+            <script src="https://voizee.sybrant.com/dhilaktest?agent=agent_01jx28rjk1ftfvf5c6enxm70te"></script>
+        
             <script>
 function removeBrandingFromWidget() {
   const widget = document.querySelector('elevenlabs-convai');
@@ -692,7 +692,7 @@ def demo_successgyan():
         </div>
         <h2>SuccessGyan Voizee Assistant Demo</h2>
         <div class="widget-wrapper">
-            <script src="/successgyan?agent=agent_01k06m09xefx4vxwc0drtf6sje"></script>
+            <script src="https://voizee.sybrant.com/successgyan?agent=agent_01k06m09xefx4vxwc0drtf6sje"></script>
         </div>
             <script>
 function removeBrandingFromWidget() {
@@ -857,7 +857,7 @@ def demo_myndwell():
         </div>
         <h2>Myndwell Voizee Assistant Demo</h2>
         <div class="widget-wrapper">
-            <script src="/myndwell?agent=agent_01k099ck2mf0tr5g558de7w0av"></script>
+            <script src="https://voizee.sybrant.com/myndwell?agent=agent_01k099ck2mf0tr5g558de7w0av"></script>
         </div>
     <script>
 function removeBrandingFromWidget() {
