@@ -36,39 +36,100 @@ GOOGLE_SHEET_WEBHOOK_URL_SYBRANT = 'https://script.google.com/macros/s/AKfycbxw4
 def generate_widget_js2(agent_id, branding):
     return f"""
     (function() {{
+        // Immediately apply global CSS to hide branding early (before widget loads)
+        const preloadStyle = document.createElement("style");
+        preloadStyle.textContent = `
+            [class*="poweredBy"],
+            div[part="branding"],
+            span:has(a[href*="elevenlabs"]),
+            a[href*="elevenlabs"],
+            span:has([href*="conversational"]),
+            a[href*="conversational"],
+            [class*="_poweredBy_"],
+            [class*="branding"],
+            div[class*="branding"],
+            div[part="branding"] {{
+                display: none !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+                height: 0 !important;
+                font-size: 0 !important;
+                line-height: 0 !important;
+                pointer-events: none !important;                
+            }}
+            div[part="branding"],
+            [class*="_status_1968y_121"] {{
+                display: none !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+                height: 0 !important;
+                font-size: 0 !important;
+                line-height: 0 !important;
+                pointer-events: none !important;
+            }}
+        `;
+        document.head.appendChild(preloadStyle);
+
+        // Inject the widget tag
         const tag = document.createElement("elevenlabs-convai");
         tag.setAttribute("agent-id", "{agent_id}");
         document.body.appendChild(tag);
 
+        // Inject widget script
         const script = document.createElement("script");
         script.src = "https://elevenlabs.io/convai-widget/index.js";
         script.async = true;
         document.body.appendChild(script);
 
+        // Observe the DOM for widget load and apply custom styles
         const observer = new MutationObserver(() => {{
             const widget = document.querySelector('elevenlabs-convai');
             if (!widget || !widget.shadowRoot) return;
             const shadowRoot = widget.shadowRoot;
 
+            // Try to forcibly remove branding again if found inside Shadow DOM
             const brandingElem = shadowRoot.querySelector('[class*="poweredBy"], div[part="branding"]');
             if (brandingElem) {{
-                brandingElem.textContent = "{branding}";
+                brandingElem.remove(); // REMOVE instead of customizing
             }}
 
             if (!shadowRoot.querySelector("#custom-style")) {{
                 const style = document.createElement("style");
                 style.id = "custom-style";
                 style.textContent = `
-                    div[part='branding'] {{
-                        font-size: 12px !important;
-                        font-family: Arial, sans-serif !important;
-                        color: #888 !important;
-                        text-align: right;
-                        margin-top: 10px;
-                        margin-bottom: 40px;
-                        margin-right: 30px;
+                    div[part='branding'],
+                    a[href*="elevenlabs"],
+                    span:has(a[href*="elevenlabs"]) {{
+                        display: none !important;
                     }}
-                    div[part='feedback-button'], 
+
+                    [class*="_avatar_"] {{
+                        display: none !important;
+                    }}
+
+                    [class*="_box_"] {{
+                        background: transparent !important;
+                        box-shadow: none !important;
+                        border: none !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        display: flex !important;
+                        align-items: center !important;
+                        justify-content: center !important;
+                    }}
+
+                    [class*="_btn_"] {{
+                        border-radius: 30px !important;
+                        padding: 10px 20px !important;
+                        background-color: #0b72e7 !important;
+                        color: #fff !important;
+                        border: none !important;
+                        cursor: pointer !important;
+                        font-weight: 500;
+                        font-size: 14px;
+                    }}
+
+                    div[part='feedback-button'],
                     img[alt*='logo'] {{
                         display: none !important;
                     }}
@@ -81,6 +142,13 @@ def generate_widget_js2(agent_id, branding):
                 startCallButton._hooked = true;
                 const clonedButton = startCallButton.cloneNode(true);
                 startCallButton.style.display = 'none';
+
+                clonedButton.style.backgroundColor = "#0b72e7";
+                clonedButton.style.color = "#fff";
+                clonedButton.style.border = "none";
+                clonedButton.style.padding = "10px 20px";
+                clonedButton.style.borderRadius = "6px";
+                clonedButton.style.cursor = "pointer";
 
                 const wrapper = document.createElement('div');
                 wrapper.appendChild(clonedButton);
@@ -100,67 +168,62 @@ def generate_widget_js2(agent_id, branding):
         }});
         observer.observe(document.body, {{ childList: true, subtree: true }});
 
-        window.addEventListener('DOMContentLoaded', () => {{
-            const modal = document.createElement('div');
-            modal.id = 'visitor-form-modal';
-            modal.style = `
-                display: none;
-                position: fixed;
-                z-index: 99999;
-                top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0, 0, 0, 0.6);
-                align-items: center;
-                justify-content: center;
-            `;
-            modal.innerHTML = `
-                <form id="visitor-form" style="
-                    background: white;
-                    padding: 30px;
-                    border-radius: 12px;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-                    width: 320px;
-                    font-family: sans-serif;
-                ">
-                    <h3 style="margin-bottom: 15px;">Tell us about you</h3>
-                    <input type="text" placeholder="Name" name="name" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
-                    <input type="tel" placeholder="Mobile (+91...)" name="mobile" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
-                    <input type="email" placeholder="Email" name="email" required style="margin-bottom: 20px; width: 100%; padding: 8px;" />
-                    <button type="submit" style="width: 100%; padding: 10px; background: #1e88e5; color: white; border: none; border-radius: 4px;">Start Call</button>
-                </form>
-            `;
-            document.body.appendChild(modal);
+        // Visitor form modal logic
+        // Visitor form modal logic
+		window.addEventListener('load', () => {
+		const modal = document.createElement('div');
+		modal.id = 'visitor-form-modal';
+		modal.style = "display: none; position: fixed; z-index: 99999; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center;";
+		
+		modal.innerHTML = `
+			<div id="form-container" style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); width: 320px; font-family: sans-serif; position: relative;">
+			<span id="close-form" style="position: absolute; top: 8px; right: 12px; cursor: pointer; font-size: 18px; font-weight: bold;">&times;</span>
+			<form id="visitor-form">
+				<h3 style="margin-bottom: 15px;">Tell us about you</h3>
+				<input type="text" placeholder="Name" name="name" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
+				<input type="tel" placeholder="Mobile (+91...)" name="mobile" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
+				<input type="email" placeholder="Email" name="email" required style="margin-bottom: 20px; width: 100%; padding: 8px;" />
+				<button type="submit" style="width: 100%; padding: 10px; background: #1e88e5; color: white; border: none; border-radius: 4px;">Start Call</button>
+			</form>
+			</div>
+		`;
+		document.body.appendChild(modal);
+		
+		const modalEl = document.getElementById('visitor-form-modal');
+		const closeForm = document.getElementById('close-form');
+		closeForm.onclick = () => modalEl.style.display = 'none';
+		window.onclick = (e) => { if (e.target === modalEl) modalEl.style.display = 'none'; };
+		
+		document.getElementById('visitor-form').addEventListener('submit', function(e) {
+			e.preventDefault();
+			const name = this.name.value.trim();
+			const mobile = this.mobile.value.trim();
+			const email = this.email.value.trim();
+			const url = window.location.href;
+		
+			if (!name || !mobile || !email) {
+			alert("Please fill all fields.");
+			return;
+			}
+		
+			fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ name, mobile, email, url, brand: "{brand}" })
+			});
+		
+			localStorage.setItem("convai_form_submitted", (Date.now() + 86400000).toString());
+			modalEl.style.display = 'none';
+		
+			// Trigger real call
+			const widget = document.querySelector('elevenlabs-convai');
+			const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
+			realBtn?.click();
+		});
+		});
 
-            document.getElementById('visitor-form').addEventListener('submit', function(e) {{
-                e.preventDefault();
-
-                const name = this.name.value.trim();
-                const mobile = this.mobile.value.trim();
-                const email = this.email.value.trim();
-                const url = window.location.href;
-
-                if (!name || !mobile || !email) {{
-                    alert("Please fill all fields.");
-                    return;
-                }}
-
-                fetch('https://voice-widget-new-production.up.railway.app/log-visitor', {{
-                    method: 'POST',
-                    headers: {{ 'Content-Type': 'application/json' }},
-                    body: JSON.stringify({{ name, mobile, email, url }})
-                }});
-
-                localStorage.setItem("convai_form_submitted", (Date.now() + 5 * 60 * 1000).toString());
-                document.getElementById('visitor-form-modal').style.display = 'none';
-
-                const widget = document.querySelector('elevenlabs-convai');
-                const shadowRoot = widget?.shadowRoot;
-                const realBtn = shadowRoot?.querySelector('button[title="Start a call"]');
-                realBtn?.click();
-            }});
-        }});
     }})();
     """
-
 
 # --- Helper to add "no-store" cache headers for widget JS endpoints ---
 # def no_store(response: Response) -> Response:
