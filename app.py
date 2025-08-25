@@ -162,11 +162,11 @@ def generate_widget_js2(agent_id, branding, brand=""):
                         startCallButton.click();
                     }} else {{
                         const modal = document.getElementById('visitor-form-modal');
-						if (modal) {
-							modal.style.display = 'flex';
-						} else {
-							console.error("[ERR] Visitor form modal not found!");
-						}
+                        if (modal) {{
+                            modal.style.display = 'flex';
+                        }} else {{
+                            console.error("[ERR] Visitor form modal not found!");
+                        }}
                     }}
                 }});
             }}
@@ -225,36 +225,36 @@ def generate_widget_js2(agent_id, branding, brand=""):
                 if (e.target === modalEl) modalEl.style.display = 'none';
             }};
 
-            document.getElementById("visitor-form").addEventListener("submit", async function(e) {
-				e.preventDefault();
-			
-				const data = {
-					name: this.name.value,
-					mobile: this.mobile.value,
-					email: this.email.value,
-					brand: "{brand}"
-				};
-			
-				try {
-					await fetch("/log-visitor", {
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify(data)
-					});
-					console.log("[OK] Visitor logged");
-			
-					// Save expiry (e.g., valid for 24h = 86400000 ms)
-					localStorage.setItem("convai_form_submitted", Date.now() + 86400000);
-				} catch (err) {
-					console.error("[ERR] Failed to log visitor", err);
-				}
-			
-				document.getElementById("visitor-form-modal").style.display = "none";
-			
-				// ✅ Now start the actual call
-				const startBtn = document.querySelector("elevenlabs-convai").shadowRoot.querySelector('button[title="Start a call"]');
-				if (startBtn) startBtn.click();
-			});
+            document.getElementById("visitor-form").addEventListener("submit", async function(e) {{
+                e.preventDefault();
+            
+                const data = {{
+                    name: this.name.value,
+                    mobile: this.mobile.value,
+                    email: this.email.value,
+                    brand: "{brand}"
+                }};
+            
+                try {{
+                    await fetch("/log-visitor", {{
+                        method: "POST",
+                        headers: {{ "Content-Type": "application/json" }},
+                        body: JSON.stringify(data)
+                    }});
+                    console.log("[OK] Visitor logged");
+            
+                    // Save expiry (e.g., valid for 24h = 86400000 ms)
+                    localStorage.setItem("convai_form_submitted", Date.now() + 86400000);
+                }} catch (err) {{
+                    console.error("[ERR] Failed to log visitor", err);
+                }}
+            
+                document.getElementById("visitor-form-modal").style.display = "none";
+            
+                // ✅ Now start the actual call
+                const startBtn = document.querySelector("elevenlabs-convai").shadowRoot.querySelector('button[title="Start a call"]');
+                if (startBtn) startBtn.click();
+            }});
         }});
     }})();
     """
