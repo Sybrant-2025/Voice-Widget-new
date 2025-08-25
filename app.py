@@ -1505,8 +1505,8 @@ def demo_ctobridge():
   </header>
 
   <div class="title-section">
-    <h1>CTO Bridge Voizee</h1>
-    <p>Click <b>"Start a call"</b> and ask your questions about CTO Bridge Voizee.</p>
+    <h1>CTO Bridge Voizee Assistant Demo</h1>
+    <p>Click <b>"Start a call"</b> and ask your questions about CTO Bridge.</p>
   </div>
 
  
