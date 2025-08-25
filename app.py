@@ -1624,10 +1624,7 @@ def demo_ctobridge():
     <p>Click <b>"Start a call"</b> and ask your questions about CTO Bridge Voizee.</p>
   </div>
 
-  #   <div class="robot-image">
-  #   <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
-  # </div>
-
+ 
       <script src="https://voizee.sybrant.com/ctobridge?agent=agent_4801k3fnfz4nexdt8mfts31zx0rd"></script>  
 
     <script>
