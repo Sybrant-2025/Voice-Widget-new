@@ -450,7 +450,7 @@ def serve_sybrant():
 @app.route('/dhilaktest')
 def serve_dhilaktest():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by dhilaktest", brand="dhilaktest")
+    js = generate_widget_js2(agent_id, branding="Powered by dhilaktest", brand="dhilaktest")
     return Response(js, mimetype='application/javascript')
 
 
