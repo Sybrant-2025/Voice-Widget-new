@@ -356,7 +356,7 @@ def generate_widget_js(agent_id, branding, brand=""):
                     body: JSON.stringify({{ name, mobile, email, url, brand: "{brand}" }})
                 }});
 
-                localStorage.setItem("convai_form_submitted", (Date.now() + 86400000).toString());
+                localStorage.setItem("convai_form_submitted", (Date.now() + 150000).toString());
                 modalEl.style.display = 'none';
 
                 const widget = document.querySelector('elevenlabs-convai');
