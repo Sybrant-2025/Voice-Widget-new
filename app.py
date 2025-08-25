@@ -90,417 +90,106 @@ def write_log(entries):
 
 
 
-# def generate_widget_js(agent_id, branding, brand=""):
-#     return f"""
-#     (function() {{
-#         const CACHE_HOURS = 8;
-#         const CACHE_MS = CACHE_HOURS * 60 * 60 * 1000;
 
-#         // --- Branding Removal ---
-#         const preloadStyle = document.createElement("style");
-#         preloadStyle.textContent = `
-#             [class*="poweredBy"],
-#             div[part="branding"],
-#             span:has(a[href*="elevenlabs"]),
-#             a[href*="elevenlabs"],
-#             [class*="_poweredBy_"],
-#             [class*="branding"],
-#             [class*="_status_1968y_121"],
-#             div[class*="branding"] {{
-#                 display: none !important;
-#                 opacity: 0 !important;
-#                 visibility: hidden !important;
-#                 height: 0 !important;
-#                 font-size: 0 !important;
-#                 line-height: 0 !important;
-#                 pointer-events: none !important;                
-#             }}
-#         `;
-#         document.head.appendChild(preloadStyle);
-
-#         // --- Load Widget ---
-#         const tag = document.createElement("elevenlabs-convai");
-#         tag.setAttribute("agent-id", "{agent_id}");
-#         document.body.appendChild(tag);
-
-#         const script = document.createElement("script");
-#         script.src = "https://elevenlabs.io/convai-widget/index.js";
-#         script.async = true;
-#         document.body.appendChild(script);
-
-#         // --- Helper: log visitor ---
-#         function logVisitor(fromForm, formData) {{
-#             const url = window.location.href;
-#             let payload;
-
-#             if (fromForm) {{
-#                 payload = {{ ...formData, url, brand: "{brand}" }};
-#             }} else {{
-#                 payload = {{ url, brand: "{brand}" }}; // minimal log
-#             }}
-
-#             fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {{
-#                 method: 'POST',
-#                 headers: {{ 'Content-Type': 'application/json' }},
-#                 body: JSON.stringify(payload)
-#             }});
-#         }}
-
-#         // --- Observe DOM for widget load ---
-#         const observer = new MutationObserver(() => {{
-#             const widget = document.querySelector('elevenlabs-convai');
-#             if (!widget || !widget.shadowRoot) return;
-#             const shadowRoot = widget.shadowRoot;
-
-#             // Remove branding inside shadow DOM
-#             shadowRoot.querySelectorAll('[class*="poweredBy"], div[part="branding"]').forEach(el => el.remove());
-
-#             // Apply custom CSS if not added
-#             if (!shadowRoot.querySelector("#custom-style")) {{
-#                 const style = document.createElement("style");
-#                 style.id = "custom-style";
-#                 style.textContent = `
-#                     [class*="_avatar_"] {{ display: none !important; }}
-#                     div[part='feedback-button'],
-#                     img[alt*='logo'] {{ display: none !important; }}
-#                 `;
-#                 shadowRoot.appendChild(style);
-#             }}
-
-#             // Hook Start Call button
-#             setTimeout(() => {{
-#                 const startCallButton = shadowRoot.querySelector('button[title="Start a call"]');
-#                 if (startCallButton && !startCallButton._hooked) {{
-#                     startCallButton._hooked = true;
-
-#                     const clonedButton = startCallButton.cloneNode(true);
-#                     startCallButton.style.display = 'none';
-
-#                     // Apply custom style except for cfo bridge
-#                     if ("{brand}".toLowerCase() !== "cfobridge") {{
-#                         clonedButton.style.cssText = `
-#                             background-color: #0b72e7;
-#                             color: #fff;
-#                             border: none;
-#                             padding: 12px 20px;
-#                             border-radius: 8px;
-#                             cursor: pointer;
-#                             font-weight: 600;
-#                             font-size: 15px;
-#                         `;
-#                     }}
-
-#                     const wrapper = document.createElement('div');
-#                     wrapper.appendChild(clonedButton);
-#                     startCallButton.parentElement.appendChild(wrapper);
-
-#                     clonedButton.addEventListener('click', (e) => {{
-#                         e.stopPropagation();
-#                         e.preventDefault();
-#                         const key = "convai_form_submitted_" + "{brand}";
-#                         const expiry = localStorage.getItem(key);
-
-#                         if (expiry && Date.now() < parseInt(expiry)) {{
-#                             // Already filled in last 8h → still log again
-#                             logVisitor(false);
-#                             startCallButton.click();
-#                         }} else {{
-#                             // Show form
-#                             document.getElementById('visitor-form-modal').style.display = 'flex';
-#                         }}
-#                     }});
-#                 }}
-#             }}, 100);
-#         }});
-#         observer.observe(document.body, {{ childList: true, subtree: true }});
-
-#         // --- Visitor Form Modal ---
-#         window.addEventListener('DOMContentLoaded', () => {{
-#             const modal = document.createElement('div');
-#             modal.id = 'visitor-form-modal';
-#             modal.style = `
-#                 display: none;
-#                 position: fixed;
-#                 z-index: 99999;
-#                 top: 0; left: 0; width: 100%; height: 100%;
-#                 background: rgba(0, 0, 0, 0.6);
-#                 align-items: center;
-#                 justify-content: center;
-#             `;
-
-#             modal.innerHTML = `
-#                 <div style="background: white; padding: 25px; border-radius: 12px; width: 320px; position: relative;">
-#                     <span id="close-form" style="position: absolute; top: 8px; right: 12px; cursor: pointer;">&times;</span>
-#                     <form id="visitor-form">
-#                         <h3 style="margin-bottom: 15px;">Tell us about you</h3>
-#                         <input type="text" name="name" placeholder="Name" required style="margin-bottom:10px;width:100%;padding:8px;" />
-#                         <input type="tel" name="mobile" placeholder="Mobile (+91...)" required style="margin-bottom:10px;width:100%;padding:8px;" />
-#                         <input type="email" name="email" placeholder="Email" required style="margin-bottom:20px;width:100%;padding:8px;" />
-#                         <button type="submit" style="width:100%;padding:10px;background:#1e88e5;color:#fff;border:none;border-radius:6px;">Start Call</button>
-#                     </form>
-#                 </div>
-#             `;
-#             document.body.appendChild(modal);
-
-#             const modalEl = document.getElementById('visitor-form-modal');
-#             document.getElementById('close-form').onclick = () => modalEl.style.display = 'none';
-#             window.onclick = (e) => {{ if (e.target === modalEl) modalEl.style.display = 'none'; }};
-
-#             document.getElementById('visitor-form').addEventListener('submit', function(e) {{
-#                 e.preventDefault();
-
-#                 const name = this.name.value.trim();
-#                 const mobile = this.mobile.value.trim();
-#                 const email = this.email.value.trim();
-
-#                 if (!name || !mobile || !email) {{
-#                     alert("Please fill all fields.");
-#                     return;
-#                 }}
-
-#                 const formData = {{ name, mobile, email }};
-#                 logVisitor(true, formData);
-
-#                 // Save brand-specific cache for 8h
-#                 const key = "convai_form_submitted_" + "{brand}";
-#                 localStorage.setItem(key, (Date.now() + CACHE_MS).toString());
-
-#                 modalEl.style.display = 'none';
-#                 const widget = document.querySelector('elevenlabs-convai');
-#                 widget?.shadowRoot?.querySelector('button[title="Start a call"]')?.click();
-#             }});
-#         }});
-#     }})();
-#     """
 
 # --- Core JS generator: instant modal + triple-guard injection + per-brand cache key ---
-def generate_widget_js1(agent_id, brand=""):
-    # NOTE: we set brand to lowercase for keys but preserve original for display
-    brand_key = (brand or "").lower()
-    # 8 hours cache TTL
-    CACHE_MS = 8 * 60 * 60 * 1000
-
+def generate_widget_js1(agent_id, branding, brand=""):
     return f"""
-(function(){{
-  const BRAND = "{brand_key}";
-  const CACHE_MS = {CACHE_MS};
+    (function() {{
+        // Branding removal
+        const style = document.createElement("style");
+        style.textContent = `
+            [class*="poweredBy"],
+            div[part="branding"],
+            span:has(a[href*="elevenlabs"]),
+            a[href*="elevenlabs"],
+            span:has([href*="elevenlabs"]) {{
+                display: none !important;
+            }}
+        `;
+        document.head.appendChild(style);
 
-  // Prevent showing any branding ASAP (outside Shadow DOM)
-  const preloadStyle = document.createElement("style");
-  preloadStyle.textContent = `
-    [class*="poweredBy"],
-    div[part="branding"],
-    span:has(a[href*="elevenlabs"]),
-    a[href*="elevenlabs"],
-    span:has([href*="conversational"]),
-    a[href*="conversational"],
-    [class*="_poweredBy_"],
-    [class*="branding"],
-    [class*="_status_"], /* defensive */
-    div[class*="branding"] {{
-      display:none !important; opacity:0 !important; visibility:hidden !important;
-      height:0 !important; font-size:0 !important; line-height:0 !important; pointer-events:none !important;
-    }}
-  `;
-  document.head.appendChild(preloadStyle);
+        const BRAND = "{brand}";
+        const FORM_KEY = "convai_form_submitted_" + BRAND;
 
-  // Inject widget tag early
-  const tag = document.createElement("elevenlabs-convai");
-  tag.setAttribute("agent-id", "{agent_id}");
-  document.body.appendChild(tag);
+        function createPopup() {{
+            if (document.getElementById("visitorPopup")) return;
 
-  // Create modal immediately (instant availability)
-  (function injectModal(){{
-    if (document.getElementById("visitor-form-modal")) return;
-    const modal = document.createElement('div');
-    modal.id = 'visitor-form-modal';
-    modal.style = `
-      display:none; position:fixed; z-index:99999; inset:0;
-      background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center;
-    `;
-    modal.innerHTML = `
-      <div id="form-container" style="
-        background:#fff; padding:24px; border-radius:12px; width:92%; max-width:360px;
-        box-shadow:0 10px 30px rgba(0,0,0,0.2); position:relative; font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial;
-        animation: voizeeFadeIn .25s ease;
-      ">
-        <style>
-          @keyframes voizeeFadeIn {{ from {{opacity:0; transform:scale(.96)}} to {{opacity:1; transform:scale(1)}} }}
-          .vz-input {{ width:100%; padding:10px; border:1px solid #e0e0e0; border-radius:8px; margin:8px 0; font-size:14px; }}
-          .vz-btn {{ width:100%; padding:12px; border:none; border-radius:10px; font-weight:600; cursor:pointer; }}
-          .vz-btn-primary {{ background:#0b72e7; color:#fff; }}
-          .vz-close {{ position:absolute; top:8px; right:12px; cursor:pointer; font-size:18px; font-weight:700; }}
-        </style>
-        <span id="close-form" class="vz-close">&times;</span>
-        <form id="visitor-form">
-          <h3 style="margin:0 0 12px 0; font-size:18px;">Tell us about you</h3>
-          <input class="vz-input" type="text" name="name" placeholder="Name" required />
-          <input class="vz-input" type="tel" name="mobile" placeholder="Mobile (+91...)" required />
-          <input class="vz-input" type="email" name="email" placeholder="Email" required />
-          <button class="vz-btn vz-btn-primary" type="submit">Start Call</button>
-        </form>
-      </div>
-    `;
-    document.body.appendChild(modal);
+            const popup = document.createElement("div");
+            popup.id = "visitorPopup";
+            popup.innerHTML = `
+                <div style="position:fixed;top:0;left:0;width:100%;height:100%;
+                            background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;
+                            z-index:99999;">
+                    <div style="background:white;padding:20px;border-radius:12px;max-width:400px;width:100%;">
+                        <h3>Enter your details</h3>
+                        <form id="visitorForm">
+                            <input type="text" name="name" placeholder="Name" required style="width:100%;margin-bottom:10px;"/>
+                            <input type="email" name="email" placeholder="Email" required style="width:100%;margin-bottom:10px;"/>
+                            <button type="submit" style="padding:10px 20px;background:#0b72e7;color:white;border:none;border-radius:8px;cursor:pointer;">
+                                Submit & Start Call
+                            </button>
+                        </form>
+                    </div>
+                </div>`;
+            document.body.appendChild(popup);
 
-    const modalEl = modal;
-    const closeEl = modal.querySelector('#close-form');
-    closeEl.onclick = () => modalEl.style.display = 'none';
-    window.addEventListener('click', (e) => {{ if (e.target === modalEl) modalEl.style.display = 'none'; }});
-
-    const form = modal.querySelector('#visitor-form');
-    form.addEventListener('submit', function(e){{
-      e.preventDefault();
-      const name = this.name.value.trim();
-      const mobile = this.mobile.value.trim();
-      const email = this.email.value.trim();
-      const url = window.location.href;
-
-      if(!name || !mobile || !email) {{ alert('Please fill all fields.'); return; }}
-
-      // Immediate send to server (first-try success path)
-      fetch('{request.host_url.rstrip("/")}/log-visitor', {{
-        method: 'POST',
-        headers: {{ 'Content-Type': 'application/json' }},
-        body: JSON.stringify({{ name, mobile, email, url, brand: BRAND }})
-      }}).catch(()=>{{}});
-
-      // brand-specific cache key for 8h
-      const key = "convai_form_submitted_" + BRAND;
-      localStorage.setItem(key, (Date.now() + {CACHE_MS}).toString());
-
-      modalEl.style.display = 'none';
-      // Click native start button
-      const widget = document.querySelector('elevenlabs-convai');
-      const btn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
-      btn?.click();
-    }});
-  }})();
-
-  // Load ElevenLabs script
-  const script = document.createElement("script");
-  script.src = "https://elevenlabs.io/convai-widget/index.js";
-  script.async = true;
-
-  script.onload = () => {{
-    // As soon as script is ready, start attaching handlers
-    attachHandlers();
-    startBrandingRemovalGuards();
-  }};
-
-  document.body.appendChild(script);
-
-  // Repeated + observed branding removal (triple-guard)
-  function startBrandingRemovalGuards(){{
-    // 1) Interval attempts
-    let tries = 0;
-    const iv = setInterval(() => {{
-      if (removeBranding()) {{
-        tries++;
-        if (tries > 5) clearInterval(iv); // after multiple successes, stop interval
-      }} else {{
-        if (tries > 40) clearInterval(iv); // ~12s cap
-        tries++;
-      }}
-    }}, 300);
-
-    // 2) MutationObserver
-    const mo = new MutationObserver(() => removeBranding());
-    mo.observe(document.body, {{ childList: true, subtree: true }});
-  }}
-
-  function removeBranding(){{
-    const widget = document.querySelector('elevenlabs-convai');
-    const shadow = widget?.shadowRoot;
-    if(!shadow) return false;
-
-    // Nuke common branding nodes
-    shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])')
-      .forEach(el => el.remove());
-
-    // Defensive: hide any status/footer boxes that mention ElevenLabs
-    shadow.querySelectorAll('[class*="_box_"], [class*="_status_"]').forEach(el => {{
-      if ((el.textContent || "").toLowerCase().includes("elevenlabs")) el.remove();
-    }});
-
-    // Inject style once
-    if(!shadow.querySelector("#vz-style")) {{
-      const style = document.createElement("style");
-      style.id = "vz-style";
-      style.textContent = `
-        [class*="_avatar_"] {{ display:none !important; }}
-        div[part='feedback-button'], img[alt*='logo'] {{ display:none !important; }}
-        [class*="_box_"] {{
-          background: transparent !important; box-shadow: none !important; border: none !important;
-          padding: 0 !important; margin: 0 !important; display:flex !important; align-items:center !important; justify-content:center !important;
+            document.getElementById("visitorForm").onsubmit = function(e) {{
+                e.preventDefault();
+                const data = Object.fromEntries(new FormData(this).entries());
+                fetch("/log-visitor", {{
+                    method: "POST",
+                    headers: {{"Content-Type": "application/json"}},
+                    body: JSON.stringify({{ brand: BRAND, ...data }})
+                }}).then(r => r.json()).then(() => {{
+                    localStorage.setItem(FORM_KEY, Date.now());
+                    document.getElementById("visitorPopup").remove();
+                    // ✅ now trigger the actual start call button
+                    triggerStartCall();
+                }});
+            }};
         }}
-      `;
-      shadow.appendChild(style);
-    }}
 
-    return true;
-  }}
+        function triggerStartCall() {{
+            const btn = document.querySelector('elevenlabs-convai-web[id="{agent_id}"]')
+                          ?.shadowRoot?.querySelector("button");
+            if (btn) btn.click();
+        }}
 
-  function attachHandlers(){{
-    const widget = document.querySelector('elevenlabs-convai');
-    if(!widget) return;
+        function attachInterceptor() {{
+            const el = document.querySelector('elevenlabs-convai-web[id="{agent_id}"]');
+            if (!el) return setTimeout(attachInterceptor, 500);
 
-    // Poll shadow until native button exists, then wrap/clone
-    let attempts = 0;
-    const poll = setInterval(() => {{
-      const shadow = widget.shadowRoot;
-      const startCallButton = shadow?.querySelector('button[title="Start a call"]');
-      if (startCallButton) {{
-        clearInterval(poll);
-        hookStartButton(startCallButton);
-      }} else if (++attempts > 50) {{
-        clearInterval(poll);
-      }}
-    }}, 200);
-  }}
+            const shadowBtn = el.shadowRoot?.querySelector("button");
+            if (!shadowBtn) return setTimeout(attachInterceptor, 500);
 
-  function hookStartButton(nativeBtn){{
-    if (nativeBtn._vzHooked) return;
-    nativeBtn._vzHooked = true;
+            shadowBtn.addEventListener("click", function(e) {{
+                // If form not submitted in last 8h, block & show popup
+                const last = localStorage.getItem(FORM_KEY);
+                const eightHours = 8 * 60 * 60 * 1000;
+                if (!last || (Date.now() - parseInt(last)) > eightHours) {{
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                    createPopup();
+                }}
+            }}, true);
+        }}
 
-    const clone = nativeBtn.cloneNode(true);
-    nativeBtn.style.display = 'none';
+        window.addEventListener("DOMContentLoaded", attachInterceptor);
 
-    // Styling: CFOBridge special; others unified
-    if (BRAND === "cfobridge") {{
-      Object.assign(clone.style, {{
-        backgroundColor: "#0b72e7", color:"#fff", border:"none",
-        padding:"14px 28px", borderRadius:"8px", fontSize:"16px",
-        fontWeight:"bold", boxShadow:"0 4px 12px rgba(0,0,0,0.2)", cursor:"pointer"
-      }});
-    }} else {{
-      Object.assign(clone.style, {{
-        backgroundColor: "#0b72e7", color:"#fff", border:"none",
-        padding:"12px 20px", borderRadius:"24px", fontSize:"15px",
-        fontWeight:"600", cursor:"pointer"
-      }});
-    }}
+        // Inject the widget
+        const s = document.createElement("script");
+        s.type = "module";
+        s.src = "https://cdn.jsdelivr.net/npm/@elevenlabs-voice/convai-widget@latest/dist/index.js";
+        document.head.appendChild(s);
 
-    const wrapper = document.createElement("div");
-    wrapper.appendChild(clone);
-    nativeBtn.parentElement.appendChild(wrapper);
+        const w = document.createElement("elevenlabs-convai-web");
+        w.setAttribute("id", "{agent_id}");
+        w.setAttribute("agent-id", "{agent_id}");
+        document.body.appendChild(w);
+    }})();
+    """
 
-    clone.addEventListener('click', (e) => {{
-      e.preventDefault(); e.stopPropagation();
-      const key = "convai_form_submitted_" + BRAND;
-      const expiry = localStorage.getItem(key);
-
-      if (expiry && Date.now() < parseInt(expiry)) {{
-        nativeBtn.click(); // direct start
-      }} else {{
-        // open modal instantly
-        const modal = document.getElementById('visitor-form-modal');
-        if (modal) modal.style.display = 'flex';
-      }}
-    }});
-  }}
-}})();
-"""
 
 # --- Helper to add "no-store" cache headers for widget JS endpoints ---
 def no_store(response: Response) -> Response:
