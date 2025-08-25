@@ -229,11 +229,11 @@ def generate_widget_js1(agent_id, branding, brand=""):
 
 
 # --- Helper to add "no-store" cache headers for widget JS endpoints ---
-def no_store(response: Response) -> Response:
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0, private"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
+# def no_store(response: Response) -> Response:
+#     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0, private"
+#     response.headers["Pragma"] = "no-cache"
+#     response.headers["Expires"] = "0"
+#     return response
 
 
 
