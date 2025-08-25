@@ -48,15 +48,6 @@ def generate_widget_js2(agent_id, branding, brand=""):
             [class*="_poweredBy_"],
             [class*="branding"],
             div[class*="branding"],
-            div[part="branding"] {{
-                display: none !important;
-                opacity: 0 !important;
-                visibility: hidden !important;
-                height: 0 !important;
-                font-size: 0 !important;
-                line-height: 0 !important;
-                pointer-events: none !important;
-            }}
             div[part="branding"],
             [class*="_status_1968y_121"] {{
                 display: none !important;
@@ -81,96 +72,6 @@ def generate_widget_js2(agent_id, branding, brand=""):
         script.async = true;
         document.body.appendChild(script);
 
-        // --- MutationObserver to style widget & hook start button ---
-        const observer = new MutationObserver(() => {{
-            const widget = document.querySelector('elevenlabs-convai');
-            if (!widget || !widget.shadowRoot) return;
-            const shadowRoot = widget.shadowRoot;
-
-            // Remove branding if found
-            const brandingElem = shadowRoot.querySelector('[class*="poweredBy"], div[part="branding"]');
-            if (brandingElem) {{
-                brandingElem.remove();
-            }}
-
-            // Inject custom style inside shadow root (once)
-            if (!shadowRoot.querySelector("#custom-style")) {{
-                const style = document.createElement("style");
-                style.id = "custom-style";
-                style.textContent = `
-                    div[part='branding'],
-                    a[href*="elevenlabs"],
-                    span:has(a[href*="elevenlabs"]) {{
-                        display: none !important;
-                    }}
-                    [class*="_avatar_"] {{
-                        display: none !important;
-                    }}
-                    [class*="_box_"] {{
-                        background: transparent !important;
-                        box-shadow: none !important;
-                        border: none !important;
-                        padding: 0 !important;
-                        margin: 0 !important;
-                        display: flex !important;
-                        align-items: center !important;
-                        justify-content: center !important;
-                    }}
-                    [class*="_btn_"] {{
-                        border-radius: 30px !important;
-                        padding: 10px 20px !important;
-                        background-color: #0b72e7 !important;
-                        color: #fff !important;
-                        border: none !important;
-                        cursor: pointer !important;
-                        font-weight: 500;
-                        font-size: 14px;
-                    }}
-                    div[part='feedback-button'],
-                    img[alt*='logo'] {{
-                        display: none !important;
-                    }}
-                `;
-                shadowRoot.appendChild(style);
-            }}
-
-            // Hook Start Call button
-            const startCallButton = shadowRoot.querySelector('button[title="Start a call"]');
-            if (startCallButton && !startCallButton._hooked) {{
-                startCallButton._hooked = true;
-                const clonedButton = startCallButton.cloneNode(true);
-                startCallButton.style.display = 'none';
-
-                clonedButton.style.backgroundColor = "#0b72e7";
-                clonedButton.style.color = "#fff";
-                clonedButton.style.border = "none";
-                clonedButton.style.padding = "10px 20px";
-                clonedButton.style.borderRadius = "6px";
-                clonedButton.style.cursor = "pointer";
-
-                const wrapper = document.createElement('div');
-                wrapper.appendChild(clonedButton);
-                startCallButton.parentElement.appendChild(wrapper);
-
-                clonedButton.addEventListener('click', (e) => {{
-                    e.stopPropagation();
-                    e.preventDefault();
-                    const expiry = localStorage.getItem("convai_form_submitted");
-                    if (expiry && Date.now() < parseInt(expiry)) {{
-                        startCallButton.click();
-                    }} else {{
-                        const modal = document.getElementById('visitor-form-modal');
-                        if (modal) {{
-                            modal.style.display = 'flex';
-                        }} else {{
-                            console.error("[ERR] Visitor form modal not found!");
-                        }}
-                    }}
-                }});
-            }}
-        }});
-        observer.observe(document.body, {{ childList: true, subtree: true }});
-
         // --- Visitor form modal (create immediately) ---
         const modal = document.createElement('div');
         modal.id = 'visitor-form-modal';
@@ -183,7 +84,7 @@ def generate_widget_js2(agent_id, branding, brand=""):
             align-items: center;
             justify-content: center;
         `;
-        
+
         modal.innerHTML = `
             <div id="form-container" style="
                 background: white;
@@ -202,7 +103,7 @@ def generate_widget_js2(agent_id, branding, brand=""):
                     font-size: 18px;
                     font-weight: bold;
                 ">&times;</span>
-        
+
                 <form id="visitor-form">
                     <h3 style="margin-bottom: 15px;">Tell us about you</h3>
                     <input type="text" placeholder="Name" name="name" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
@@ -213,45 +114,154 @@ def generate_widget_js2(agent_id, branding, brand=""):
             </div>
         `;
         document.body.appendChild(modal);
-        
-        // --- Form controls ---
-        const modalEl = document.getElementById('visitor-form-modal');
-        const closeForm = document.getElementById('close-form');
-        closeForm.onclick = () => modalEl.style.display = 'none';
-        window.onclick = (e) => {{ if (e.target === modalEl) modalEl.style.display = 'none'; }};
 
-        // --- Submit handler ---
-        document.getElementById("visitor-form").addEventListener("submit", async function(e) {{
-            e.preventDefault();
-        
-            const data = {{
-                name: this.name.value,
-                mobile: this.mobile.value,
-                email: this.email.value,
-                brand: "{brand}"
-            }};
-        
-            try {{
-                await fetch("/log-visitor", {{
-                    method: "POST",
-                    headers: {{ "Content-Type": "application/json" }},
-                    body: JSON.stringify(data)
-                }});
-                console.log("[OK] Visitor logged");
-        
-                localStorage.setItem("convai_form_submitted", Date.now() + 150000);
-            }} catch (err) {{
-                console.error("[ERR] Failed to log visitor", err);
+        // --- Delay to ensure modal exists before assigning events ---
+        setTimeout(() => {{
+            const modalEl = document.getElementById('visitor-form-modal');
+            const closeForm = document.getElementById('close-form');
+            const visitorForm = document.getElementById("visitor-form");
+
+            if (!modalEl || !closeForm || !visitorForm) {{
+                console.error("[ERR] Modal elements missing!");
+                return;
             }}
-        
-            document.getElementById("visitor-form-modal").style.display = "none";
-        
-            // Start the actual call
-            const startBtn = document.querySelector("elevenlabs-convai").shadowRoot.querySelector('button[title="Start a call"]');
-            if (startBtn) startBtn.click();
-        }});
+
+            closeForm.onclick = () => modalEl.style.display = 'none';
+            window.onclick = (e) => {{ if (e.target === modalEl) modalEl.style.display = 'none'; }};
+
+            visitorForm.addEventListener("submit", async function(e) {{
+                e.preventDefault();
+
+                const data = {{
+                    name: this.name.value,
+                    mobile: this.mobile.value,
+                    email: this.email.value,
+                    brand: "{brand}"
+                }};
+
+                try {{
+                    await fetch("/log-visitor", {{
+                        method: "POST",
+                        headers: {{ "Content-Type": "application/json" }},
+                        body: JSON.stringify(data)
+                    }});
+                    console.log("[OK] Visitor logged");
+                    localStorage.setItem("convai_form_submitted", Date.now() + 150000); // ~2.5 mins
+                }} catch (err) {{
+                    console.error("[ERR] Failed to log visitor", err);
+                }}
+
+                modalEl.style.display = "none";
+
+                const startBtn = document.querySelector("elevenlabs-convai")?.shadowRoot?.querySelector('button[title="Start a call"]');
+                if (startBtn) startBtn.click();
+            }});
+        }}, 100);
+
+        // --- MutationObserver for widget styling and button override ---
+        setTimeout(() => {{
+            const observer = new MutationObserver(() => {{
+                const widget = document.querySelector('elevenlabs-convai');
+                if (!widget || !widget.shadowRoot) return;
+
+                const shadowRoot = widget.shadowRoot;
+
+                // Remove branding if found
+                const brandingElem = shadowRoot.querySelector('[class*="poweredBy"], div[part="branding"]');
+                if (brandingElem) {{
+                    brandingElem.remove();
+                }}
+
+                // Inject custom styling once
+                if (!shadowRoot.querySelector("#custom-style")) {{
+                    const style = document.createElement("style");
+                    style.id = "custom-style";
+                    style.textContent = `
+                        div[part='branding'],
+                        a[href*="elevenlabs"],
+                        span:has(a[href*="elevenlabs"]) {{
+                            display: none !important;
+                        }}
+                        [class*="_avatar_"] {{
+                            display: none !important;
+                        }}
+                        [class*="_box_"] {{
+                            background: transparent !important;
+                            box-shadow: none !important;
+                            border: none !important;
+                            padding: 0 !important;
+                            margin: 0 !important;
+                            display: flex !important;
+                            align-items: center !important;
+                            justify-content: center !important;
+                        }}
+                        [class*="_btn_"] {{
+                            border-radius: 30px !important;
+                            padding: 10px 20px !important;
+                            background-color: #0b72e7 !important;
+                            color: #fff !important;
+                            border: none !important;
+                            cursor: pointer !important;
+                            font-weight: 500;
+                            font-size: 14px;
+                        }}
+                        div[part='feedback-button'],
+                        img[alt*='logo'] {{
+                            display: none !important;
+                        }}
+                    `;
+                    shadowRoot.appendChild(style);
+                }}
+
+                // Replace Start Call button
+                const startCallButton = shadowRoot.querySelector('button[title="Start a call"]');
+                if (startCallButton && !startCallButton._hooked) {{
+                    startCallButton._hooked = true;
+                    const clonedButton = startCallButton.cloneNode(true);
+                    startCallButton.style.display = 'none';
+
+                    clonedButton.style.backgroundColor = "#0b72e7";
+                    clonedButton.style.color = "#fff";
+                    clonedButton.style.border = "none";
+                    clonedButton.style.padding = "10px 20px";
+                    clonedButton.style.borderRadius = "6px";
+                    clonedButton.style.cursor = "pointer";
+
+                    const wrapper = document.createElement('div');
+                    wrapper.appendChild(clonedButton);
+                    startCallButton.parentElement.appendChild(wrapper);
+
+                    clonedButton.addEventListener('click', (e) => {{
+                        e.stopPropagation();
+                        e.preventDefault();
+                        console.log("[DEBUG] Cloned call button clicked");
+
+                        const expiry = localStorage.getItem("convai_form_submitted");
+                        if (expiry && Date.now() < parseInt(expiry)) {{
+                            console.log("[DEBUG] Form previously submitted, starting call");
+                            startCallButton.click();
+                        }} else {{
+                            const showModal = () => {{
+                                const modal = document.getElementById('visitor-form-modal');
+                                if (modal) {{
+                                    modal.style.display = 'flex';
+                                    console.log("[DEBUG] Modal shown");
+                                }} else {{
+                                    console.error("[ERR] Modal not found, retrying...");
+                                    setTimeout(showModal, 100);
+                                }}
+                            }};
+                            showModal();
+                        }}
+                    }});
+                }}
+            }});
+
+            observer.observe(document.body, {{ childList: true, subtree: true }});
+        }}, 100);
     }})();
     """
+
 
 
 
