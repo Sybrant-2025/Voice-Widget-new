@@ -551,14 +551,8 @@ def serve_widget_js_cfo(agent_id, branding="Powered by Voizee", brand="cfobridge
       try {
         await fetch("https://voice-widget-new-production-177d.up.railway.app/log-visitor-cfo", {
           method: "POST",
-          headers: { 'Content-Type': 'application/json' },
-    	  body: JSON.stringify({
-              name,
-        	  email,
-        	  phone,
-        	  company,
-        	  website_url: window.location.origin   // 👈 capture here
-    		})
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
         });
       } catch(err){
         console.warn("Logging failed", err);
@@ -1147,8 +1141,9 @@ def log_visitor_cfo():
         email = data.get("email", "")
         phone = data.get("phone", "")
         company = data.get("company", "")
-        website_url = data.get("website_url", request.host_url)  # fallback to server host
+        brand = "cfobridge"
 
+        # --- Webhook URL (replace with your Apps Script deployment link) ---
         webhook_url = "https://script.google.com/macros/s/AKfycbyjjh4lvPTR2xytjabkcofRYIPzFF0UOGI9McuYZCQt8UbQszgH_hMKtUS4Jkyp1S9V/exec"
 
         payload = {
@@ -1156,19 +1151,19 @@ def log_visitor_cfo():
             "email": email,
             "phone": phone,
             "company": company,
-            "website_url": website_url
+            "brand": brand
         }
 
+        # Forward data to Google Sheets Apps Script
         resp = requests.post(webhook_url, json=payload, timeout=10)
 
         if resp.status_code == 200:
             return jsonify({"status": "success", "message": "Data logged to CFO sheet"}), 200
         else:
-            return jsonify({"status": "error", "message": resp.text}), 500
+            return jsonify({"status": "error", "message": f"Webhook error {resp.status_code}"}), 500
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
-
 
 
 @app.route('/log-visitor', methods=['POST'])
