@@ -243,6 +243,223 @@ def serve_widget_js(agent_id, branding="Powered by Voizee", brand="dhilaktest"):
 
 
 
+# --- Core JS serve_widget_js2222222: instant modal + triple-guard injection + per-brand cache key ---
+def serve_widget_js2(agent_id, branding="Powered by Voizee", brand="dhilaktest"):
+    js = """
+(function(){
+  const AGENT_ID = "__AGENT_ID__";
+  const BRAND = "__BRAND__";
+  const BRANDING_TEXT = "__BRANDING__";
+
+  // create widget tag
+  try {
+    const tag = document.createElement("elevenlabs-convai");
+    tag.setAttribute("agent-id", AGENT_ID);
+    document.body.appendChild(tag);
+  } catch (e) {
+    console.error("Failed to create elevenlabs-convai tag:", e);
+  }
+
+  (function loadEmbed(){
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
+    s.async = true;
+    s.onerror = function(){
+      const s2 = document.createElement("script");
+      s2.src = "https://elevenlabs.io/convai-widget/index.js";
+      s2.async = true;
+      document.body.appendChild(s2);
+    };
+    document.body.appendChild(s);
+
+    setTimeout(() => {
+      const w = document.querySelector('elevenlabs-convai');
+      if (!w || !w.shadowRoot) {
+        const s2 = document.createElement("script");
+        s2.src = "https://elevenlabs.io/convai-widget/index.js";
+        s2.async = true;
+        document.body.appendChild(s2);
+      }
+    }, 1400);
+  })();
+
+  // remove branding inside shadow root
+  function removeBrandingFromShadow(sr){
+    if(!sr) return;
+    try {
+      const selectors = [
+        '[class*="poweredBy"]',
+        "div[part='branding']",
+        'a[href*="elevenlabs"]',
+        "[class*='_status_']",
+        'span.opacity-30',
+        'div.overlay',
+        'div.min-w-60',
+        'div[style*="avatar.png"]',
+        'div[style*="eleven-public-cdn"]'
+      ];
+      selectors.forEach(sel => {
+        const nodes = sr.querySelectorAll(sel);
+        nodes.forEach(n => n.remove());
+      });
+    } catch(e){
+      console.error("Error removing branding from shadow:", e);
+    }
+  }
+
+  // modal form
+  function createModal(){
+    if(document.getElementById('convai-visitor-modal')) return;
+    const modal = document.createElement('div');
+    modal.id = 'convai-visitor-modal';
+    modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:2147483647;align-items:center;justify-content:center;";
+
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:10px;padding:20px;max-width:420px;width:92%;box-shadow:0 10px 30px rgba(0,0,0,0.2);font-family:Arial, sans-serif;">
+        <div style="text-align:right;"><button id="convai-modal-close" style="border:none;background:none;font-size:20px;cursor:pointer;">&times;</button></div>
+        <h3 style="margin:0 0 12px 0;">Tell us about you</h3>
+        <form id="convai-visitor-form" style="display:flex;flex-direction:column;gap:8px;">
+          <input name="name" placeholder="Full name" required style="padding:10px;border-radius:6px;border:1px solid #ddd"/>
+          <input name="email" type="email" placeholder="Email" required style="padding:10px;border-radius:6px;border:1px solid #ddd"/>
+          <input name="phone" placeholder="Phone" style="padding:10px;border-radius:6px;border:1px solid #ddd"/>
+          <div style="display:flex;gap:8px;margin-top:6px;">
+            <button type="submit" style="flex:1;padding:10px;border-radius:6px;border:none;background:#0b72e7;color:#fff;cursor:pointer;">Submit & Start Call</button>
+            <button type="button" id="convai-modal-cancel" style="flex:0;padding:10px;border-radius:6px;border:1px solid #ccc;background:#fff;cursor:pointer;">Cancel</button>
+          </div>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.querySelector('#convai-modal-close').addEventListener('click', ()=> modal.style.display='none');
+    modal.querySelector('#convai-modal-cancel').addEventListener('click', ()=> modal.style.display='none');
+
+    const form = modal.querySelector('#convai-visitor-form');
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(form);
+      const payload = Object.fromEntries(fd.entries());
+      payload.url = window.location.href;
+      payload.brand = BRAND || "dhilaktest";
+      payload.agent_id = AGENT_ID;
+      payload.timestamp = new Date().toISOString();
+
+      try {
+        await fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+      } catch (err) {
+        console.error('Failed to log visitor', err);
+      }
+
+      localStorage.setItem('convai_form_submitted', (Date.now() + 5*60*1000).toString());
+      modal.style.display='none';
+
+      try {
+        if (window.__convai_last_button) {
+          window.__convai_last_button._allowCall = true;
+          try { window.__convai_last_button.click(); } catch(e) {
+            const simulated = new MouseEvent('click', {bubbles:true, cancelable:true, composed:true});
+            window.__convai_last_button.dispatchEvent(simulated);
+          }
+        }
+      } catch(e){ console.error("Error triggering original button:", e); }
+    });
+  }
+
+  createModal();
+
+  function hookIfFound(){
+    const widget = document.querySelector('elevenlabs-convai');
+    if (!widget) return false;
+
+    const sr = widget.shadowRoot;
+    if (sr) {
+      removeBrandingFromShadow(sr);
+      const selectors = ['button[title="Start a call"]','button[aria-label="Start a call"]','button[title*="Start"]','button[aria-label*="Start"]','button'];
+      for (const sel of selectors) {
+        const btn = sr.querySelector(sel);
+        if (btn && !btn._convai_hooked) {
+          attachInterceptor(btn);
+          return true;
+        }
+      }
+    }
+
+    const docSelectors = ['button[aria-label="Start a call"]','button[title="Start a call"]','button[aria-label*="Start"]','button[title*="Start"]'];
+    for (const sel of docSelectors) {
+      const btn = document.querySelector(sel);
+      if (btn && !btn._convai_hooked) {
+        attachInterceptor(btn);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function attachInterceptor(btn) {
+    btn._convai_hooked = true;
+    window.__convai_last_button = btn;
+
+    const handler = function(e) {
+      const expiryStr = localStorage.getItem('convai_form_submitted');
+      const expiry = expiryStr ? parseInt(expiryStr, 10) : 0;
+      if (expiry && Date.now() < expiry) {
+        return;
+      }
+
+      if (btn._allowCall) {
+        btn._allowCall = false;
+        return;
+      }
+
+      e.preventDefault();
+      e.stopImmediatePropagation();
+
+      const modal = document.getElementById('convai-visitor-modal');
+      if (modal) modal.style.display = 'flex';
+    };
+
+    btn.addEventListener('click', handler, true);
+
+    try {
+      const root = btn.getRootNode && btn.getRootNode();
+      if (root && root instanceof ShadowRoot) removeBrandingFromShadow(root);
+    } catch(e){}
+  }
+
+  const obs = new MutationObserver((mutations, ob) => {
+    try {
+      hookIfFound();
+      const widget = document.querySelector('elevenlabs-convai');
+      const sr = widget && widget.shadowRoot;
+      if (sr) removeBrandingFromShadow(sr);
+    } catch(e){}
+  });
+  obs.observe(document, {childList:true, subtree:true});
+
+  let tries = 0;
+  const poll = setInterval(()=>{
+    try {
+      const ok = hookIfFound();
+      const widget = document.querySelector('elevenlabs-convai');
+      const sr = widget && widget.shadowRoot;
+      if (sr) removeBrandingFromShadow(sr);
+      if (ok || ++tries > 50) clearInterval(poll);
+    } catch(e){}
+  }, 300);
+
+})();
+    """
+    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
+
+
+
+
+
 # --- Core JS generator222222: instant modal + triple-guard injection + per-brand cache key ---
 def generate_widget_js2(agent_id, brand=""):
     return f"""
@@ -673,7 +890,7 @@ def serve_sybrant():
 @app.route('/dhilaktest')
 def serve_dhilaktest():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js(agent_id, branding="Powered by dhilaktest", brand="dhilaktest")
+    js = serve_widget_js2(agent_id, branding="Powered by dhilaktest", brand="dhilaktest")
     return Response(js, mimetype='application/javascript')
 
 
