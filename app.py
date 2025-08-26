@@ -30,94 +30,101 @@ GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbw
 GOOGLE_SHEET_WEBHOOK_URL_SYBRANT = 'https://script.google.com/macros/s/AKfycbxw4RJYQkdWRN3Fu3Vakj5C8h2P-YUN4qJZQrzxjyDk8t2dCY6Wst3wV0pJ2e5h_nn-6Q/exec'
 
 
-def serve_widget_js():
-    """Serve the modified ElevenLabs widget with popup form integration"""
-    js_code = """
-    (function() {
-        // Load ElevenLabs widget
+def serve_widget_js(agent_id, branding):
+    return f"""
+    (function() {{
         const tag = document.createElement("elevenlabs-convai");
-        tag.setAttribute("agent-id", "agent_01jx28rjk1ftfvf5c6enxm70te");
+        tag.setAttribute("agent-id", "{agent_id}");
         document.body.appendChild(tag);
 
         const script = document.createElement("script");
-        script.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
+        script.src = "https://elevenlabs.io/convai-widget/index.js"; // ✅ old stable URL
         script.async = true;
-        script.type = "text/javascript";
         document.body.appendChild(script);
 
-        // Inject popup form
-        const formHtml = `
-        <div id="visitorForm" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
-            background:rgba(0,0,0,0.6); justify-content:center; align-items:center; z-index:9999;">
-          <div style="background:#fff; padding:20px; border-radius:12px; max-width:400px; width:90%;">
-            <h3>Visitor Info</h3>
-            <form id="popupForm">
-              <label>Name:</label><br>
-              <input type="text" id="name" required><br><br>
-              <label>Email:</label><br>
-              <input type="email" id="email" required><br><br>
-              <label>Phone:</label><br>
-              <input type="tel" id="phone"><br><br>
-              <button type="submit">Submit & Start Call</button>
-              <button type="button" onclick="closeForm()">Cancel</button>
-            </form>
-          </div>
-        </div>`;
-        document.body.insertAdjacentHTML('beforeend', formHtml);
+        const observer = new MutationObserver(() => {{
+            const widget = document.querySelector('elevenlabs-convai');
+            if (!widget || !widget.shadowRoot) return;
+            const shadowRoot = widget.shadowRoot;
 
-        let realStartBtn = null;
+            // Mask branding
+            const brandingElem = shadowRoot.querySelector('[class*="poweredBy"], div[part="branding"]');
+            if (brandingElem) brandingElem.textContent = "{branding}";
 
-        function openForm() {
-          document.getElementById("visitorForm").style.display = "flex";
-        }
-        window.closeForm = function() {
-          document.getElementById("visitorForm").style.display = "none";
-        }
+            if (!shadowRoot.querySelector("#custom-style")) {{
+                const style = document.createElement("style");
+                style.id = "custom-style";
+                style.textContent = `
+                    div[part='branding'], div[class*='poweredBy'] {{
+                        font-size: 12px !important;
+                        color: #888 !important;
+                        margin-right: 20px;
+                    }}
+                    div[part='feedback-button'], img[alt*='logo'] {{
+                        display: none !important;
+                    }}
+                `;
+                shadowRoot.appendChild(style);
+            }}
 
-        document.addEventListener("DOMContentLoaded", () => {
-          const observer = new MutationObserver(() => {
-            const btn = document.querySelector("button[aria-label='Start a call']");
-            if (btn && !btn.dataset.popupAttached) {
-              btn.dataset.popupAttached = "true";
-              realStartBtn = btn;
+            // Hook Start Call button
+            const startBtn = shadowRoot.querySelector('button[title="Start a call"]');
+            if (startBtn && !startBtn._hooked) {{
+                startBtn._hooked = true;
+                const clone = startBtn.cloneNode(true);
+                startBtn.style.display = "none";
+                startBtn.parentElement.appendChild(clone);
 
-              btn.addEventListener("click", (e) => {
+                clone.addEventListener("click", (e) => {{
+                    e.preventDefault();
+                    document.getElementById("visitor-form-modal").style.display = "flex";
+                }});
+            }}
+        }});
+        observer.observe(document.body, {{ childList: true, subtree: true }});
+
+        // Inject popup modal
+        window.addEventListener('DOMContentLoaded', () => {{
+            const modal = document.createElement('div');
+            modal.id = 'visitor-form-modal';
+            modal.style = `
+                display: none; position: fixed; top:0; left:0;
+                width:100%; height:100%; background:rgba(0,0,0,0.6);
+                z-index:9999; align-items:center; justify-content:center;
+            `;
+            modal.innerHTML = `
+                <form id="visitor-form" style="
+                    background:white; padding:20px; border-radius:12px;
+                    width:300px; display:flex; flex-direction:column;
+                ">
+                    <h3>Visitor Info</h3>
+                    <input name="name" placeholder="Name" required style="margin-bottom:10px"/>
+                    <input name="email" type="email" placeholder="Email" required style="margin-bottom:10px"/>
+                    <input name="phone" placeholder="Phone" style="margin-bottom:10px"/>
+                    <button type="submit">Submit & Start Call</button>
+                </form>`;
+            document.body.appendChild(modal);
+
+            document.getElementById("visitor-form").addEventListener("submit", async (e) => {{
                 e.preventDefault();
-                e.stopImmediatePropagation();
-                openForm();
-              }, true);
-            }
-          });
-          observer.observe(document.body, { childList: true, subtree: true });
-        });
+                const data = Object.fromEntries(new FormData(e.target).entries());
+                try {{
+                    await fetch("/log-visitor", {{
+                        method: "POST",
+                        headers: {{ "Content-Type": "application/json" }},
+                        body: JSON.stringify(data)
+                    }});
+                }} catch(err) {{ console.error("Log failed", err); }}
 
-        document.addEventListener("submit", async function(e) {
-          if (e.target && e.target.id === "popupForm") {
-            e.preventDefault();
-            const data = {
-              name: document.getElementById("name").value,
-              email: document.getElementById("email").value,
-              phone: document.getElementById("phone").value
-            };
-            try {
-              await fetch("/log-visitor", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data)
-              });
-            } catch(err) {
-              console.error("Logging failed:", err);
-            }
-            closeForm();
-            if (realStartBtn) {
-              realStartBtn.click = Function.prototype;
-              realStartBtn.dispatchEvent(new Event("click", { bubbles: true }));
-            }
-          }
-        });
-    })();
+                modal.style.display = "none";
+                const widget = document.querySelector("elevenlabs-convai");
+                const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
+                realBtn?.click();
+            }});
+        }});
+    }})();
     """
-    return Response(js_code, mimetype="application/javascript")
+
 
 
 
