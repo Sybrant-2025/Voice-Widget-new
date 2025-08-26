@@ -1135,14 +1135,36 @@ def serve_ctobridge():
 
 @app.route('/log-visitor-cfo', methods=['POST'])
 def log_visitor_cfo():
-    data = request.json
-    print("Visitor Info:", data)
     try:
-        res = requests.post(GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE, json=data)
-        print("Google Sheet Response:", res.text)
+        data = request.get_json(force=True)
+        name = data.get("name", "")
+        email = data.get("email", "")
+        phone = data.get("phone", "")
+        company = data.get("company", "")
+        brand = "cfobridge"
+
+        # --- Webhook URL (replace with your Apps Script deployment link) ---
+        webhook_url = "https://script.google.com/macros/s/AKfycbyjjh4lvPTR2xytjabkcofRYIPzFF0UOGI9McuYZCQt8UbQszgH_hMKtUS4Jkyp1S9V/exec"
+
+        payload = {
+            "name": name,
+            "email": email,
+            "phone": phone,
+            "company": company,
+            "brand": brand
+        }
+
+        # Forward data to Google Sheets Apps Script
+        resp = requests.post(webhook_url, json=payload, timeout=10)
+
+        if resp.status_code == 200:
+            return jsonify({"status": "success", "message": "Data logged to CFO sheet"}), 200
+        else:
+            return jsonify({"status": "error", "message": f"Webhook error {resp.status_code}"}), 500
+
     except Exception as e:
-        print("Error sending to Google Sheet:", e)
-    return {"status": "ok"}
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 
 @app.route('/log-visitor', methods=['POST'])
 def log_visitor():
