@@ -27,7 +27,7 @@ GOOGLE_SHEET_WEBHOOK_URL_GALENT = 'https://script.google.com/macros/s/AKfycbzZrT
 GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL = 'https://script.google.com/macros/s/AKfycbz52ul8_xCPMWLfRFuuQxqPfgo_YgpnkPgpdsfSlfE_X17SAoVVCjK0B5efxPhfmrXImA/exec'
 GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS = 'https://script.google.com/macros/s/AKfycbwZpUmj42D_GB3AgxTqSSdQcua2byy5dvFr7dO5jJBhYrUDNhulPj-RxLtWwlz_87T5Pg/exec'
 # GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbwLV_WE3fs1ocw_PhFpWdwC9uASNU2wbD0Uuhk-2WHte5T12c0sWOg2Pq5VtmlAIvDM/exec'
-GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbyedrYPf_c6hrodw08VzSDBTPeJRrPZum5snvgwZfAfUDMwXCxgo3mCafADeSzkyqD4/exec'
+GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbwwVxNTNcLQXU2nNVSaDkGQM7XBqcK5Yj-8EgzvsKAkFWuSe19_6V88PUgSD2UHjtln/exec'
 GOOGLE_SHEET_WEBHOOK_URL_SYBRANT = 'https://script.google.com/macros/s/AKfycbxw4RJYQkdWRN3Fu3Vakj5C8h2P-YUN4qJZQrzxjyDk8t2dCY6Wst3wV0pJ2e5h_nn-6Q/exec'
 
 
@@ -1009,7 +1009,7 @@ def serve_preludesys():
 @app.route('/cfobridge')
 def serve_cfobridge():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js2(agent_id, branding="Powered by cfobridge", brand="cfobridge")
+    js = serve_widget_js_cfo(agent_id, branding="Powered by cfobridge", brand="cfobridge")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/sybrant')
