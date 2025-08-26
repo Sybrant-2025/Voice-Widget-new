@@ -859,58 +859,58 @@ def serve_ctobridge():
     js = generate_widget_js2(agent_id, branding="Powered by ctobridge", brand="ctobridge")
     return Response(js, mimetype='application/javascript')
 
-def get_webhook_url(brand):
-    brand = (brand or "").lower()
-    if brand == "successgyan":
-        return GOOGLE_SHEET_WEBHOOK_URL_SUCCESSGYAN
-    elif brand == "kfwcorp":
-        return GOOGLE_SHEET_WEBHOOK_URL_KFWCORP
-    elif brand == "orientbell":
-        return GOOGLE_SHEET_WEBHOOK_URL_ORIENTBELL
-    elif brand == "galent":
-        return GOOGLE_SHEET_WEBHOOK_URL_GALENT
-    elif brand == "myndwell":
-        return GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL
-    elif brand == "preludesys":
-        return GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS
-    elif brand == "cfobridge":
-        return GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE
-    elif brand == "ctobridge":
-        return GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE
-    elif brand == "sybrant":
-        return GOOGLE_SHEET_WEBHOOK_URL_SYBRANT
-    elif brand == "dhilaktest":
-        return GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
-    else:
-        return GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
+# def get_webhook_url(brand):
+#     brand = (brand or "").lower()
+#     if brand == "successgyan":
+#         return GOOGLE_SHEET_WEBHOOK_URL_SUCCESSGYAN
+#     elif brand == "kfwcorp":
+#         return GOOGLE_SHEET_WEBHOOK_URL_KFWCORP
+#     elif brand == "orientbell":
+#         return GOOGLE_SHEET_WEBHOOK_URL_ORIENTBELL
+#     elif brand == "galent":
+#         return GOOGLE_SHEET_WEBHOOK_URL_GALENT
+#     elif brand == "myndwell":
+#         return GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL
+#     elif brand == "preludesys":
+#         return GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS
+#     elif brand == "cfobridge":
+#         return GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE
+#     elif brand == "ctobridge":
+#         return GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE
+#     elif brand == "sybrant":
+#         return GOOGLE_SHEET_WEBHOOK_URL_SYBRANT
+#     elif brand == "dhilaktest":
+#         return GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
+#     else:
+#         return GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
 
-@app.route('/log-visitor', methods=['POST'])
-def log_visitor():
-    data = request.json
-    brand = data.get("brand", "").lower()
-    webhook_url = get_webhook_url(brand)
-    print(f"[DEBUG] Incoming data: {data}")
-    print(f"[DEBUG] Using webhook URL: {webhook_url}")
+# @app.route('/log-visitor', methods=['POST'])
+# def log_visitor():
+#     data = request.json
+#     brand = data.get("brand", "").lower()
+#     webhook_url = get_webhook_url(brand)
+#     print(f"[DEBUG] Incoming data: {data}")
+#     print(f"[DEBUG] Using webhook URL: {webhook_url}")
 
-    append_to_log(data, webhook_url)
+#     append_to_log(data, webhook_url)
 
-    all_entries = read_log()
-    remaining = []
+#     all_entries = read_log()
+#     remaining = []
 
-    for entry in all_entries:
-        try:
-            res = requests.post(entry["webhook_url"], json=entry, timeout=10)
-            print(f"[DEBUG] POST {entry['webhook_url']} => {res.status_code}")
-            if res.status_code == 200:
-                print(f"[{entry['brand']}] Sent to Google Sheet: {entry}")
-            else:
-                remaining.append(entry)
-        except Exception as e:
-            print(f"[{entry['brand']}] Exception: {e}")
-            remaining.append(entry)
+#     for entry in all_entries:
+#         try:
+#             res = requests.post(entry["webhook_url"], json=entry, timeout=10)
+#             print(f"[DEBUG] POST {entry['webhook_url']} => {res.status_code}")
+#             if res.status_code == 200:
+#                 print(f"[{entry['brand']}] Sent to Google Sheet: {entry}")
+#             else:
+#                 remaining.append(entry)
+#         except Exception as e:
+#             print(f"[{entry['brand']}] Exception: {e}")
+#             remaining.append(entry)
 
-    write_log(remaining)
-    return jsonify({"status": "ok", "pending": len(remaining)})
+#     write_log(remaining)
+#     return jsonify({"status": "ok", "pending": len(remaining)})
 
 
 # --- Form Submission Logging try2 ---
@@ -959,37 +959,39 @@ def log_visitor():
 #     return {"status": "ok"}
 
 
-# @app.route('/log-visitor', methods=['POST'])
-# def log_visitor():
-#     data = request.json
-#     brand = data.get("brand", "").lower()
+@app.route('/log-visitor', methods=['POST'])
+def log_visitor():
+    data = request.json
+    brand = data.get("brand", "").lower()
 
-#     if brand == "successgyan":
-#         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_SUCCESSGYAN
-#     elif brand == "kfwcorp":
-#         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_KFWCORP
-#     elif brand == "orientbell":
-#         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_ORIENTBELL
-#     elif brand == "galent":
-#         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_GALENT
-#     elif brand == "myndwell":
-#         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL
-#     elif brand == "preludesys":
-#         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS
-#     elif brand == "cfobridge":
-#         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE
-#     elif brand == "sybrant":
-#         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_SYBRANT
-#     else:
-#         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
+    if brand == "successgyan":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_SUCCESSGYAN
+    elif brand == "kfwcorp":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_KFWCORP
+    elif brand == "orientbell":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_ORIENTBELL
+    elif brand == "galent":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_GALENT
+    elif brand == "myndwell":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL
+    elif brand == "preludesys":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS
+    elif brand == "cfobridge":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE
+    elif brand == "sybrant":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_SYBRANT
+    elif brand == "dhilaktest":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
+    else:
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
 
-#     try:
-#         res = requests.post(webhook_url, json=data)
-#         print(f"[{brand}] Google Sheet Response: {res.text}")
-#     except Exception as e:
-#         print(f"Error sending to Google Sheet for brand '{brand}':", e)
+    try:
+        res = requests.post(webhook_url, json=data)
+        print(f"[{brand}] Google Sheet Response: {res.text}")
+    except Exception as e:
+        print(f"Error sending to Google Sheet for brand '{brand}':", e)
 
-#     return {"status": "ok"}
+    return {"status": "ok"}
 
 
 
@@ -1033,10 +1035,8 @@ def demo_dhilaktest():
         </style>
     </head>
     <body>
-        <div class="logo">
-            <img src="https://successgyan.com/wp-content/uploads/2024/02/SG-logo-1@2x-150x67.png" alt="SuccessGyan Logo" height="60">
-        </div>
-        <h2>SuccessGyan Voizee Assistant Demo</h2>
+        
+        <h2>Test For Voizee Assistant Demo</h2>
         
             <script src="https://voizee.sybrant.com/dhilaktest?agent=agent_01jx28rjk1ftfvf5c6enxm70te"></script>
         
