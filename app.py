@@ -27,7 +27,7 @@ GOOGLE_SHEET_WEBHOOK_URL_GALENT = 'https://script.google.com/macros/s/AKfycbzZrT
 GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL = 'https://script.google.com/macros/s/AKfycbz52ul8_xCPMWLfRFuuQxqPfgo_YgpnkPgpdsfSlfE_X17SAoVVCjK0B5efxPhfmrXImA/exec'
 GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS = 'https://script.google.com/macros/s/AKfycbwZpUmj42D_GB3AgxTqSSdQcua2byy5dvFr7dO5jJBhYrUDNhulPj-RxLtWwlz_87T5Pg/exec'
 # GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbwLV_WE3fs1ocw_PhFpWdwC9uASNU2wbD0Uuhk-2WHte5T12c0sWOg2Pq5VtmlAIvDM/exec'
-GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbzVKL8Wrn4_sgGLcNn_sLME5A9-i7_v04c_WsrcrHSEGcUiynW8ADaCYR_KP6qIRmjQ/exec'
+GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbyedrYPf_c6hrodw08VzSDBTPeJRrPZum5snvgwZfAfUDMwXCxgo3mCafADeSzkyqD4/exec'
 GOOGLE_SHEET_WEBHOOK_URL_SYBRANT = 'https://script.google.com/macros/s/AKfycbxw4RJYQkdWRN3Fu3Vakj5C8h2P-YUN4qJZQrzxjyDk8t2dCY6Wst3wV0pJ2e5h_nn-6Q/exec'
 
 
@@ -417,6 +417,177 @@ def serve_widget_js2(agent_id, branding="Powered by Voizee", brand="default"):
     """
     return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
 
+
+# --- Core JS cfobridge instant modal + triple-guard injection + per-brand cache key ---
+def serve_widget_js_cfo(agent_id, branding="Powered by Voizee", brand="default"):
+    js = """
+(function(){
+  const AGENT_ID = "__AGENT_ID__";
+  const BRAND = "__BRAND__";
+  const BRANDING_TEXT = "__BRANDING__";
+
+  // Inject widget
+  try {
+    const tag = document.createElement("elevenlabs-convai");
+    tag.setAttribute("agent-id", AGENT_ID);
+    document.body.appendChild(tag);
+  } catch (e) {
+    console.error("Widget creation failed", e);
+  }
+
+  // Load embed script
+  (function loadEmbed(){
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
+    s.async = true;
+    s.onerror = function(){
+      const fallback = document.createElement("script");
+      fallback.src = "https://elevenlabs.io/convai-widget/index.js";
+      fallback.async = true;
+      document.body.appendChild(fallback);
+    };
+    document.body.appendChild(s);
+  })();
+
+  // Remove branding, avatar and prompt
+  function removeExtras(sr){
+    if (!sr) return;
+    try {
+      const selectors = [
+        'span.opacity-30', // "Powered by ElevenLabs"
+      ];
+      selectors.forEach(sel => {
+        sr.querySelectorAll(sel).forEach(el => el.remove());
+      });
+    } catch(e){
+      console.warn("Brand cleanup error", e);
+    }
+  }
+
+  // Try hooking call button
+  function hookButton(){
+    const widget = document.querySelector("elevenlabs-convai");
+    if (!widget) return false;
+    const sr = widget.shadowRoot;
+    if (!sr) return false;
+
+    removeExtras(sr);
+
+    const selectors = [
+      'button[title="Start a call"]',
+      'button[aria-label="Start a call"]',
+      'button[title*="Start"]',
+      'button[aria-label*="Start"]'
+    ];
+    for (const sel of selectors) {
+      const btn = sr.querySelector(sel);
+      if (btn && !btn._hooked) {
+        btn._hooked = true;
+        interceptClick(btn);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Show modal on click
+  function interceptClick(btn){
+    window.__last_call_btn = btn;
+    btn.addEventListener("click", (e) => {
+      const ttl = parseInt(localStorage.getItem("convai_form_submitted") || "0");
+      if (Date.now() < ttl) return;
+
+      if (btn._allowCall) {
+        btn._allowCall = false;
+        return;
+      }
+
+      e.preventDefault();
+      e.stopImmediatePropagation();
+
+      const modal = document.getElementById("convai-visitor-modal");
+      if (modal) modal.style.display = "flex";
+    }, true);
+  }
+
+  // Inject visitor form
+  function createVisitorModal(){
+    if (document.getElementById("convai-visitor-modal")) return;
+    const modal = document.createElement("div");
+    modal.id = "convai-visitor-modal";
+    modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;align-items:center;justify-content:center;";
+    modal.innerHTML = `
+      <div style="background:white;border-radius:8px;padding:20px;max-width:400px;width:90%;font-family:sans-serif;">
+        <div style="text-align:right;"><button id="convai-close" style="font-size:18px;background:none;border:none;">×</button></div>
+        <h3 style="margin-top:0;">Tell us about you</h3>
+        <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
+          <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+		  <input name="company" placeholder="Company name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <input name="phone" placeholder="Phone (optional)" style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <div style="display:flex;gap:10px;">
+            <button type="submit" style="flex:1;padding:10px;background:#007bff;color:white;border:none;border-radius:4px;">Submit</button>
+            <button type="button" id="convai-cancel" style="padding:10px;background:#eee;border:none;border-radius:4px;">Cancel</button>
+          </div>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.querySelector("#convai-close").onclick = () => modal.style.display = "none";
+    modal.querySelector("#convai-cancel").onclick = () => modal.style.display = "none";
+
+    const form = modal.querySelector("#convai-form");
+    form.onsubmit = async function(ev){
+      ev.preventDefault();
+      const fd = new FormData(form);
+      const data = Object.fromEntries(fd.entries());
+      data.agent_id = AGENT_ID;
+      data.brand = BRAND;
+      data.url = location.href;
+      data.timestamp = new Date().toISOString();
+
+      try {
+        await fetch("/log-visitor-cfo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+      } catch(err){
+        console.warn("Logging failed", err);
+      }
+
+      localStorage.setItem("convai_form_submitted", (Date.now() + 5*60*1000).toString());
+      modal.style.display = "none";
+
+      try {
+        if (window.__last_call_btn) {
+          window.__last_call_btn._allowCall = true;
+          window.__last_call_btn.click();
+        }
+      } catch(err) {}
+    }
+  }
+
+  createVisitorModal();
+
+  // Observe and poll widget for shadow access
+  const obs = new MutationObserver(() => {
+    try {
+      const found = hookButton();
+      if (found) obs.disconnect();
+    } catch(e){}
+  });
+  obs.observe(document, { childList: true, subtree: true });
+
+  let tries = 0;
+  const poll = setInterval(() => {
+    const ok = hookButton();
+    if (ok || ++tries > 50) clearInterval(poll);
+  }, 300);
+})();
+    """
+    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
 
 
 
@@ -959,6 +1130,18 @@ def serve_ctobridge():
 #         print("Error sending to Google Sheet:", e)
 #     return {"status": "ok"}
 
+
+
+@app.route('/log-visitor-cfo', methods=['POST'])
+def log_visitor_cfo():
+    data = request.json
+    print("Visitor Info:", data)
+    try:
+        res = requests.post(GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE, json=data)
+        print("Google Sheet Response:", res.text)
+    except Exception as e:
+        print("Error sending to Google Sheet:", e)
+    return {"status": "ok"}
 
 @app.route('/log-visitor', methods=['POST'])
 def log_visitor():
