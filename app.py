@@ -708,40 +708,69 @@ def get_webhook_url(brand):
     else:
         return GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
 
-
 @app.route('/log-visitor', methods=['POST'])
 def log_visitor():
     data = request.json
     brand = data.get("brand", "").lower()
     webhook_url = get_webhook_url(brand)
+    print(f"[DEBUG] Incoming data: {data}")
+    print(f"[DEBUG] Using webhook URL: {webhook_url}")
 
-    # --- Always log first (with webhook_url) ---
     append_to_log(data, webhook_url)
 
-    # --- Retry sending all entries (including new one) ---
     all_entries = read_log()
     remaining = []
 
     for entry in all_entries:
         try:
             res = requests.post(entry["webhook_url"], json=entry, timeout=10)
+            print(f"[DEBUG] POST {entry['webhook_url']} => {res.status_code}")
             if res.status_code == 200:
                 print(f"[{entry['brand']}] Sent to Google Sheet: {entry}")
             else:
-                print(f"[{entry['brand']}] Failed {res.status_code}, keeping in log")
                 remaining.append(entry)
         except Exception as e:
-            print(f"Error sending to Google Sheet for {entry['brand']}: {e}")
+            print(f"[{entry['brand']}] Exception: {e}")
             remaining.append(entry)
 
-    # Keep only unsent
     write_log(remaining)
-
     return jsonify({"status": "ok", "pending": len(remaining)})
 
 
+# --- Form Submission Logging try2 ---
+# @app.route('/log-visitor', methods=['POST'])
+# def log_visitor():
+#     data = request.json
+#     brand = data.get("brand", "").lower()
+#     webhook_url = get_webhook_url(brand)
 
-# --- Form Submission Logging ---
+#     # --- Always log first (with webhook_url) ---
+#     append_to_log(data, webhook_url)
+
+#     # --- Retry sending all entries (including new one) ---
+#     all_entries = read_log()
+#     remaining = []
+
+#     for entry in all_entries:
+#         try:
+#             res = requests.post(entry["webhook_url"], json=entry, timeout=10)
+#             if res.status_code == 200:
+#                 print(f"[{entry['brand']}] Sent to Google Sheet: {entry}")
+#             else:
+#                 print(f"[{entry['brand']}] Failed {res.status_code}, keeping in log")
+#                 remaining.append(entry)
+#         except Exception as e:
+#             print(f"Error sending to Google Sheet for {entry['brand']}: {e}")
+#             remaining.append(entry)
+
+#     # Keep only unsent
+#     write_log(remaining)
+
+#     return jsonify({"status": "ok", "pending": len(remaining)})
+
+
+
+# --- Form Submission Logging try1 ---
 # @app.route('/log-visitor', methods=['POST'])
 # def log_visitor():
 #     data = request.json
