@@ -30,100 +30,215 @@ GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbw
 GOOGLE_SHEET_WEBHOOK_URL_SYBRANT = 'https://script.google.com/macros/s/AKfycbxw4RJYQkdWRN3Fu3Vakj5C8h2P-YUN4qJZQrzxjyDk8t2dCY6Wst3wV0pJ2e5h_nn-6Q/exec'
 
 
-def serve_widget_js(agent_id, branding):
-    return f"""
-    (function() {{
-        const tag = document.createElement("elevenlabs-convai");
-        tag.setAttribute("agent-id", "{agent_id}");
-        document.body.appendChild(tag);
+def serve_widget_js(agent_id, branding="Powered by Voizee", brand="dhilaktest"):
+    js = """
+(function(){
+  const AGENT_ID = "__AGENT_ID__";
+  const BRAND = "__BRAND__";
+  const BRANDING_TEXT = "__BRANDING__";
 
-        const script = document.createElement("script");
-        script.src = "https://elevenlabs.io/convai-widget/index.js"; // ✅ old stable URL
-        script.async = true;
-        document.body.appendChild(script);
+  // create widget tag
+  try {
+    const tag = document.createElement("elevenlabs-convai");
+    tag.setAttribute("agent-id", AGENT_ID);
+    document.body.appendChild(tag);
+  } catch (e) {
+    console.error("Failed to create elevenlabs-convai tag:", e);
+  }
 
-        const observer = new MutationObserver(() => {{
-            const widget = document.querySelector('elevenlabs-convai');
-            if (!widget || !widget.shadowRoot) return;
-            const shadowRoot = widget.shadowRoot;
+  // prefer the unpkg embed (same as your page), fallback to old URL if needed
+  (function loadEmbed(){
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
+    s.async = true;
+    s.onerror = function(){
+      // fallback after failure
+      const s2 = document.createElement("script");
+      s2.src = "https://elevenlabs.io/convai-widget/index.js";
+      s2.async = true;
+      document.body.appendChild(s2);
+    };
+    document.body.appendChild(s);
 
-            // Mask branding
-            const brandingElem = shadowRoot.querySelector('[class*="poweredBy"], div[part="branding"]');
-            if (brandingElem) brandingElem.textContent = "{branding}";
+    // if widget not initialized after short delay, try fallback script
+    setTimeout(() => {
+      const w = document.querySelector('elevenlabs-convai');
+      if (!w || !w.shadowRoot) {
+        const s2 = document.createElement("script");
+        s2.src = "https://elevenlabs.io/convai-widget/index.js";
+        s2.async = true;
+        document.body.appendChild(s2);
+      }
+    }, 1400);
+  })();
 
-            if (!shadowRoot.querySelector("#custom-style")) {{
-                const style = document.createElement("style");
-                style.id = "custom-style";
-                style.textContent = `
-                    div[part='branding'], div[class*='poweredBy'] {{
-                        font-size: 12px !important;
-                        color: #888 !important;
-                        margin-right: 20px;
-                    }}
-                    div[part='feedback-button'], img[alt*='logo'] {{
-                        display: none !important;
-                    }}
-                `;
-                shadowRoot.appendChild(style);
-            }}
+  // remove/minimize branding inside shadow root if possible
+  function removeBrandingFromShadow(sr){
+    if(!sr) return;
+    try {
+      const selectors = ['[class*="poweredBy"]', "div[part='branding']", 'a[href*="elevenlabs"]', "[class*='_status_']"];
+      selectors.forEach(sel=>{
+        const nodes = sr.querySelectorAll(sel);
+        nodes.forEach(n => n.remove());
+      });
+    } catch(e){}
+  }
 
-            // Hook Start Call button
-            const startBtn = shadowRoot.querySelector('button[title="Start a call"]');
-            if (startBtn && !startBtn._hooked) {{
-                startBtn._hooked = true;
-                const clone = startBtn.cloneNode(true);
-                startBtn.style.display = "none";
-                startBtn.parentElement.appendChild(clone);
+  // create modal (only once)
+  function createModal(){
+    if(document.getElementById('convai-visitor-modal')) return;
+    const modal = document.createElement('div');
+    modal.id = 'convai-visitor-modal';
+    modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:2147483647;align-items:center;justify-content:center;";
 
-                clone.addEventListener("click", (e) => {{
-                    e.preventDefault();
-                    document.getElementById("visitor-form-modal").style.display = "flex";
-                }});
-            }}
-        }});
-        observer.observe(document.body, {{ childList: true, subtree: true }});
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:10px;padding:20px;max-width:420px;width:92%;box-shadow:0 10px 30px rgba(0,0,0,0.2);font-family:Arial, sans-serif;">
+        <div style="text-align:right;"><button id="convai-modal-close" style="border:none;background:none;font-size:20px;cursor:pointer;">&times;</button></div>
+        <h3 style="margin:0 0 12px 0;">Tell us about you</h3>
+        <form id="convai-visitor-form" style="display:flex;flex-direction:column;gap:8px;">
+          <input name="name" placeholder="Full name" required style="padding:10px;border-radius:6px;border:1px solid #ddd"/>
+          <input name="email" type="email" placeholder="Email" required style="padding:10px;border-radius:6px;border:1px solid #ddd"/>
+          <input name="phone" placeholder="Phone" style="padding:10px;border-radius:6px;border:1px solid #ddd"/>
+          <div style="display:flex;gap:8px;margin-top:6px;">
+            <button type="submit" style="flex:1;padding:10px;border-radius:6px;border:none;background:#0b72e7;color:#fff;cursor:pointer;">Submit & Start Call</button>
+            <button type="button" id="convai-modal-cancel" style="flex:0;padding:10px;border-radius:6px;border:1px solid #ccc;background:#fff;cursor:pointer;">Cancel</button>
+          </div>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(modal);
 
-        // Inject popup modal
-        window.addEventListener('DOMContentLoaded', () => {{
-            const modal = document.createElement('div');
-            modal.id = 'visitor-form-modal';
-            modal.style = `
-                display: none; position: fixed; top:0; left:0;
-                width:100%; height:100%; background:rgba(0,0,0,0.6);
-                z-index:9999; align-items:center; justify-content:center;
-            `;
-            modal.innerHTML = `
-                <form id="visitor-form" style="
-                    background:white; padding:20px; border-radius:12px;
-                    width:300px; display:flex; flex-direction:column;
-                ">
-                    <h3>Visitor Info</h3>
-                    <input name="name" placeholder="Name" required style="margin-bottom:10px"/>
-                    <input name="email" type="email" placeholder="Email" required style="margin-bottom:10px"/>
-                    <input name="phone" placeholder="Phone" style="margin-bottom:10px"/>
-                    <button type="submit">Submit & Start Call</button>
-                </form>`;
-            document.body.appendChild(modal);
+    modal.querySelector('#convai-modal-close').addEventListener('click', ()=> modal.style.display='none');
+    modal.querySelector('#convai-modal-cancel').addEventListener('click', ()=> modal.style.display='none');
 
-            document.getElementById("visitor-form").addEventListener("submit", async (e) => {{
-                e.preventDefault();
-                const data = Object.fromEntries(new FormData(e.target).entries());
-                try {{
-                    await fetch("/log-visitor", {{
-                        method: "POST",
-                        headers: {{ "Content-Type": "application/json" }},
-                        body: JSON.stringify(data)
-                    }});
-                }} catch(err) {{ console.error("Log failed", err); }}
+    const form = modal.querySelector('#convai-visitor-form');
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(form);
+      const payload = Object.fromEntries(fd.entries());
+      payload.url = window.location.href;
+      payload.brand = BRAND || "dhilaktest";
+      payload.agent_id = AGENT_ID;
+      payload.timestamp = new Date().toISOString();
 
-                modal.style.display = "none";
-                const widget = document.querySelector("elevenlabs-convai");
-                const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
-                realBtn?.click();
-            }});
-        }});
-    }})();
+      try {
+        // POST to your Flask /log-visitor endpoint (same-origin)
+        await fetch('/log-visitor', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+      } catch (err) {
+        console.error('Failed to log visitor', err);
+      }
+
+      // set small TTL so user doesn't need to re-fill immediately (5 minutes)
+      localStorage.setItem('convai_form_submitted', (Date.now() + 5*60*1000).toString());
+      modal.style.display='none';
+
+      // trigger original button (if saved)
+      try {
+        if (window.__convai_last_button) {
+          window.__convai_last_button._allowCall = true;
+          try { window.__convai_last_button.click(); } catch(e) {
+            const simulated = new MouseEvent('click', {bubbles:true, cancelable:true, composed:true});
+            window.__convai_last_button.dispatchEvent(simulated);
+          }
+        }
+      } catch(e){ console.error("Error triggering original button:", e); }
+    });
+  }
+
+  createModal();
+
+  // find and hook Start button (shadow DOM or document)
+  function hookIfFound(){
+    const widget = document.querySelector('elevenlabs-convai');
+    if (!widget) return false;
+
+    // try shadow root first
+    const sr = widget.shadowRoot;
+    if (sr) {
+      removeBrandingFromShadow(sr);
+      const selectors = ['button[title="Start a call"]','button[aria-label="Start a call"]','button[title*="Start"]','button[aria-label*="Start"]','button'];
+      for (const sel of selectors) {
+        const btn = sr.querySelector(sel);
+        if (btn && !btn._convai_hooked) {
+          attachInterceptor(btn);
+          return true;
+        }
+      }
+    }
+
+    // fallback to global document
+    const docSelectors = ['button[aria-label="Start a call"]','button[title="Start a call"]','button[aria-label*="Start"]','button[title*="Start"]'];
+    for (const sel of docSelectors) {
+      const btn = document.querySelector(sel);
+      if (btn && !btn._convai_hooked) {
+        attachInterceptor(btn);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function attachInterceptor(btn) {
+    btn._convai_hooked = true;
+    window.__convai_last_button = btn;
+
+    const handler = function(e) {
+      // expiry-bypass: if user recently submitted, allow the click to proceed
+      const expiryStr = localStorage.getItem('convai_form_submitted');
+      const expiry = expiryStr ? parseInt(expiryStr, 10) : 0;
+      if (expiry && Date.now() < expiry) {
+        return; // let default behavior happen
+      }
+
+      // allow programmatic click to pass through once
+      if (btn._allowCall) {
+        btn._allowCall = false;
+        return;
+      }
+
+      e.preventDefault();
+      e.stopImmediatePropagation();
+
+      // open modal
+      const modal = document.getElementById('convai-visitor-modal');
+      if (modal) modal.style.display = 'flex';
+    };
+
+    // use capture so we intercept before widget internal handlers
+    btn.addEventListener('click', handler, true);
+
+    // attempt to remove branding (safety)
+    try {
+      const root = btn.getRootNode && btn.getRootNode();
+      if (root && root instanceof ShadowRoot) removeBrandingFromShadow(root);
+    } catch(e){}
+  }
+
+  // Observe DOM for widget/button
+  const obs = new MutationObserver((mutations, ob) => {
+    try {
+      hookIfFound();
+    } catch(e){}
+  });
+  obs.observe(document, {childList:true, subtree:true});
+
+  // Poll fallback for a short time (in case MutationObserver misses)
+  let tries = 0;
+  const poll = setInterval(()=>{
+    try {
+      const ok = hookIfFound();
+      if (ok || ++tries > 50) clearInterval(poll);
+    } catch(e){}
+  }, 300);
+
+})();
     """
+    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
 
 
 
