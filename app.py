@@ -837,13 +837,13 @@ def serve_preludesys():
 @app.route('/cfobridge')
 def serve_cfobridge():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by cfobridge", brand="cfobridge")
+    js = serve_widget_js2(agent_id, branding="Powered by cfobridge", brand="cfobridge")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/sybrant')
 def serve_sybrant():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by sybrant", brand="sybrant")
+    js = serve_widget_js2(agent_id, branding="Powered by sybrant", brand="sybrant")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/dhilaktest')
@@ -856,7 +856,7 @@ def serve_dhilaktest():
 @app.route('/ctobridge')
 def serve_ctobridge():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js2(agent_id, branding="Powered by ctobridge", brand="ctobridge")
+    js = serve_widget_js2(agent_id, branding="Powered by ctobridge", brand="ctobridge")
     return Response(js, mimetype='application/javascript')
 
 # def get_webhook_url(brand):
