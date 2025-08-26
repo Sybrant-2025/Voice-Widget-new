@@ -122,7 +122,7 @@ def serve_widget_js():
 
 
 # --- Core JS generator: instant modal + triple-guard injection + per-brand cache key ---
-function generate_widget_js2(agent_id, branding, brand = "") {
+function generate_widget_js2(agent_id, branding, brand = ""):
     return `
     (function() {
         // Clear old cache on page load
