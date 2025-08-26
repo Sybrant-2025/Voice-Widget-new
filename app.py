@@ -123,7 +123,7 @@ def serve_widget_js(agent_id, branding="Powered by Voizee", brand="dhilaktest"):
 
       try {
         // POST to your Flask /log-visitor endpoint (same-origin)
-        await fetch('/log-visitor', {
+        await fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify(payload)
@@ -672,8 +672,8 @@ def serve_sybrant():
 
 @app.route('/dhilaktest')
 def serve_dhilaktest():
-    agent_id = request.args.get('agent') or "agent_01jx28rjk1ftfvf5c6enxm70te"
-    js = generate_widget_js2(agent_id, branding="Powered by dhilaktest", brand="dhilaktest")
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = serve_widget_js(agent_id, branding="Powered by dhilaktest", brand="dhilaktest")
     return Response(js, mimetype='application/javascript')
 
 
