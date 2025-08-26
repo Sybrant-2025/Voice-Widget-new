@@ -30,6 +30,95 @@ GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbw
 GOOGLE_SHEET_WEBHOOK_URL_SYBRANT = 'https://script.google.com/macros/s/AKfycbxw4RJYQkdWRN3Fu3Vakj5C8h2P-YUN4qJZQrzxjyDk8t2dCY6Wst3wV0pJ2e5h_nn-6Q/exec'
 
 
+def serve_widget_js():
+    """Serve the modified ElevenLabs widget with popup form integration"""
+    js_code = """
+    (function() {
+        // Load ElevenLabs widget
+        const tag = document.createElement("elevenlabs-convai");
+        tag.setAttribute("agent-id", "agent_01jx28rjk1ftfvf5c6enxm70te");
+        document.body.appendChild(tag);
+
+        const script = document.createElement("script");
+        script.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
+        script.async = true;
+        script.type = "text/javascript";
+        document.body.appendChild(script);
+
+        // Inject popup form
+        const formHtml = `
+        <div id="visitorForm" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+            background:rgba(0,0,0,0.6); justify-content:center; align-items:center; z-index:9999;">
+          <div style="background:#fff; padding:20px; border-radius:12px; max-width:400px; width:90%;">
+            <h3>Visitor Info</h3>
+            <form id="popupForm">
+              <label>Name:</label><br>
+              <input type="text" id="name" required><br><br>
+              <label>Email:</label><br>
+              <input type="email" id="email" required><br><br>
+              <label>Phone:</label><br>
+              <input type="tel" id="phone"><br><br>
+              <button type="submit">Submit & Start Call</button>
+              <button type="button" onclick="closeForm()">Cancel</button>
+            </form>
+          </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', formHtml);
+
+        let realStartBtn = null;
+
+        function openForm() {
+          document.getElementById("visitorForm").style.display = "flex";
+        }
+        window.closeForm = function() {
+          document.getElementById("visitorForm").style.display = "none";
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+          const observer = new MutationObserver(() => {
+            const btn = document.querySelector("button[aria-label='Start a call']");
+            if (btn && !btn.dataset.popupAttached) {
+              btn.dataset.popupAttached = "true";
+              realStartBtn = btn;
+
+              btn.addEventListener("click", (e) => {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                openForm();
+              }, true);
+            }
+          });
+          observer.observe(document.body, { childList: true, subtree: true });
+        });
+
+        document.addEventListener("submit", async function(e) {
+          if (e.target && e.target.id === "popupForm") {
+            e.preventDefault();
+            const data = {
+              name: document.getElementById("name").value,
+              email: document.getElementById("email").value,
+              phone: document.getElementById("phone").value
+            };
+            try {
+              await fetch("/log-visitor", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+              });
+            } catch(err) {
+              console.error("Logging failed:", err);
+            }
+            closeForm();
+            if (realStartBtn) {
+              realStartBtn.click = Function.prototype;
+              realStartBtn.dispatchEvent(new Event("click", { bubbles: true }));
+            }
+          }
+        });
+    })();
+    """
+    return Response(js_code, mimetype="application/javascript")
+
 
 
 # --- Core JS generator: instant modal + triple-guard injection + per-brand cache key ---
@@ -555,7 +644,7 @@ def serve_sybrant():
 @app.route('/dhilaktest')
 def serve_dhilaktest():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by dhilaktest", brand="dhilaktest")
+    js = serve_widget_js(agent_id, branding="Powered by dhilaktest", brand="dhilaktest")
     return Response(js, mimetype='application/javascript')
 
 
