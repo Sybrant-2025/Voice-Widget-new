@@ -247,7 +247,7 @@ def serve_widget_js(agent_id, branding="Powered by Voizee", brand="dhilaktest"):
 def generate_widget_js2(agent_id, brand=""):
     return f"""
     (function() {{
-        // --- Hide branding immediately ---
+        // --- 1. Hide branding instantly ---
         const preloadStyle = document.createElement("style");
         preloadStyle.textContent = `
             [class*="poweredBy"],
@@ -257,7 +257,8 @@ def generate_widget_js2(agent_id, brand=""):
             [class*="branding"],
             div[class*="branding"],
             img[alt*='logo'],
-            div[part='feedback-button'] {{
+            div[part='feedback-button'],
+            [class*="_status_"] {{
                 display: none !important;
                 opacity: 0 !important;
                 visibility: hidden !important;
@@ -269,7 +270,7 @@ def generate_widget_js2(agent_id, brand=""):
         `;
         document.head.appendChild(preloadStyle);
 
-        // --- Inject widget ---
+        // --- 2. Inject widget ---
         const tag = document.createElement("elevenlabs-convai");
         tag.setAttribute("agent-id", "{agent_id}");
         document.body.appendChild(tag);
@@ -279,7 +280,7 @@ def generate_widget_js2(agent_id, brand=""):
         script.async = true;
         document.body.appendChild(script);
 
-        // --- Modal creation ---
+        // --- 3. Create popup form modal ---
         function createModal() {{
             if (document.getElementById('visitor-form-modal')) return;
 
@@ -317,12 +318,11 @@ def generate_widget_js2(agent_id, brand=""):
             `;
             document.body.appendChild(modal);
 
-            // Close handlers
             const modalEl = document.getElementById('visitor-form-modal');
             document.getElementById('close-form').onclick = () => modalEl.style.display = 'none';
             window.onclick = (e) => {{ if (e.target === modalEl) modalEl.style.display = 'none'; }};
 
-            // Submit handler
+            // --- form submit ---
             document.getElementById('visitor-form').addEventListener('submit', function(e) {{
                 e.preventDefault();
                 const name = this.name.value.trim();
@@ -330,44 +330,49 @@ def generate_widget_js2(agent_id, brand=""):
                 const email = this.email.value.trim();
                 const url = window.location.href;
 
-                fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {{
+                fetch('/log-visitor', {{
                     method: 'POST',
                     headers: {{ 'Content-Type': 'application/json' }},
                     body: JSON.stringify({{ name, mobile, email, url, brand: "{brand}" }})
-                }});
+                }}).catch(err => console.error("Log visitor failed", err));
 
-                localStorage.setItem("convai_form_submitted", (Date.now() + 15*60*1000).toString()); // valid 15 mins
+                // cache 15 min expiry
+                localStorage.setItem("convai_form_submitted", (Date.now() + 15*60*1000).toString());
                 modalEl.style.display = 'none';
 
-                // Trigger real call button
+                // trigger real widget button
                 const widget = document.querySelector('elevenlabs-convai');
                 const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
                 realBtn?.click();
             }});
         }}
 
-        // --- Watch for widget and replace button ---
+        // --- 4. Intercept Start button ---
         const observer = new MutationObserver(() => {{
             const widget = document.querySelector('elevenlabs-convai');
             if (!widget || !widget.shadowRoot) return;
 
-            const startCallButton = widget.shadowRoot.querySelector('button[title="Start a call"]');
-            if (startCallButton && !startCallButton._hooked) {{
-                startCallButton._hooked = true;
-                const clone = startCallButton.cloneNode(true);
-                startCallButton.style.display = 'none';
+            // nuke branding inside shadowRoot
+            const branding = widget.shadowRoot.querySelector('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"]');
+            if (branding) branding.remove();
+
+            const startBtn = widget.shadowRoot.querySelector('button[title="Start a call"]');
+            if (startBtn && !startBtn._hooked) {{
+                startBtn._hooked = true;
+                const clone = startBtn.cloneNode(true);
+                startBtn.style.display = 'none';
 
                 clone.addEventListener('click', (e) => {{
                     e.preventDefault();
                     const expiry = localStorage.getItem("convai_form_submitted");
                     if (expiry && Date.now() < parseInt(expiry)) {{
-                        startCallButton.click();
+                        startBtn.click();
                     }} else {{
                         document.getElementById('visitor-form-modal').style.display = 'flex';
                     }}
                 }});
 
-                startCallButton.parentElement.appendChild(clone);
+                startBtn.parentElement.appendChild(clone);
                 createModal();
             }}
         }});
