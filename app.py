@@ -243,11 +243,11 @@ def serve_widget_js(agent_id, branding="Powered by Voizee", brand="dhilaktest"):
 
 
 
-# --- Core JS generator: instant modal + triple-guard injection + per-brand cache key ---
-def generate_widget_js2(agent_id, branding, brand=""):
+# --- Core JS generator222222: instant modal + triple-guard injection + per-brand cache key ---
+def generate_widget_js2(agent_id, brand=""):
     return f"""
     (function() {{
-        // --- Branding CSS ---
+        // --- Hide branding immediately ---
         const preloadStyle = document.createElement("style");
         preloadStyle.textContent = `
             [class*="poweredBy"],
@@ -256,7 +256,8 @@ def generate_widget_js2(agent_id, branding, brand=""):
             a[href*="elevenlabs"],
             [class*="branding"],
             div[class*="branding"],
-            [class*="_status_1968y_121"] {{
+            img[alt*='logo'],
+            div[part='feedback-button'] {{
                 display: none !important;
                 opacity: 0 !important;
                 visibility: hidden !important;
@@ -278,82 +279,96 @@ def generate_widget_js2(agent_id, branding, brand=""):
         script.async = true;
         document.body.appendChild(script);
 
-        // --- Create visitor form modal ---
-        function createVisitorModal() {{
+        // --- Modal creation ---
+        function createModal() {{
             if (document.getElementById('visitor-form-modal')) return;
+
             const modal = document.createElement('div');
             modal.id = 'visitor-form-modal';
             modal.style = `
-                display: none;
-                position: fixed;
-                z-index: 99999;
-                top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0, 0, 0, 0.6);
-                align-items: center;
-                justify-content: center;
+                display:none; position:fixed; z-index:99999;
+                top:0; left:0; width:100%; height:100%;
+                background:rgba(0,0,0,0.6);
+                align-items:center; justify-content:center;
             `;
 
             modal.innerHTML = `
-                <div style="background: white; padding: 20px; border-radius: 10px; width: 320px; position: relative;">
-                    <span id="close-form" style="position:absolute;top:10px;right:15px;cursor:pointer;font-size:20px;">&times;</span>
+                <div style="
+                    background:white; padding:25px; border-radius:10px;
+                    width:300px; font-family:sans-serif; position:relative;
+                ">
+                    <span id="close-form" style="
+                        position:absolute; top:5px; right:10px; cursor:pointer;
+                        font-size:18px; font-weight:bold;
+                    ">&times;</span>
+
                     <form id="visitor-form">
-                        <h3 style="margin-bottom: 15px;">Tell us about you</h3>
-                        <input type="text" name="name" placeholder="Full Name" required style="width:100%;margin-bottom:10px;padding:8px;" />
-                        <input type="tel" name="phone" placeholder="Phone" style="width:100%;margin-bottom:10px;padding:8px;" />
-                        <input type="email" name="email" placeholder="Email" required style="width:100%;margin-bottom:15px;padding:8px;" />
-                        <button type="submit" style="width:100%;padding:10px;background:#0b72e7;color:#fff;border:none;border-radius:6px;cursor:pointer;">Submit & Start Call</button>
+                        <h3 style="margin-bottom:12px;">Enter your details</h3>
+                        <input type="text" name="name" placeholder="Name" required style="margin-bottom:8px; width:100%; padding:8px;" />
+                        <input type="tel" name="mobile" placeholder="Mobile (+91...)" required style="margin-bottom:8px; width:100%; padding:8px;" />
+                        <input type="email" name="email" placeholder="Email" required style="margin-bottom:15px; width:100%; padding:8px;" />
+                        <button type="submit" style="
+                            width:100%; padding:10px; background:#0b72e7;
+                            color:white; border:none; border-radius:5px;
+                            cursor:pointer;
+                        ">Start Call</button>
                     </form>
                 </div>
             `;
             document.body.appendChild(modal);
 
-            document.getElementById('close-form').onclick = () => modal.style.display = 'none';
-            window.onclick = (e) => {{ if (e.target === modal) modal.style.display = 'none'; }};
+            // Close handlers
+            const modalEl = document.getElementById('visitor-form-modal');
+            document.getElementById('close-form').onclick = () => modalEl.style.display = 'none';
+            window.onclick = (e) => {{ if (e.target === modalEl) modalEl.style.display = 'none'; }};
 
-            document.getElementById('visitor-form').addEventListener('submit', async (e) => {{
+            // Submit handler
+            document.getElementById('visitor-form').addEventListener('submit', function(e) {{
                 e.preventDefault();
-                const fd = new FormData(e.target);
-                const payload = Object.fromEntries(fd.entries());
-                payload.url = window.location.href;
-                payload.brand = "{brand}";
-                payload.agent_id = "{agent_id}";
-                payload.timestamp = new Date().toISOString();
+                const name = this.name.value.trim();
+                const mobile = this.mobile.value.trim();
+                const email = this.email.value.trim();
+                const url = window.location.href;
 
-                try {{
-                    await fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {{
-                        method: 'POST',
-                        headers: {{'Content-Type': 'application/json'}},
-                        body: JSON.stringify(payload)
-                    }});
-                }} catch(err) {{
-                    console.error("Log visitor failed", err);
-                }}
+                fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ name, mobile, email, url, brand: "{brand}" }})
+                }});
 
-                localStorage.setItem("convai_form_submitted", (Date.now() + 5*60*1000).toString());
-                modal.style.display = 'none';
+                localStorage.setItem("convai_form_submitted", (Date.now() + 15*60*1000).toString()); // valid 15 mins
+                modalEl.style.display = 'none';
 
+                // Trigger real call button
                 const widget = document.querySelector('elevenlabs-convai');
                 const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
-                realBtn?._allowCall = true;
                 realBtn?.click();
             }});
         }}
-        createVisitorModal();
 
-        // --- Observe widget + hook Start button ---
+        // --- Watch for widget and replace button ---
         const observer = new MutationObserver(() => {{
             const widget = document.querySelector('elevenlabs-convai');
             if (!widget || !widget.shadowRoot) return;
-            const btn = widget.shadowRoot.querySelector('button[title="Start a call"]');
-            if (btn && !btn._hooked) {{
-                btn._hooked = true;
-                btn.addEventListener('click', (e) => {{
+
+            const startCallButton = widget.shadowRoot.querySelector('button[title="Start a call"]');
+            if (startCallButton && !startCallButton._hooked) {{
+                startCallButton._hooked = true;
+                const clone = startCallButton.cloneNode(true);
+                startCallButton.style.display = 'none';
+
+                clone.addEventListener('click', (e) => {{
+                    e.preventDefault();
                     const expiry = localStorage.getItem("convai_form_submitted");
-                    if (expiry && Date.now() < parseInt(expiry)) return;
-                    if (btn._allowCall) {{ btn._allowCall = false; return; }}
-                    e.preventDefault(); e.stopImmediatePropagation();
-                    document.getElementById('visitor-form-modal').style.display = 'flex';
-                }}, true);
+                    if (expiry && Date.now() < parseInt(expiry)) {{
+                        startCallButton.click();
+                    }} else {{
+                        document.getElementById('visitor-form-modal').style.display = 'flex';
+                    }}
+                }});
+
+                startCallButton.parentElement.appendChild(clone);
+                createModal();
             }}
         }});
         observer.observe(document.body, {{ childList: true, subtree: true }});
@@ -651,7 +666,7 @@ def serve_sybrant():
 @app.route('/dhilaktest')
 def serve_dhilaktest():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js(agent_id, branding="Powered by dhilaktest", brand="dhilaktest")
+    js = generate_widget_js2(agent_id, branding="Powered by dhilaktest", brand="dhilaktest")
     return Response(js, mimetype='application/javascript')
 
 
