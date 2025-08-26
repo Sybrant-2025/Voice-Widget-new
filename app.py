@@ -276,8 +276,9 @@ def generate_widget_js2(agent_id, brand=""):
         document.body.appendChild(tag);
 
         const script = document.createElement("script");
-        script.src = "https://elevenlabs.io/convai-widget/index.js";
+        script.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
         script.async = true;
+        script.type = "text/javascript";
         document.body.appendChild(script);
 
         // --- 3. Create popup form modal ---
@@ -379,6 +380,7 @@ def generate_widget_js2(agent_id, brand=""):
         observer.observe(document.body, {{ childList: true, subtree: true }});
     }})();
     """
+
 
 
 
