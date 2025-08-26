@@ -244,175 +244,121 @@ def serve_widget_js(agent_id, branding="Powered by Voizee", brand="dhilaktest"):
 
 
 # --- Core JS generator: instant modal + triple-guard injection + per-brand cache key ---
-def generate_widget_js2(agent_id, branding="Powered by Voizee", brand="defaultbrand"):
-    js = """
-(function(){
-  const AGENT_ID = "__AGENT_ID__";
-  const BRAND = "__BRAND__";
-  const BRANDING_TEXT = "__BRANDING__";
+def generate_widget_js2(agent_id, branding, brand=""):
+    return f"""
+    (function() {{
+        // --- Branding CSS ---
+        const preloadStyle = document.createElement("style");
+        preloadStyle.textContent = `
+            [class*="poweredBy"],
+            div[part="branding"],
+            span:has(a[href*="elevenlabs"]),
+            a[href*="elevenlabs"],
+            [class*="branding"],
+            div[class*="branding"],
+            [class*="_status_1968y_121"] {{
+                display: none !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+                height: 0 !important;
+                font-size: 0 !important;
+                line-height: 0 !important;
+                pointer-events: none !important;
+            }}
+        `;
+        document.head.appendChild(preloadStyle);
 
-  // --- Create widget tag ---
-  try {
-    const tag = document.createElement("elevenlabs-convai");
-    tag.setAttribute("agent-id", AGENT_ID);
-    document.body.appendChild(tag);
-  } catch (e) {
-    console.error("Failed to create elevenlabs-convai tag:", e);
-  }
+        // --- Inject widget ---
+        const tag = document.createElement("elevenlabs-convai");
+        tag.setAttribute("agent-id", "{agent_id}");
+        document.body.appendChild(tag);
 
-  // --- Load widget embed script ---
-  (function loadEmbed(){
-    const s = document.createElement("script");
-    s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
-    s.async = true;
-    s.onerror = function(){
-      const s2 = document.createElement("script");
-      s2.src = "https://elevenlabs.io/convai-widget/index.js";
-      s2.async = true;
-      document.body.appendChild(s2);
-    };
-    document.body.appendChild(s);
-    setTimeout(() => {
-      const w = document.querySelector('elevenlabs-convai');
-      if (!w || !w.shadowRoot) {
-        const s2 = document.createElement("script");
-        s2.src = "https://elevenlabs.io/convai-widget/index.js";
-        s2.async = true;
-        document.body.appendChild(s2);
-      }
-    }, 1400);
-  })();
+        const script = document.createElement("script");
+        script.src = "https://elevenlabs.io/convai-widget/index.js";
+        script.async = true;
+        document.body.appendChild(script);
 
-  // --- Branding remover ---
-  function removeBrandingFromShadow(sr){
-    if(!sr) return;
-    try {
-      const selectors = ['[class*="poweredBy"]', "div[part='branding']", 'a[href*="elevenlabs"]', "[class*='_status_']"];
-      selectors.forEach(sel=>{
-        const nodes = sr.querySelectorAll(sel);
-        nodes.forEach(n => n.remove());
-      });
-    } catch(e){}
-  }
+        // --- Create visitor form modal ---
+        function createVisitorModal() {{
+            if (document.getElementById('visitor-form-modal')) return;
+            const modal = document.createElement('div');
+            modal.id = 'visitor-form-modal';
+            modal.style = `
+                display: none;
+                position: fixed;
+                z-index: 99999;
+                top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0, 0, 0, 0.6);
+                align-items: center;
+                justify-content: center;
+            `;
 
-  // --- Modal with form ---
-  function createModal(){
-    if(document.getElementById('convai-visitor-modal')) return;
-    const modal = document.createElement('div');
-    modal.id = 'convai-visitor-modal';
-    modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:2147483647;align-items:center;justify-content:center;";
+            modal.innerHTML = `
+                <div style="background: white; padding: 20px; border-radius: 10px; width: 320px; position: relative;">
+                    <span id="close-form" style="position:absolute;top:10px;right:15px;cursor:pointer;font-size:20px;">&times;</span>
+                    <form id="visitor-form">
+                        <h3 style="margin-bottom: 15px;">Tell us about you</h3>
+                        <input type="text" name="name" placeholder="Full Name" required style="width:100%;margin-bottom:10px;padding:8px;" />
+                        <input type="tel" name="phone" placeholder="Phone" style="width:100%;margin-bottom:10px;padding:8px;" />
+                        <input type="email" name="email" placeholder="Email" required style="width:100%;margin-bottom:15px;padding:8px;" />
+                        <button type="submit" style="width:100%;padding:10px;background:#0b72e7;color:#fff;border:none;border-radius:6px;cursor:pointer;">Submit & Start Call</button>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(modal);
 
-    modal.innerHTML = `
-      <div style="background:#fff;border-radius:10px;padding:20px;max-width:420px;width:92%;box-shadow:0 10px 30px rgba(0,0,0,0.2);font-family:Arial, sans-serif;">
-        <div style="text-align:right;"><button id="convai-modal-close" style="border:none;background:none;font-size:20px;cursor:pointer;">&times;</button></div>
-        <h3 style="margin:0 0 12px 0;">Tell us about you</h3>
-        <form id="convai-visitor-form" style="display:flex;flex-direction:column;gap:8px;">
-          <input name="name" placeholder="Full name" required style="padding:10px;border-radius:6px;border:1px solid #ddd"/>
-          <input name="email" type="email" placeholder="Email" required style="padding:10px;border-radius:6px;border:1px solid #ddd"/>
-          <input name="phone" placeholder="Phone" style="padding:10px;border-radius:6px;border:1px solid #ddd"/>
-          <div style="display:flex;gap:8px;margin-top:6px;">
-            <button type="submit" style="flex:1;padding:10px;border-radius:6px;border:none;background:#0b72e7;color:#fff;cursor:pointer;">Submit & Start Call</button>
-            <button type="button" id="convai-modal-cancel" style="flex:0;padding:10px;border-radius:6px;border:1px solid #ccc;background:#fff;cursor:pointer;">Cancel</button>
-          </div>
-        </form>
-      </div>
-    `;
-    document.body.appendChild(modal);
+            document.getElementById('close-form').onclick = () => modal.style.display = 'none';
+            window.onclick = (e) => {{ if (e.target === modal) modal.style.display = 'none'; }};
 
-    modal.querySelector('#convai-modal-close').addEventListener('click', ()=> modal.style.display='none');
-    modal.querySelector('#convai-modal-cancel').addEventListener('click', ()=> modal.style.display='none');
+            document.getElementById('visitor-form').addEventListener('submit', async (e) => {{
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                const payload = Object.fromEntries(fd.entries());
+                payload.url = window.location.href;
+                payload.brand = "{brand}";
+                payload.agent_id = "{agent_id}";
+                payload.timestamp = new Date().toISOString();
 
-    const form = modal.querySelector('#convai-visitor-form');
-    form.addEventListener('submit', async (ev) => {
-      ev.preventDefault();
-      const fd = new FormData(form);
-      const payload = Object.fromEntries(fd.entries());
-      payload.url = window.location.href;
-      payload.brand = BRAND;
-      payload.agent_id = AGENT_ID;
-      payload.timestamp = new Date().toISOString();
+                try {{
+                    await fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {{
+                        method: 'POST',
+                        headers: {{'Content-Type': 'application/json'}},
+                        body: JSON.stringify(payload)
+                    }});
+                }} catch(err) {{
+                    console.error("Log visitor failed", err);
+                }}
 
-      try {
-        await fetch('/log-visitor', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(payload)
-        });
-      } catch (err) {
-        console.error('Failed to log visitor', err);
-      }
+                localStorage.setItem("convai_form_submitted", (Date.now() + 5*60*1000).toString());
+                modal.style.display = 'none';
 
-      localStorage.setItem('convai_form_submitted', (Date.now() + 5*60*1000).toString());
-      modal.style.display='none';
+                const widget = document.querySelector('elevenlabs-convai');
+                const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
+                realBtn?._allowCall = true;
+                realBtn?.click();
+            }});
+        }}
+        createVisitorModal();
 
-      try {
-        if (window.__convai_last_button) {
-          window.__convai_last_button._allowCall = true;
-          window.__convai_last_button.click();
-        }
-      } catch(e){ console.error("Error triggering original button:", e); }
-    });
-  }
-
-  createModal();
-
-  // --- Hook Start Call button ---
-  function hookIfFound(){
-    const widget = document.querySelector('elevenlabs-convai');
-    if (!widget) return false;
-
-    const sr = widget.shadowRoot;
-    if (sr) {
-      removeBrandingFromShadow(sr);
-      const selectors = ['button[aria-label="Start a call"]','button[title="Start a call"]','button'];
-      for (const sel of selectors) {
-        const btn = sr.querySelector(sel);
-        if (btn && !btn._convai_hooked) {
-          attachInterceptor(btn);
-          return true;
-        }
-      }
-    }
-
-    const docBtn = document.querySelector('button[aria-label="Start a call"]');
-    if (docBtn && !docBtn._convai_hooked) {
-      attachInterceptor(docBtn);
-      return true;
-    }
-
-    return false;
-  }
-
-  function attachInterceptor(btn){
-    btn._convai_hooked = true;
-    window.__convai_last_button = btn;
-
-    const handler = function(e){
-      const expiryStr = localStorage.getItem('convai_form_submitted');
-      const expiry = expiryStr ? parseInt(expiryStr,10) : 0;
-      if (expiry && Date.now() < expiry) return;
-      if (btn._allowCall){ btn._allowCall=false; return; }
-
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      document.getElementById('convai-visitor-modal').style.display='flex';
-    };
-
-    btn.addEventListener('click', handler, true);
-  }
-
-  // --- Observe DOM for widget/button ---
-  const obs = new MutationObserver(()=>{ hookIfFound(); });
-  obs.observe(document, {childList:true, subtree:true});
-
-  let tries=0;
-  const poll=setInterval(()=>{
-    if(hookIfFound() || ++tries>50) clearInterval(poll);
-  },300);
-
-})();
+        // --- Observe widget + hook Start button ---
+        const observer = new MutationObserver(() => {{
+            const widget = document.querySelector('elevenlabs-convai');
+            if (!widget || !widget.shadowRoot) return;
+            const btn = widget.shadowRoot.querySelector('button[title="Start a call"]');
+            if (btn && !btn._hooked) {{
+                btn._hooked = true;
+                btn.addEventListener('click', (e) => {{
+                    const expiry = localStorage.getItem("convai_form_submitted");
+                    if (expiry && Date.now() < parseInt(expiry)) return;
+                    if (btn._allowCall) {{ btn._allowCall = false; return; }}
+                    e.preventDefault(); e.stopImmediatePropagation();
+                    document.getElementById('visitor-form-modal').style.display = 'flex';
+                }}, true);
+            }}
+        }});
+        observer.observe(document.body, {{ childList: true, subtree: true }});
+    }})();
     """
-    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
 
 
 
