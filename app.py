@@ -377,7 +377,7 @@ def serve_widget_js2(agent_id, branding="Powered by Voizee", brand="default"):
       data.timestamp = new Date().toISOString();
 
       try {
-        await fetch("/log-visitor", {
+        await fetch("https://voice-widget-new-production-177d.up.railway.app/log-visitor", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data)
@@ -420,7 +420,7 @@ def serve_widget_js2(agent_id, branding="Powered by Voizee", brand="default"):
 
 
 # --- Core JS cfobridge instant modal + triple-guard injection + per-brand cache key ---
-def serve_widget_js_cfo(agent_id, branding="Powered by Voizee", brand="default"):
+def serve_widget_js_cfo(agent_id, branding="Powered by Voizee", brand="cfobridge"):
     js = """
 (function(){
   const AGENT_ID = "__AGENT_ID__";
@@ -549,7 +549,7 @@ def serve_widget_js_cfo(agent_id, branding="Powered by Voizee", brand="default")
       data.timestamp = new Date().toISOString();
 
       try {
-        await fetch("/log-visitor-cfo", {
+        await fetch("https://voice-widget-new-production-177d.up.railway.app/log-visitor-cfo", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data)
@@ -680,7 +680,7 @@ def generate_widget_js2(agent_id, brand=""):
                 const email = this.email.value.trim();
                 const url = window.location.href;
 
-                fetch('/log-visitor', {{
+                fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {{
                     method: 'POST',
                     headers: {{ 'Content-Type': 'application/json' }},
                     body: JSON.stringify({{ name, mobile, email, url, brand: "{brand}" }})
