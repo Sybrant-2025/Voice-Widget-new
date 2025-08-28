@@ -1153,9 +1153,9 @@ def log_visitor_cto():
             return jsonify({"status": "success", "message": "Data logged to CFO sheet"}), 200
         else:
             return jsonify({"status": "error", "message": f"Webhook error {resp.status_code}"}), 500
-
     except Exception as e:
-		return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 
 
 @app.route('/log-visitor', methods=['POST'])
