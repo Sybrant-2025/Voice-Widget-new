@@ -1101,7 +1101,7 @@ def log_visitor_cfo():
         email = data.get("email", "")
         phone = data.get("phone", "")
         company = data.get("company", "")
-        brand = "cfobridge"
+        url = data.get("url","")
 
         # --- Webhook URL (replace with your Apps Script deployment link) ---
         webhook_url = "https://script.google.com/macros/s/AKfycbyjjh4lvPTR2xytjabkcofRYIPzFF0UOGI9McuYZCQt8UbQszgH_hMKtUS4Jkyp1S9V/exec"
@@ -1111,7 +1111,7 @@ def log_visitor_cfo():
             "email": email,
             "phone": phone,
             "company": company,
-            "brand": brand
+            "url": url
         }
 
         # Forward data to Google Sheets Apps Script
@@ -1125,7 +1125,7 @@ def log_visitor_cfo():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-app.route('/log-visitor-cto', methods=['POST'])
+@app.route('/log-visitor-cto', methods=['POST'])
 def log_visitor_cto():
     try:
         data = request.get_json(force=True)
@@ -1133,7 +1133,7 @@ def log_visitor_cto():
         email = data.get("email", "")
         phone = data.get("phone", "")
         company = data.get("company", "")
-        brand = "cfobridge"
+       	url = data.get("url","")
 
         # --- Webhook URL (replace with your Apps Script deployment link) ---
         webhook_url = "https://script.google.com/macros/s/AKfycbz4auMUL8qvivxQgYrGs9qDx4sH3r62_mZjuACSJeB5f95k1O6fy8tAt415qtOeW7Ty7g/exec"
@@ -1143,7 +1143,7 @@ def log_visitor_cto():
             "email": email,
             "phone": phone,
             "company": company,
-            "brand": brand
+            "url": url
         }
 
         # Forward data to Google Sheets Apps Script
@@ -1184,14 +1184,13 @@ def log_visitor():
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
 
     try:
-        res = requests.post(webhook_url, json=data)
+        res = requests.post(webhook_url, json=data, timeout=10)
         print(f"[{brand}] Google Sheet Response: {res.text}")
     except Exception as e:
-        print(f"Error sending to Google Sheet for brand '{brand}':", e)
+        # 👇 make sure there is at least one indented line here
+        print(f"Error sending to Google Sheet for brand '{brand}': {e}")
 
     return {"status": "ok"}
-
-
 
 
 # --- Demo Pages test ---
