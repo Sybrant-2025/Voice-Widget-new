@@ -32,219 +32,6 @@ GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbw
 GOOGLE_SHEET_WEBHOOK_URL_SYBRANT = 'https://script.google.com/macros/s/AKfycbxw4RJYQkdWRN3Fu3Vakj5C8h2P-YUN4qJZQrzxjyDk8t2dCY6Wst3wV0pJ2e5h_nn-6Q/exec'
 
 
-def serve_widget_js(agent_id, branding="Powered by Voizee", brand="dhilaktest"):
-    js = """
-(function(){
-  const AGENT_ID = "__AGENT_ID__";
-  const BRAND = "__BRAND__";
-  const BRANDING_TEXT = "__BRANDING__";
-
-  // create widget tag
-  try {
-    const tag = document.createElement("elevenlabs-convai");
-    tag.setAttribute("agent-id", AGENT_ID);
-    document.body.appendChild(tag);
-  } catch (e) {
-    console.error("Failed to create elevenlabs-convai tag:", e);
-  }
-
-  // prefer the unpkg embed (same as your page), fallback to old URL if needed
-  (function loadEmbed(){
-    const s = document.createElement("script");
-    s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
-    s.async = true;
-    s.onerror = function(){
-      // fallback after failure
-      const s2 = document.createElement("script");
-      s2.src = "https://elevenlabs.io/convai-widget/index.js";
-      s2.async = true;
-      document.body.appendChild(s2);
-    };
-    document.body.appendChild(s);
-
-    // if widget not initialized after short delay, try fallback script
-    setTimeout(() => {
-      const w = document.querySelector('elevenlabs-convai');
-      if (!w || !w.shadowRoot) {
-        const s2 = document.createElement("script");
-        s2.src = "https://elevenlabs.io/convai-widget/index.js";
-        s2.async = true;
-        document.body.appendChild(s2);
-      }
-    }, 1400);
-  })();
-
-  // remove/minimize branding inside shadow root if possible
-  function removeBrandingFromShadow(sr){
-    if(!sr) return;
-    try {
-      const selectors = ['[class*="poweredBy"]', "div[part='branding']", 'a[href*="elevenlabs"]', "[class*='_status_']"];
-      selectors.forEach(sel=>{
-        const nodes = sr.querySelectorAll(sel);
-        nodes.forEach(n => n.remove());
-      });
-    } catch(e){}
-  }
-
-  // create modal (only once)
-  function createModal(){
-    if(document.getElementById('convai-visitor-modal')) return;
-    const modal = document.createElement('div');
-    modal.id = 'convai-visitor-modal';
-    modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:2147483647;align-items:center;justify-content:center;";
-
-    modal.innerHTML = `
-      <div style="background:#fff;border-radius:10px;padding:20px;max-width:420px;width:92%;box-shadow:0 10px 30px rgba(0,0,0,0.2);font-family:Arial, sans-serif;">
-        <div style="text-align:right;"><button id="convai-modal-close" style="border:none;background:none;font-size:20px;cursor:pointer;">&times;</button></div>
-        <h3 style="margin:0 0 12px 0;">Tell us about you</h3>
-        <form id="convai-visitor-form" style="display:flex;flex-direction:column;gap:8px;">
-          <input name="name" placeholder="Full name" required style="padding:10px;border-radius:6px;border:1px solid #ddd"/>
-          <input name="email" type="email" placeholder="Email" required style="padding:10px;border-radius:6px;border:1px solid #ddd"/>
-          <input name="phone" placeholder="Phone" style="padding:10px;border-radius:6px;border:1px solid #ddd"/>
-          <div style="display:flex;gap:8px;margin-top:6px;">
-            <button type="submit" style="flex:1;padding:10px;border-radius:6px;border:none;background:#0b72e7;color:#fff;cursor:pointer;">Submit & Start Call</button>
-            <button type="button" id="convai-modal-cancel" style="flex:0;padding:10px;border-radius:6px;border:1px solid #ccc;background:#fff;cursor:pointer;">Cancel</button>
-          </div>
-        </form>
-      </div>
-    `;
-    document.body.appendChild(modal);
-
-    modal.querySelector('#convai-modal-close').addEventListener('click', ()=> modal.style.display='none');
-    modal.querySelector('#convai-modal-cancel').addEventListener('click', ()=> modal.style.display='none');
-
-    const form = modal.querySelector('#convai-visitor-form');
-    form.addEventListener('submit', async (ev) => {
-      ev.preventDefault();
-      const fd = new FormData(form);
-      const payload = Object.fromEntries(fd.entries());
-      payload.url = window.location.href;
-      payload.brand = BRAND || "dhilaktest";
-      payload.agent_id = AGENT_ID;
-      payload.timestamp = new Date().toISOString();
-
-      try {
-        // POST to your Flask /log-visitor endpoint (same-origin)
-        await fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(payload)
-        });
-      } catch (err) {
-        console.error('Failed to log visitor', err);
-      }
-
-      // set small TTL so user doesn't need to re-fill immediately (5 minutes)
-      localStorage.setItem('convai_form_submitted', (Date.now() + 5*60*1000).toString());
-      modal.style.display='none';
-
-      // trigger original button (if saved)
-      try {
-        if (window.__convai_last_button) {
-          window.__convai_last_button._allowCall = true;
-          try { window.__convai_last_button.click(); } catch(e) {
-            const simulated = new MouseEvent('click', {bubbles:true, cancelable:true, composed:true});
-            window.__convai_last_button.dispatchEvent(simulated);
-          }
-        }
-      } catch(e){ console.error("Error triggering original button:", e); }
-    });
-  }
-
-  createModal();
-
-  // find and hook Start button (shadow DOM or document)
-  function hookIfFound(){
-    const widget = document.querySelector('elevenlabs-convai');
-    if (!widget) return false;
-
-    // try shadow root first
-    const sr = widget.shadowRoot;
-    if (sr) {
-      removeBrandingFromShadow(sr);
-      const selectors = ['button[title="Start a call"]','button[aria-label="Start a call"]','button[title*="Start"]','button[aria-label*="Start"]','button'];
-      for (const sel of selectors) {
-        const btn = sr.querySelector(sel);
-        if (btn && !btn._convai_hooked) {
-          attachInterceptor(btn);
-          return true;
-        }
-      }
-    }
-
-    // fallback to global document
-    const docSelectors = ['button[aria-label="Start a call"]','button[title="Start a call"]','button[aria-label*="Start"]','button[title*="Start"]'];
-    for (const sel of docSelectors) {
-      const btn = document.querySelector(sel);
-      if (btn && !btn._convai_hooked) {
-        attachInterceptor(btn);
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  function attachInterceptor(btn) {
-    btn._convai_hooked = true;
-    window.__convai_last_button = btn;
-
-    const handler = function(e) {
-      // expiry-bypass: if user recently submitted, allow the click to proceed
-      const expiryStr = localStorage.getItem('convai_form_submitted');
-      const expiry = expiryStr ? parseInt(expiryStr, 10) : 0;
-      if (expiry && Date.now() < expiry) {
-        return; // let default behavior happen
-      }
-
-      // allow programmatic click to pass through once
-      if (btn._allowCall) {
-        btn._allowCall = false;
-        return;
-      }
-
-      e.preventDefault();
-      e.stopImmediatePropagation();
-
-      // open modal
-      const modal = document.getElementById('convai-visitor-modal');
-      if (modal) modal.style.display = 'flex';
-    };
-
-    // use capture so we intercept before widget internal handlers
-    btn.addEventListener('click', handler, true);
-
-    // attempt to remove branding (safety)
-    try {
-      const root = btn.getRootNode && btn.getRootNode();
-      if (root && root instanceof ShadowRoot) removeBrandingFromShadow(root);
-    } catch(e){}
-  }
-
-  // Observe DOM for widget/button
-  const obs = new MutationObserver((mutations, ob) => {
-    try {
-      hookIfFound();
-    } catch(e){}
-  });
-  obs.observe(document, {childList:true, subtree:true});
-
-  // Poll fallback for a short time (in case MutationObserver misses)
-  let tries = 0;
-  const poll = setInterval(()=>{
-    try {
-      const ok = hookIfFound();
-      if (ok || ++tries > 50) clearInterval(poll);
-    } catch(e){}
-  }, 300);
-
-})();
-    """
-    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
-
-
-
-
 # --- Core JS serve_widget_js2222222: instant modal + triple-guard injection + per-brand cache key ---
 def serve_widget_js2(agent_id, branding="Powered by Voizee", brand="default"):
     js = """
@@ -558,7 +345,7 @@ def serve_widget_js_cfo(agent_id, branding="Powered by Voizee", brand="cfobridge
         console.warn("Logging failed", err);
       }
 
-      localStorage.setItem("convai_form_submitted", (Date.now() + 5*60*1000).toString());
+      localStorage.setItem("convai_form_submitted", (Date.now() + 24*60*60*1000).toString());
       modal.style.display = "none";
 
       try {
@@ -591,6 +378,179 @@ def serve_widget_js_cfo(agent_id, branding="Powered by Voizee", brand="cfobridge
     return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
 
 
+
+
+
+
+def serve_widget_js_cto(agent_id, branding="Powered by Voizee", brand="cfobridge"):
+    js = """
+(function(){
+  const AGENT_ID = "__AGENT_ID__";
+  const BRAND = "__BRAND__";
+  const BRANDING_TEXT = "__BRANDING__";
+
+  // Inject widget
+  try {
+    const tag = document.createElement("elevenlabs-convai");
+    tag.setAttribute("agent-id", AGENT_ID);
+    document.body.appendChild(tag);
+  } catch (e) {
+    console.error("Widget creation failed", e);
+  }
+
+  // Load embed script
+  (function loadEmbed(){
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
+    s.async = true;
+    s.onerror = function(){
+      const fallback = document.createElement("script");
+      fallback.src = "https://elevenlabs.io/convai-widget/index.js";
+      fallback.async = true;
+      document.body.appendChild(fallback);
+    };
+    document.body.appendChild(s);
+  })();
+
+  // Remove branding, avatar and prompt
+  function removeExtras(sr){
+    if (!sr) return;
+    try {
+      const selectors = [
+        'span.opacity-30', // "Powered by ElevenLabs"
+      ];
+      selectors.forEach(sel => {
+        sr.querySelectorAll(sel).forEach(el => el.remove());
+      });
+    } catch(e){
+      console.warn("Brand cleanup error", e);
+    }
+  }
+
+  // Try hooking call button
+  function hookButton(){
+    const widget = document.querySelector("elevenlabs-convai");
+    if (!widget) return false;
+    const sr = widget.shadowRoot;
+    if (!sr) return false;
+
+    removeExtras(sr);
+
+    const selectors = [
+      'button[title="Start a call"]',
+      'button[aria-label="Start a call"]',
+      'button[title*="Start"]',
+      'button[aria-label*="Start"]'
+    ];
+    for (const sel of selectors) {
+      const btn = sr.querySelector(sel);
+      if (btn && !btn._hooked) {
+        btn._hooked = true;
+        interceptClick(btn);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Show modal on click
+  function interceptClick(btn){
+    window.__last_call_btn = btn;
+    btn.addEventListener("click", (e) => {
+      const ttl = parseInt(localStorage.getItem("convai_form_submitted") || "0");
+      if (Date.now() < ttl) return;
+
+      if (btn._allowCall) {
+        btn._allowCall = false;
+        return;
+      }
+
+      e.preventDefault();
+      e.stopImmediatePropagation();
+
+      const modal = document.getElementById("convai-visitor-modal");
+      if (modal) modal.style.display = "flex";
+    }, true);
+  }
+
+  // Inject visitor form
+  function createVisitorModal(){
+    if (document.getElementById("convai-visitor-modal")) return;
+    const modal = document.createElement("div");
+    modal.id = "convai-visitor-modal";
+    modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;align-items:center;justify-content:center;";
+    modal.innerHTML = `
+      <div style="background:white;border-radius:8px;padding:20px;max-width:400px;width:90%;font-family:sans-serif;">
+        <div style="text-align:right;"><button id="convai-close" style="font-size:18px;background:none;border:none;">×</button></div>
+        <h3 style="margin-top:0;">Tell us about you</h3>
+        <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
+          <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+		  <input name="company" placeholder="Company name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <input name="phone" placeholder="Phone (optional)" style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <div style="display:flex;gap:10px;">
+            <button type="submit" style="flex:1;padding:10px;background:#007bff;color:white;border:none;border-radius:4px;">Submit</button>
+            <button type="button" id="convai-cancel" style="padding:10px;background:#eee;border:none;border-radius:4px;">Cancel</button>
+          </div>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.querySelector("#convai-close").onclick = () => modal.style.display = "none";
+    modal.querySelector("#convai-cancel").onclick = () => modal.style.display = "none";
+
+    const form = modal.querySelector("#convai-form");
+    form.onsubmit = async function(ev){
+      ev.preventDefault();
+      const fd = new FormData(form);
+      const data = Object.fromEntries(fd.entries());
+      data.agent_id = AGENT_ID;
+      data.brand = BRAND;
+      data.url = location.href;
+      data.timestamp = new Date().toISOString();
+
+      try {
+        await fetch("https://voice-widget-new-production-177d.up.railway.app/log-visitor-cto", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+      } catch(err){
+        console.warn("Logging failed", err);
+      }
+
+      localStorage.setItem("convai_form_submitted", (Date.now() + 24*60*60*1000).toString());
+      modal.style.display = "none";
+
+      try {
+        if (window.__last_call_btn) {
+          window.__last_call_btn._allowCall = true;
+          window.__last_call_btn.click();
+        }
+      } catch(err) {}
+    }
+  }
+
+  createVisitorModal();
+
+  // Observe and poll widget for shadow access
+  const obs = new MutationObserver(() => {
+    try {
+      const found = hookButton();
+      if (found) obs.disconnect();
+    } catch(e){}
+  });
+  obs.observe(document, { childList: true, subtree: true });
+
+  let tries = 0;
+  const poll = setInterval(() => {
+    const ok = hookButton();
+    if (ok || ++tries > 50) clearInterval(poll);
+  }, 300);
+})();
+    """
+    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
 
 # --- Core JS generator222222: instant modal + triple-guard injection + per-brand cache key ---
 def generate_widget_js2(agent_id, brand=""):
@@ -967,44 +927,44 @@ def generate_widget_js(agent_id, branding, brand=""):
 @app.route('/convai-widget.js')
 def serve_sybrant_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by Sybrant")
+    js = serve_widget_js2(agent_id, branding="Powered by Sybrant")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/successgyan')
 def serve_successgyan_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by successgyan", brand="successgyan")
+    js = serve_widget_js2(agent_id, branding="Powered by successgyan", brand="successgyan")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/kfwcorp')
 def serve_kfwcorp_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by kfwcorp", brand="kfwcorp")
+    js = serve_widget_js2(agent_id, branding="Powered by kfwcorp", brand="kfwcorp")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/myndwell')
 def serve_myndwell_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by myndwell", brand="myndwell")
+    js = serve_widget_js2(agent_id, branding="Powered by myndwell", brand="myndwell")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/galent')
 def serve_galent():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by galent", brand="galent")
+    js = serve_widget_js2(agent_id, branding="Powered by galent", brand="galent")
     return Response(js, mimetype='application/javascript')
 
 
 @app.route('/orientbell')
 def serve_orientbell():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by orientbell", brand="orientbell")
+    js = serve_widget_js2(agent_id, branding="Powered by orientbell", brand="orientbell")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/preludesys')
 def serve_preludesys():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = generate_widget_js(agent_id, branding="Powered by preludesys", brand="preludesys")
+    js = serve_widget_js2(agent_id, branding="Powered by preludesys", brand="preludesys")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/cfobridge')
@@ -1029,7 +989,7 @@ def serve_dhilaktest():
 @app.route('/ctobridge')
 def serve_ctobridge():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js2(agent_id, branding="Powered by ctobridge", brand="ctobridge")
+    js = serve_widget_js_cto(agent_id, branding="Powered by ctobridge", brand="ctobridge")
     return Response(js, mimetype='application/javascript')
 
 # def get_webhook_url(brand):
@@ -1164,6 +1124,37 @@ def log_visitor_cfo():
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+app.route('/log-visitor-cto', methods=['POST'])
+def log_visitor_cto():
+    try:
+        data = request.get_json(force=True)
+        name = data.get("name", "")
+        email = data.get("email", "")
+        phone = data.get("phone", "")
+        company = data.get("company", "")
+        brand = "cfobridge"
+
+        # --- Webhook URL (replace with your Apps Script deployment link) ---
+        webhook_url = "https://script.google.com/macros/s/AKfycbz4auMUL8qvivxQgYrGs9qDx4sH3r62_mZjuACSJeB5f95k1O6fy8tAt415qtOeW7Ty7g/exec"
+
+        payload = {
+            "name": name,
+            "email": email,
+            "phone": phone,
+            "company": company,
+            "brand": brand
+        }
+
+        # Forward data to Google Sheets Apps Script
+        resp = requests.post(webhook_url, json=payload, timeout=10)
+
+        if resp.status_code == 200:
+            return jsonify({"status": "success", "message": "Data logged to CFO sheet"}), 200
+        else:
+            return jsonify({"status": "error", "message": f"Webhook error {resp.status_code}"}), 500
+
+    except Exception as e:
 
 
 @app.route('/log-visitor', methods=['POST'])
