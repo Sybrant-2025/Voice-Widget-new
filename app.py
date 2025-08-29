@@ -1448,7 +1448,7 @@ def log_visitor_cfo():
         url = data.get("url","")
 
         # --- Webhook URL (replace with your Apps Script deployment link) ---
-        webhook_url = "https://script.google.com/macros/s/AKfycbyjjh4lvPTR2xytjabkcofRYIPzFF0UOGI9McuYZCQt8UbQszgH_hMKtUS4Jkyp1S9V/exec"
+        webhook_url = "https://script.google.com/macros/s/AKfycby44_YekE32aU3_l8yNLnELnUwTn1bC6-KI3X24XcQ1kSBC4r2vJprKmwwaUF1YMMg/exec"
 
         payload = {
             "name": name,
