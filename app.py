@@ -10,6 +10,8 @@ import requests
 
 app = Flask(__name__)
 CORS(app)
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+
 
 # --- Constants ---
 # GOOGLE_SHEET_WEBHOOK_URL = (
@@ -1696,6 +1698,36 @@ def log_visitor_cto():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+# @app.route('/log-conversation-test', methods=['POST'])
+# def log_conversation():
+#     data = request.json
+#     conv_id = data.get("conversation_id")
+
+#     if not conv_id:
+#         return jsonify({"error": "No conversation_id"}), 400
+
+#     # Fetch conversation data from ElevenLabs
+#     headers = {"xi-api-key": sk_6faeafdfe5f7dc8c5ee97a22e9b5f714bd95514dee556435}
+#     url = f"https://api.elevenlabs.io/v1/convai/conversations/{conv_id}"
+
+#     resp = requests.get(url, headers=headers)
+#     conv_data = resp.json()
+
+#     payload = {
+#         "conversation_id": conv_id,
+#         "url": data.get("url", ""),
+#         "transcription": conv_data.get("transcription", ""),
+#         "recordingUrl": conv_data.get("recording_url", "")
+#     }
+
+#     # Send to Google Sheets
+#     try:
+#         requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=payload, timeout=5)
+#     except Exception as e:
+#         app.logger.error(f"Google Sheets error: {e}")
+
+#     return jsonify({"status": "ok"})
+
 @app.route('/log-conversation-test', methods=['POST'])
 def log_conversation():
     data = request.json
@@ -1705,10 +1737,11 @@ def log_conversation():
         return jsonify({"error": "No conversation_id"}), 400
 
     # Fetch conversation data from ElevenLabs
-    headers = {"xi-api-key": sk_6faeafdfe5f7dc8c5ee97a22e9b5f714bd95514dee556435}
+    ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+    headers = {"xi-api-key": ELEVENLABS_API_KEY}
     url = f"https://api.elevenlabs.io/v1/convai/conversations/{conv_id}"
 
-    resp = requests.get(url, headers=headers)
+    resp = requests.get(url, headers=headers, timeout=10)
     conv_data = resp.json()
 
     payload = {
@@ -1725,7 +1758,6 @@ def log_conversation():
         app.logger.error(f"Google Sheets error: {e}")
 
     return jsonify({"status": "ok"})
-
 
 
 
