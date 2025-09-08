@@ -550,23 +550,36 @@ def serve_widget_js_test(agent_id, branding="Powered by Voizee", brand=""):
     if (ok || ++tries > 50) clearInterval(poll);
   }, 300);
 // === Conversation tracking ===
-  document.addEventListener("DOMContentLoaded", () => {
-    const widget = document.querySelector("elevenlabs-convai");
+document.addEventListener("DOMContentLoaded", () => {
+  const widget = document.querySelector("elevenlabs-convai");
 
-    if (widget) {
-      widget.addEventListener("conversation-started", (event) => {
-        const convId = event.detail.conversationId;
-        console.log("Conversation ID:", convId);
+  if (widget) {
+    // Call started → cache ID
+    widget.addEventListener("conversation-started", (event) => {
+      const convId = event.detail.conversationId;
+      console.log("Conversation started, ID:", convId);
 
-        // Send to backend
-        fetch("https://voice-widget-new-production-177d.up.railway.app/log-conversation-test", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ conversation_id: convId, url: location.href })
-        }).catch(err => console.warn("Conv ID logging failed", err));
-      });
-    }
-  });
+      fetch("https://voice-widget-new-production-177d.up.railway.app/cache-conversation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversation_id: convId, url: location.href })
+      }).catch(err => console.warn("Conv ID caching failed", err));
+    });
+
+    // Call ended → finalize (fetch transcript & save to Excel/Sheets)
+    widget.addEventListener("conversation-ended", (event) => {
+      const convId = event.detail.conversationId;
+      console.log("Conversation ended, ID:", convId);
+
+      fetch("https://voice-widget-new-production-177d.up.railway.app/finalize-conversation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversation_id: convId })
+      }).catch(err => console.warn("Finalize failed", err));
+    });
+  }
+});
+
 
 })();
     """
@@ -1753,7 +1766,7 @@ def log_conversation():
 
     # Send to Google Sheets
     try:
-        requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=payload, timeout=5)
+        requests.post(GOOGLE_SHEET_WEBHOOK_DHILAK, json=payload, timeout=5)
     except Exception as e:
         app.logger.error(f"Google Sheets error: {e}")
 
