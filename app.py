@@ -1756,8 +1756,23 @@ def log_visitor_cto():
 
 #     return jsonify({"status": "ok"})
 
+def send_to_sheet_verbose(webhook_url: str, payload: dict, tag: str = "sheet"):
+    try:
+        resp = requests.post(webhook_url, json=payload, timeout=15)
+        body = resp.text
+        print(f"[{tag}] status={resp.status_code} len={len(body)} body_head={body[:500]!r}")
+        resp.raise_for_status()
+        # Apps Script sometimes returns 200 with HTML error; treat non-JSON as warning
+        try:
+            _ = resp.json()
+        except Exception:
+            print(f"[{tag}] WARNING: response not JSON; check Apps Script doPost. Body head above.")
+        return True
+    except Exception as e:
+        print(f"[{tag}] ERROR posting to sheet: {e}")
+        return False
+
 def send_to_sheet_brand(payload, brand: str):
-    # Choose the right webhook per brand; default to DHILAK if unknown
     brand = (brand or "").lower()
     if brand == "successgyan":
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_SUCCESSGYAN
@@ -1778,16 +1793,9 @@ def send_to_sheet_brand(payload, brand: str):
     elif brand == "dhilaktest":
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DHILAK
     else:
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DHILAK
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
+    return send_to_sheet_verbose(webhook_url, payload, tag=f"{brand or 'default'}")
 
-    try:
-        resp = requests.post(webhook_url, json=payload, timeout=15)
-        print(f"[{brand or 'default'}] sheet resp:", resp.status_code, resp.text[:300])
-        resp.raise_for_status()
-        return True
-    except Exception as e:
-        print("Sheet error:", e)
-        return False
 
 
 
@@ -1796,19 +1804,20 @@ def log_conversation_test():
     data = request.get_json(force=True) or {}
     brand = (data.get("brand") or "").lower()
 
-    # minimal upsert: keep latest url/conv_id timestamps
     key = data.get("email") or data.get("phone") or ""
     now = time.time()
 
     if key and key in recent_visitors and now - recent_visitors[key]["ts"] < 24*3600:
-        send_to_sheet_brand({
+        # minimal update (keeps latest url/conv_id)
+        update_payload = {
             "email": data.get("email",""),
             "phone": data.get("phone",""),
             "brand": brand,
             "url": data.get("url",""),
-            "conversation_id": data.get("conversation_id",""),
-        }, brand)
-        return jsonify({"status":"duplicate","message":"updated existing row"}), 200
+            "conversation_id": data.get("conversation_id","")
+        }
+        send_to_sheet_brand(update_payload, brand)
+        return jsonify({"status": "duplicate", "message": "updated existing row"}), 200
 
     ok = send_to_sheet_brand(data, brand)
     if ok and key:
@@ -1843,34 +1852,27 @@ def finalize_conversation():
 
     headers = {"xi-api-key": ELEVENLABS_API_KEY, "Accept": "application/json"}
     try:
-        r = requests.get(f"https://api.elevenlabs.io/v1/convai/conversations/{conv_id}",
-                         headers=headers, timeout=20)
+        r = requests.get(f"https://api.elevenlabs.io/v1/convai/conversations/{conv_id}", headers=headers, timeout=20)
         r.raise_for_status()
         conv = r.json()
     except Exception as e:
         return jsonify({"status": "error", "message": f"failed transcript {e}"}), 500
 
     transcript = [(t.get("role",""), t.get("message","")) for t in conv.get("transcript", [])]
-
-    # pull cached context if present
     cached = cached_conversations.get(conv_id, {}) or {}
-    brand = cached.get("brand") or data.get("brand") or ""   # allow override if passed
+    brand = cached.get("brand") or ""
     url = cached.get("url") or ""
     agent_id = cached.get("agent_id") or ""
 
     payload = {
         "conversation_id": conv_id,
-        "agent_id": agent_id,
         "brand": brand,
+        "agent_id": agent_id,
         "url": url,
-        "started_at": conv.get("conversation_initiation_metadata_event", {}).get("conversation_initiation_metadata_event",{}),
         "transcript": transcript
     }
-
-    # Send to the brand sheet
     send_to_sheet_brand(payload, brand)
-
-    return jsonify({"status": "finalized", "lines": len(transcript)})
+    return jsonify({"status":"finalized","lines":len(transcript)})
 
 
 # testttttttttttt endddddddddddd
