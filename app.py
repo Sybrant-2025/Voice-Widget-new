@@ -37,7 +37,7 @@ GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS = 'https://script.google.com/macros/s/AKfycb
 # GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbwhN9SDC8jM3tyqFjrnOMtLqecx5_bBPVuKvFk_1ZuM41EAWEZuIUfwsTcd1cI-bXk/exec'
 GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
 GOOGLE_SHEET_WEBHOOK_URL_SYBRANT = 'https://script.google.com/macros/s/AKfycbxw4RJYQkdWRN3Fu3Vakj5C8h2P-YUN4qJZQrzxjyDk8t2dCY6Wst3wV0pJ2e5h_nn-6Q/exec'
-GOOGLE_SHEET_WEBHOOK_URL_DHILAK = 'https://script.google.com/macros/s/AKfycbypXZ-LD1XYfwqqHQURYCgQWdIWO44gDeQVlkIojY-RFAFk7el2MjmFsoubMrVthQgkaQ/exec'
+GOOGLE_SHEET_WEBHOOK_URL_DHILAK = 'https://script.google.com/macros/s/AKfycbw4arKibkKYMC90Tq0nJ9V8LyiOjLBm0fkex0XQijcYlHTMT1P0qPWY-LSdHMYj8UQfkQ/exec'
 
 
 
