@@ -1775,7 +1775,7 @@ def send_to_sheet_brand(payload, brand: str):
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE
     elif brand == "sybrant":
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_SYBRANT
-	elif brand == "dhilak":
+    elif brand == "dhilaktest":
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DHILAK
     else:
         webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DHILAK
