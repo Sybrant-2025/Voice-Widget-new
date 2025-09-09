@@ -13,6 +13,10 @@ CORS(app)
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 
 
+# In-memory cache
+recent_visitors = {}       # { email/phone: { data, ts } }
+cached_conversations = {}  # { conv_id: { url, ts } }
+
 # --- Constants ---
 # GOOGLE_SHEET_WEBHOOK_URL = (
 #     'https://script.google.com/macros/s/'
@@ -32,7 +36,7 @@ GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS = 'https://script.google.com/macros/s/AKfycb
 # GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbwhN9SDC8jM3tyqFjrnOMtLqecx5_bBPVuKvFk_1ZuM41EAWEZuIUfwsTcd1cI-bXk/exec'
 GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
 GOOGLE_SHEET_WEBHOOK_URL_SYBRANT = 'https://script.google.com/macros/s/AKfycbxw4RJYQkdWRN3Fu3Vakj5C8h2P-YUN4qJZQrzxjyDk8t2dCY6Wst3wV0pJ2e5h_nn-6Q/exec'
-GOOGLE_SHEET_WEBHOOK_URL_DHILAK = 'https://script.google.com/macros/s/AKfycbyXjfDBwkfFF4bQW-jvFrq3IJ-PJG8aKuQ3Wdr0-tW3lTkEVC7pnBAVxJeJCpSa0LSKxA/exec'
+GOOGLE_SHEET_WEBHOOK_URL_DHILAK = 'https://script.google.com/macros/s/AKfycbzRoN3MCHjeATHWf7EuV5aT0T-uT2USghP19pXgHqIa8Dd1viuluNqrugSmF_WnQsVIXQ/exec'
 
 
 
@@ -416,9 +420,9 @@ def serve_widget_js_test(agent_id, branding="Powered by Voizee", brand=""):
     if (!sr) return;
     try {
       const selectors = [
-        'span.opacity-30', // "Powered by ElevenLabs"
-		'p.whitespace-nowrap', // Conversational AI footer
-        'a[href*="elevenlabs.io/conversational-ai"]' // link itself
+        'span.opacity-30',
+        'p.whitespace-nowrap',
+        'a[href*="elevenlabs.io/conversational-ai"]'
       ];
       selectors.forEach(sel => {
         sr.querySelectorAll(sel).forEach(el => el.remove());
@@ -428,7 +432,7 @@ def serve_widget_js_test(agent_id, branding="Powered by Voizee", brand=""):
     }
   }
 
-  // Try hooking call button
+  // Hook call button
   function hookButton(){
     const widget = document.querySelector("elevenlabs-convai");
     if (!widget) return false;
@@ -454,7 +458,7 @@ def serve_widget_js_test(agent_id, branding="Powered by Voizee", brand=""):
     return false;
   }
 
-  // Show modal on click
+  // Intercept call button click
   function interceptClick(btn){
     window.__last_call_btn = btn;
     btn.addEventListener("click", (e) => {
@@ -474,7 +478,7 @@ def serve_widget_js_test(agent_id, branding="Powered by Voizee", brand=""):
     }, true);
   }
 
-  // Inject visitor form
+  // Visitor modal form
   function createVisitorModal(){
     if (document.getElementById("convai-visitor-modal")) return;
     const modal = document.createElement("div");
@@ -486,7 +490,7 @@ def serve_widget_js_test(agent_id, branding="Powered by Voizee", brand=""):
         <h3 style="margin-top:0;">Tell us about you</h3>
         <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
           <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-		  <input name="company" placeholder="Company name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <input name="company" placeholder="Company name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
           <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
           <input name="phone" placeholder="Phone" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
           <div style="display:flex;gap:10px;">
@@ -504,6 +508,11 @@ def serve_widget_js_test(agent_id, branding="Powered by Voizee", brand=""):
     const form = modal.querySelector("#convai-form");
     form.onsubmit = async function(ev){
       ev.preventDefault();
+
+      const submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.innerText = "Submitting...";
+
       const fd = new FormData(form);
       const data = Object.fromEntries(fd.entries());
       data.agent_id = AGENT_ID;
@@ -519,9 +528,15 @@ def serve_widget_js_test(agent_id, branding="Powered by Voizee", brand=""):
         });
       } catch(err){
         console.warn("Logging failed", err);
+        submitBtn.disabled = false;
+        submitBtn.innerText = "Submit";
+        return;
       }
 
+      // Save visitor info + TTL for 24hrs
+      localStorage.setItem("convai_visitor", JSON.stringify(data));
       localStorage.setItem("convai_form_submitted", (Date.now() + 24*60*60*1000).toString());
+
       modal.style.display = "none";
 
       try {
@@ -535,7 +550,7 @@ def serve_widget_js_test(agent_id, branding="Powered by Voizee", brand=""):
 
   createVisitorModal();
 
-  // Observe and poll widget for shadow access
+  // Mutation observer to hook button
   const obs = new MutationObserver(() => {
     try {
       const found = hookButton();
@@ -549,42 +564,60 @@ def serve_widget_js_test(agent_id, branding="Powered by Voizee", brand=""):
     const ok = hookButton();
     if (ok || ++tries > 50) clearInterval(poll);
   }, 300);
-// === Conversation tracking ===
-document.addEventListener("DOMContentLoaded", () => {
-  const widget = document.querySelector("elevenlabs-convai");
 
-  if (widget) {
-    // Call started → cache ID
-    widget.addEventListener("conversation-started", (event) => {
-      const convId = event.detail.conversationId;
-      console.log("Conversation started, ID:", convId);
+  // === Conversation tracking ===
+  document.addEventListener("DOMContentLoaded", () => {
+    const widget = document.querySelector("elevenlabs-convai");
 
-      fetch("https://voice-widget-new-production-177d.up.railway.app/cache-conversation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversation_id: convId, url: location.href })
-      }).catch(err => console.warn("Conv ID caching failed", err));
-    });
+    if (widget) {
+      // Call started → reuse visitor if within 24hrs
+      widget.addEventListener("conversation-started", (event) => {
+        const convId = event.detail.conversationId;
+        console.log("Conversation started, ID:", convId);
 
-    // Call ended → finalize (fetch transcript & save to Excel/Sheets)
-    widget.addEventListener("conversation-ended", (event) => {
-      const convId = event.detail.conversationId;
-      console.log("Conversation ended, ID:", convId);
+        const ttl = parseInt(localStorage.getItem("convai_form_submitted") || "0");
+        const visitorData = localStorage.getItem("convai_visitor");
 
-      fetch("https://voice-widget-new-production-177d.up.railway.app/finalize-conversation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversation_id: convId })
-      }).catch(err => console.warn("Finalize failed", err));
-    });
-  }
-});
+        if (Date.now() < ttl && visitorData) {
+          const saved = JSON.parse(visitorData);
+          saved.timestamp = new Date().toISOString();
+          saved.conversation_id = convId;
 
+          fetch("https://voice-widget-new-production-177d.up.railway.app/log-conversation-test", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(saved)
+          }).catch(err => console.warn("Auto-log failed", err));
+        } else {
+          fetch("https://voice-widget-new-production-177d.up.railway.app/cache-conversation", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ conversation_id: convId, url: location.href })
+          }).catch(err => console.warn("Conv ID caching failed", err));
+        }
+      });
+
+      // Call ended → finalize
+      widget.addEventListener("conversation-ended", (event) => {
+        const convId = event.detail.conversationId;
+        console.log("Conversation ended, ID:", convId);
+
+        fetch("https://voice-widget-new-production-177d.up.railway.app/finalize-conversation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversation_id: convId })
+        }).catch(err => console.warn("Finalize failed", err));
+      });
+    }
+  });
 
 })();
     """
     return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
 
+
+
+##test end
 
 def serve_widget_js_main(agent_id, branding="Powered by Voizee", brand=""):
     js = """
@@ -1741,38 +1774,85 @@ def log_visitor_cto():
 
 #     return jsonify({"status": "ok"})
 
-@app.route('/log-conversation-test', methods=['POST'])
-def log_conversation():
-    data = request.json
-    conv_id = data.get("conversation_id")
-
-    if not conv_id:
-        return jsonify({"error": "No conversation_id"}), 400
-
-    # Fetch conversation data from ElevenLabs
-    ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
-    headers = {"xi-api-key": ELEVENLABS_API_KEY}
-    url = f"https://api.elevenlabs.io/v1/convai/conversations/{conv_id}"
-
-    resp = requests.get(url, headers=headers, timeout=10)
-    conv_data = resp.json()
-
-    payload = {
-        "conversation_id": conv_id,
-        "url": data.get("url", ""),
-        "transcription": conv_data.get("transcription", ""),
-        "recordingUrl": conv_data.get("recording_url", "")
-    }
-
-    # Send to Google Sheets
+def send_to_sheet(payload):
+    """Send payload to Google Sheet via App Script webhook"""
     try:
-        requests.post(GOOGLE_SHEET_WEBHOOK_DHILAK, json=payload, timeout=5)
+        resp = requests.post(GOOGLE_SHEET_WEBHOOK_DHILAK, json=payload, timeout=10)
+        resp.raise_for_status()
+        return True
     except Exception as e:
-        app.logger.error(f"Google Sheets error: {e}")
+        print("Sheet error:", e)
+        return False
+
+
+@app.route("/log-conversation-test", methods=["POST"])
+def log_conversation_test():
+    data = request.get_json(force=True)
+    if not data:
+        return jsonify({"status": "error", "message": "no data"}), 400
+
+    email = data.get("email")
+    phone = data.get("phone")
+
+    # Dedup key (prefer email, fallback phone)
+    key = email or phone
+    now = time.time()
+
+    if key:
+        if key in recent_visitors and now - recent_visitors[key]["ts"] < 24*3600:
+            print("Duplicate submission blocked for", key)
+            return jsonify({"status": "duplicate", "message": "already logged in last 24h"}), 200
+
+    # Log new visitor
+    success = send_to_sheet(data)
+    if success and key:
+        recent_visitors[key] = {"data": data, "ts": now}
 
     return jsonify({"status": "ok"})
 
 
+@app.route("/cache-conversation", methods=["POST"])
+def cache_conversation():
+    data = request.get_json(force=True)
+    conv_id = data.get("conversation_id")
+    if not conv_id:
+        return jsonify({"status": "error", "message": "no conv id"}), 400
+
+    cached_conversations[conv_id] = {
+        "url": data.get("url"),
+        "ts": time.time()
+    }
+    return jsonify({"status": "cached"})
+
+
+@app.route("/finalize-conversation", methods=["POST"])
+def finalize_conversation():
+    data = request.get_json(force=True)
+    conv_id = data.get("conversation_id")
+    if not conv_id:
+        return jsonify({"status": "error", "message": "no conv id"}), 400
+
+    headers = {"xi-api-key": ELEVENLABS_API_KEY, "Accept": "application/json"}
+    try:
+        r = requests.get(f"https://api.elevenlabs.io/v1/convai/conversations/{conv_id}", headers=headers, timeout=15)
+        r.raise_for_status()
+        conv = r.json()
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"failed transcript {e}"}), 500
+
+    transcript = [(t["role"], t["message"]) for t in conv.get("transcript", [])]
+
+    payload = {
+        "conversation_id": conv_id,
+        "transcript": transcript
+    }
+
+    # Append transcript to sheet
+    send_to_sheet(payload)
+
+    return jsonify({"status": "finalized", "lines": len(transcript)})
+
+# testttttttttttt endddddddddddd
 
 @app.route('/log-visitor', methods=['POST'])
 def log_visitor():
