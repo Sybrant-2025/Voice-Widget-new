@@ -5,6 +5,7 @@ import requests
 import os
 import datetime
 import requests
+import time
 
 
 
@@ -36,7 +37,7 @@ GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS = 'https://script.google.com/macros/s/AKfycb
 # GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbwhN9SDC8jM3tyqFjrnOMtLqecx5_bBPVuKvFk_1ZuM41EAWEZuIUfwsTcd1cI-bXk/exec'
 GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE = 'https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec'
 GOOGLE_SHEET_WEBHOOK_URL_SYBRANT = 'https://script.google.com/macros/s/AKfycbxw4RJYQkdWRN3Fu3Vakj5C8h2P-YUN4qJZQrzxjyDk8t2dCY6Wst3wV0pJ2e5h_nn-6Q/exec'
-GOOGLE_SHEET_WEBHOOK_URL_DHILAK = 'https://script.google.com/macros/s/AKfycbzRoN3MCHjeATHWf7EuV5aT0T-uT2USghP19pXgHqIa8Dd1viuluNqrugSmF_WnQsVIXQ/exec'
+GOOGLE_SHEET_WEBHOOK_URL_DHILAK = 'https://script.google.com/macros/s/AKfycbypXZ-LD1XYfwqqHQURYCgQWdIWO44gDeQVlkIojY-RFAFk7el2MjmFsoubMrVthQgkaQ/exec'
 
 
 
@@ -1775,14 +1776,15 @@ def log_visitor_cto():
 #     return jsonify({"status": "ok"})
 
 def send_to_sheet(payload):
-    """Send payload to Google Sheet via App Script webhook"""
     try:
         resp = requests.post(GOOGLE_SHEET_WEBHOOK_URL_DHILAK, json=payload, timeout=10)
+        print("Sheet response:", resp.status_code, resp.text[:300])
         resp.raise_for_status()
         return True
     except Exception as e:
         print("Sheet error:", e)
         return False
+
 
 
 @app.route("/log-conversation-test", methods=["POST"])
@@ -1799,9 +1801,19 @@ def log_conversation_test():
     now = time.time()
 
     if key:
-        if key in recent_visitors and now - recent_visitors[key]["ts"] < 24*3600:
-            print("Duplicate submission blocked for", key)
-            return jsonify({"status": "duplicate", "message": "already logged in last 24h"}), 200
+        if key:
+            if key in recent_visitors and now - recent_visitors[key]["ts"] < 24*3600:
+                # Instead of dropping it, still send a minimal update so the sheet
+                # can attach the latest conversation_id / url / brand and refresh timestamp.
+                update_payload = {
+                    "email": email or "",
+                    "phone": phone or "",
+                    "brand": data.get("brand", ""),
+                    "url": data.get("url", ""),
+                    "conversation_id": data.get("conversation_id", ""),  # might be present when call starts
+                }
+                send_to_sheet(update_payload)  # <- upsert in Apps Script
+                return jsonify({"status": "duplicate", "message": "updated existing row"}), 200
 
     # Log new visitor
     success = send_to_sheet(data)
