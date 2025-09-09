@@ -1777,7 +1777,7 @@ def log_visitor_cto():
 def send_to_sheet(payload):
     """Send payload to Google Sheet via App Script webhook"""
     try:
-        resp = requests.post(GOOGLE_SHEET_WEBHOOK_DHILAK, json=payload, timeout=10)
+        resp = requests.post(GOOGLE_SHEET_WEBHOOK_URL_DHILAK, json=payload, timeout=10)
         resp.raise_for_status()
         return True
     except Exception as e:
