@@ -11,9 +11,9 @@ import time
 
 app = Flask(__name__)
 CORS(app)
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+# ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 
-
+ELEVENLABS_API_KEY = "sk_2672b9e5e381a863f2e79b2add72e15782bd0b94957700c5"
 # In-memory cache
 recent_visitors = {}       # { email/phone: { data, ts } }
 cached_conversations = {}  # { conv_id: { url, ts } }
@@ -398,9 +398,7 @@ def serve_widget_js_test(agent_id, branding="Powered by Voizee", brand=""):
     const tag = document.createElement("elevenlabs-convai");
     tag.setAttribute("agent-id", AGENT_ID);
     document.body.appendChild(tag);
-  } catch (e) {
-    console.error("Widget creation failed", e);
-  }
+  } catch (e) { console.error("Widget creation failed", e); }
 
   // Load embed script
   (function loadEmbed(){
@@ -416,24 +414,96 @@ def serve_widget_js_test(agent_id, branding="Powered by Voizee", brand=""):
     document.body.appendChild(s);
   })();
 
-  // Remove branding, avatar and prompt
+  // --- Optional light cleanup ---
   function removeExtras(sr){
     if (!sr) return;
     try {
-      const selectors = [
-        'span.opacity-30',
-        'p.whitespace-nowrap',
-        'a[href*="elevenlabs.io/conversational-ai"]'
-      ];
-      selectors.forEach(sel => {
-        sr.querySelectorAll(sel).forEach(el => el.remove());
-      });
-    } catch(e){
-      console.warn("Brand cleanup error", e);
-    }
+      ['span.opacity-30','p.whitespace-nowrap','a[href*="elevenlabs.io/conversational-ai"]']
+        .forEach(sel => sr.querySelectorAll(sel).forEach(el => el.remove()));
+    } catch(_) {}
   }
 
-  // Hook call button
+  // === Modal (same blocking behavior as CFO, with TTL) ===
+  function interceptClick(btn){
+    window.__last_call_btn = btn;
+    btn.addEventListener("click", (e) => {
+      const ttl = parseInt(localStorage.getItem("convai_form_submitted") || "0");
+      if (Date.now() < ttl) return;           // already submitted within TTL → allow call
+
+      if (btn._allowCall) {                    // second click after submit → allow call
+        btn._allowCall = false;
+        return;
+      }
+
+      e.preventDefault();
+      e.stopImmediatePropagation();
+
+      const modal = document.getElementById("convai-visitor-modal");
+      if (modal) modal.style.display = "flex";
+    }, true);
+  }
+
+  function createVisitorModal(){
+    if (document.getElementById("convai-visitor-modal")) return;
+    const modal = document.createElement("div");
+    modal.id = "convai-visitor-modal";
+    modal.style = "display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:999999;align-items:center;justify-content:center;";
+    modal.innerHTML = `
+      <div style="background:white;border-radius:8px;padding:20px;max-width:420px;width:92%;font-family:sans-serif;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <h3 style="margin:0;font-size:18px;">Tell us about you</h3>
+          <button id="convai-close" style="font-size:20px;background:none;border:none;line-height:1;cursor:pointer;">×</button>
+        </div>
+        <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
+          <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:6px;">
+          <input name="company" placeholder="Company name" style="padding:10px;border:1px solid #ccc;border-radius:6px;">
+          <input name="email" type="email" placeholder="Email" style="padding:10px;border:1px solid #ccc;border-radius:6px;">
+          <input name="phone" placeholder="Phone" style="padding:10px;border:1px solid #ccc;border-radius:6px;">
+          <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button type="button" id="convai-cancel" style="padding:10px 14px;border-radius:6px;border:1px solid #ddd;background:#f5f5f5;cursor:pointer;">Cancel</button>
+            <button type="submit" style="padding:10px 16px;border-radius:6px;border:none;background:#0b72e7;color:#fff;cursor:pointer;">Submit</button>
+          </div>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.querySelector("#convai-close").onclick = () => modal.style.display = "none";
+    modal.querySelector("#convai-cancel").onclick = () => modal.style.display = "none";
+
+    const form = modal.querySelector("#convai-form");
+    form.onsubmit = async function(ev){
+      ev.preventDefault();
+      const fd = new FormData(form);
+      const data = Object.fromEntries(fd.entries());
+      data.agent_id = AGENT_ID;
+      data.brand = BRAND;
+      data.url = location.href;
+      data.timestamp = new Date().toISOString();
+      if (window.__voizee_last_conv_id) data.conversation_id = window.__voizee_last_conv_id;
+
+      try {
+        await fetch("https://voice-widget-new-production-177d.up.railway.app/log-conversation-test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+      } catch(_) {}
+
+      // TTL 24h; allow actual call
+      localStorage.setItem("convai_form_submitted", String(Date.now() + 24*60*60*1000));
+      modal.style.display = "none";
+
+      try {
+        if (window.__last_call_btn) {
+          window.__last_call_btn._allowCall = true;
+          window.__last_call_btn.click();
+        }
+      } catch(_) {}
+    };
+  }
+
+  // Hook "Start a call" button like CFO
   function hookButton(){
     const widget = document.querySelector("elevenlabs-convai");
     if (!widget) return false;
@@ -459,159 +529,70 @@ def serve_widget_js_test(agent_id, branding="Powered by Voizee", brand=""):
     return false;
   }
 
-  // Intercept call button click
-  function interceptClick(btn){
-    window.__last_call_btn = btn;
-    btn.addEventListener("click", (e) => {
-      const ttl = parseInt(localStorage.getItem("convai_form_submitted") || "0");
-      if (Date.now() < ttl) return;
-
-      if (btn._allowCall) {
-        btn._allowCall = false;
-        return;
-      }
-
-      e.preventDefault();
-      e.stopImmediatePropagation();
-
-      const modal = document.getElementById("convai-visitor-modal");
-      if (modal) modal.style.display = "flex";
-    }, true);
-  }
-
-  // Visitor modal form
-  function createVisitorModal(){
-    if (document.getElementById("convai-visitor-modal")) return;
-    const modal = document.createElement("div");
-    modal.id = "convai-visitor-modal";
-    modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;align-items:center;justify-content:center;";
-    modal.innerHTML = `
-      <div style="background:white;border-radius:8px;padding:20px;max-width:400px;width:90%;font-family:sans-serif;">
-        <div style="text-align:right;"><button id="convai-close" style="font-size:18px;background:none;border:none;">×</button></div>
-        <h3 style="margin-top:0;">Tell us about you</h3>
-        <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
-          <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <input name="company" placeholder="Company name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <input name="phone" placeholder="Phone" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <div style="display:flex;gap:10px;">
-            <button type="submit" style="flex:1;padding:10px;background:#007bff;color:white;border:none;border-radius:4px;">Submit</button>
-            <button type="button" id="convai-cancel" style="padding:10px;background:#eee;border:none;border-radius:4px;">Cancel</button>
-          </div>
-        </form>
-      </div>
-    `;
-    document.body.appendChild(modal);
-
-    modal.querySelector("#convai-close").onclick = () => modal.style.display = "none";
-    modal.querySelector("#convai-cancel").onclick = () => modal.style.display = "none";
-
-    const form = modal.querySelector("#convai-form");
-    form.onsubmit = async function(ev){
-      ev.preventDefault();
-
-      const submitBtn = form.querySelector('button[type="submit"]');
-      submitBtn.disabled = true;
-      submitBtn.innerText = "Submitting...";
-
-      const fd = new FormData(form);
-      const data = Object.fromEntries(fd.entries());
-      data.agent_id = AGENT_ID;
-      data.brand = BRAND;
-      data.url = location.href;
-      data.timestamp = new Date().toISOString();
-
-      try {
-        await fetch("https://voice-widget-new-production-177d.up.railway.app/log-conversation-test", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
-        });
-      } catch(err){
-        console.warn("Logging failed", err);
-        submitBtn.disabled = false;
-        submitBtn.innerText = "Submit";
-        return;
-      }
-
-      // Save visitor info + TTL for 24hrs
-      localStorage.setItem("convai_visitor", JSON.stringify(data));
-      localStorage.setItem("convai_form_submitted", (Date.now() + 24*60*60*1000).toString());
-
-      modal.style.display = "none";
-
-      try {
-        if (window.__last_call_btn) {
-          window.__last_call_btn._allowCall = true;
-          window.__last_call_btn.click();
-        }
-      } catch(err) {}
-    }
-  }
-
+  // Create modal now
   createVisitorModal();
 
-  // Mutation observer to hook button
-  const obs = new MutationObserver(() => {
-    try {
-      const found = hookButton();
-      if (found) obs.disconnect();
-    } catch(e){}
-  });
+  // Observe and poll to hook button (CFO-style)
+  const obs = new MutationObserver(() => { try { if (hookButton()) obs.disconnect(); } catch(e){} });
   obs.observe(document, { childList: true, subtree: true });
-
   let tries = 0;
-  const poll = setInterval(() => {
-    const ok = hookButton();
-    if (ok || ++tries > 50) clearInterval(poll);
-  }, 300);
+  const poll = setInterval(() => { if (hookButton() || ++tries > 80) clearInterval(poll); }, 300);
 
-  // === Conversation tracking ===
-  document.addEventListener("DOMContentLoaded", () => {
-    const widget = document.querySelector("elevenlabs-convai");
+  // === Conversation tracking for transcript ===
+  function getConvId(ev){
+    return ev?.detail?.conversationId || ev?.detail?.id || ev?.detail?.conversation_id || "";
+  }
 
-    if (widget) {
-      // Call started → reuse visitor if within 24hrs
-      widget.addEventListener("conversation-started", (event) => {
-        const convId = event.detail.conversationId;
-        console.log("Conversation started, ID:", convId);
+  function wireConvEvents(widget){
+    if (!widget || widget._wiredTest) return;
+    widget._wiredTest = true;
 
-        const ttl = parseInt(localStorage.getItem("convai_form_submitted") || "0");
-        const visitorData = localStorage.getItem("convai_visitor");
+    // On start: cache brand/url/agent + remember ID locally
+    ["conversation-started","conversationStarted","conversation-created"].forEach(evt=>{
+      widget.addEventListener(evt,(event)=>{
+        const convId = getConvId(event);
+        if (!convId) return;
+        window.__voizee_last_conv_id = convId;
 
-        if (Date.now() < ttl && visitorData) {
-          const saved = JSON.parse(visitorData);
-          saved.timestamp = new Date().toISOString();
-          saved.conversation_id = convId;
-
-          fetch("https://voice-widget-new-production-177d.up.railway.app/log-conversation-test", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(saved)
-          }).catch(err => console.warn("Auto-log failed", err));
-        } else {
-          fetch("https://voice-widget-new-production-177d.up.railway.app/cache-conversation", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ conversation_id: convId, url: location.href })
-          }).catch(err => console.warn("Conv ID caching failed", err));
-        }
+        fetch("https://voice-widget-new-production-177d.up.railway.app/cache-conversation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            conversation_id: convId,
+            url: location.href,
+            brand: BRAND,
+            agent_id: AGENT_ID
+          })
+        }).catch(()=>{});
       });
+    });
 
-      // Call ended → finalize
-      widget.addEventListener("conversation-ended", (event) => {
-        const convId = event.detail.conversationId;
-        console.log("Conversation ended, ID:", convId);
-
+    // On end: trigger backend finalize (server pulls transcript & writes to sheet)
+    ["conversation-ended","conversationEnded"].forEach(evt=>{
+      widget.addEventListener(evt,()=>{
+        const convId = window.__voizee_last_conv_id;
+        if (!convId) return;
         fetch("https://voice-widget-new-production-177d.up.railway.app/finalize-conversation", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ conversation_id: convId })
-        }).catch(err => console.warn("Finalize failed", err));
+        }).catch(()=>{});
       });
-    }
-  });
+    });
+  }
 
+  // Make sure we wire conversation events even if widget loads later
+  function tryWire(){
+    const w = document.querySelector("elevenlabs-convai");
+    if (!w) return false;
+    wireConvEvents(w);
+    return true;
+  }
+  if (!tryWire()){
+    const mo = new MutationObserver(()=>{ if (tryWire()) mo.disconnect(); });
+    mo.observe(document, { childList:true, subtree:true });
+    let k=0; const poll2=setInterval(()=>{ if (tryWire() || ++k > 100) clearInterval(poll2); }, 300);
+  }
 })();
     """
     return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
@@ -1775,10 +1756,33 @@ def log_visitor_cto():
 
 #     return jsonify({"status": "ok"})
 
-def send_to_sheet(payload):
+def send_to_sheet_brand(payload, brand: str):
+    # Choose the right webhook per brand; default to DHILAK if unknown
+    brand = (brand or "").lower()
+    if brand == "successgyan":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_SUCCESSGYAN
+    elif brand == "kfwcorp":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_KFWCORP
+    elif brand == "orientbell":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_ORIENTBELL
+    elif brand == "galent":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_GALENT
+    elif brand == "myndwell":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL
+    elif brand == "preludesys":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS
+    elif brand == "cfobridge":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE
+    elif brand == "sybrant":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_SYBRANT
+	elif brand == "dhilak":
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DHILAK
+    else:
+        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DHILAK
+
     try:
-        resp = requests.post(GOOGLE_SHEET_WEBHOOK_URL_DHILAK, json=payload, timeout=10)
-        print("Sheet response:", resp.status_code, resp.text[:300])
+        resp = requests.post(webhook_url, json=payload, timeout=15)
+        print(f"[{brand or 'default'}] sheet resp:", resp.status_code, resp.text[:300])
         resp.raise_for_status()
         return True
     except Exception as e:
@@ -1789,38 +1793,28 @@ def send_to_sheet(payload):
 
 @app.route("/log-conversation-test", methods=["POST"])
 def log_conversation_test():
-    data = request.get_json(force=True)
-    if not data:
-        return jsonify({"status": "error", "message": "no data"}), 400
+    data = request.get_json(force=True) or {}
+    brand = (data.get("brand") or "").lower()
 
-    email = data.get("email")
-    phone = data.get("phone")
-
-    # Dedup key (prefer email, fallback phone)
-    key = email or phone
+    # minimal upsert: keep latest url/conv_id timestamps
+    key = data.get("email") or data.get("phone") or ""
     now = time.time()
 
-    if key:
-        if key:
-            if key in recent_visitors and now - recent_visitors[key]["ts"] < 24*3600:
-                # Instead of dropping it, still send a minimal update so the sheet
-                # can attach the latest conversation_id / url / brand and refresh timestamp.
-                update_payload = {
-                    "email": email or "",
-                    "phone": phone or "",
-                    "brand": data.get("brand", ""),
-                    "url": data.get("url", ""),
-                    "conversation_id": data.get("conversation_id", ""),  # might be present when call starts
-                }
-                send_to_sheet(update_payload)  # <- upsert in Apps Script
-                return jsonify({"status": "duplicate", "message": "updated existing row"}), 200
+    if key and key in recent_visitors and now - recent_visitors[key]["ts"] < 24*3600:
+        send_to_sheet_brand({
+            "email": data.get("email",""),
+            "phone": data.get("phone",""),
+            "brand": brand,
+            "url": data.get("url",""),
+            "conversation_id": data.get("conversation_id",""),
+        }, brand)
+        return jsonify({"status":"duplicate","message":"updated existing row"}), 200
 
-    # Log new visitor
-    success = send_to_sheet(data)
-    if success and key:
+    ok = send_to_sheet_brand(data, brand)
+    if ok and key:
         recent_visitors[key] = {"data": data, "ts": now}
+    return jsonify({"status":"ok"})
 
-    return jsonify({"status": "ok"})
 
 
 @app.route("/cache-conversation", methods=["POST"])
@@ -1832,9 +1826,12 @@ def cache_conversation():
 
     cached_conversations[conv_id] = {
         "url": data.get("url"),
+        "brand": (data.get("brand") or "").lower(),
+        "agent_id": data.get("agent_id"),
         "ts": time.time()
     }
     return jsonify({"status": "cached"})
+
 
 
 @app.route("/finalize-conversation", methods=["POST"])
@@ -1846,23 +1843,35 @@ def finalize_conversation():
 
     headers = {"xi-api-key": ELEVENLABS_API_KEY, "Accept": "application/json"}
     try:
-        r = requests.get(f"https://api.elevenlabs.io/v1/convai/conversations/{conv_id}", headers=headers, timeout=15)
+        r = requests.get(f"https://api.elevenlabs.io/v1/convai/conversations/{conv_id}",
+                         headers=headers, timeout=20)
         r.raise_for_status()
         conv = r.json()
     except Exception as e:
         return jsonify({"status": "error", "message": f"failed transcript {e}"}), 500
 
-    transcript = [(t["role"], t["message"]) for t in conv.get("transcript", [])]
+    transcript = [(t.get("role",""), t.get("message","")) for t in conv.get("transcript", [])]
+
+    # pull cached context if present
+    cached = cached_conversations.get(conv_id, {}) or {}
+    brand = cached.get("brand") or data.get("brand") or ""   # allow override if passed
+    url = cached.get("url") or ""
+    agent_id = cached.get("agent_id") or ""
 
     payload = {
         "conversation_id": conv_id,
+        "agent_id": agent_id,
+        "brand": brand,
+        "url": url,
+        "started_at": conv.get("conversation_initiation_metadata_event", {}).get("conversation_initiation_metadata_event",{}),
         "transcript": transcript
     }
 
-    # Append transcript to sheet
-    send_to_sheet(payload)
+    # Send to the brand sheet
+    send_to_sheet_brand(payload, brand)
 
     return jsonify({"status": "finalized", "lines": len(transcript)})
+
 
 # testttttttttttt endddddddddddd
 
