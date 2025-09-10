@@ -1029,6 +1029,87 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
             .replace("__BRAND__", brand))
 
 
+def serve_widget_js_nofrom(agent_id, branding="Powered by Voizee", brand=""):
+    js = r"""
+(function(){
+  const AGENT_ID = "__AGENT_ID__";
+  const BRAND = "__BRAND__";
+  const BRANDING_TEXT = "__BRANDING__";
+
+  let VISIT_ID = (typeof crypto !== "undefined" && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : (Date.now() + "_" + Math.random().toString(36).slice(2));
+
+  let CONV_ID = null;
+  function setConvIdOnce(cid){
+    if (!cid || CONV_ID) return;
+    CONV_ID = cid;
+    console.log("[ConvAI] conversation started:", CONV_ID);
+  }
+
+  window.addEventListener("message", (evt) => {
+    try {
+      const d = evt?.data;
+      const cid = d?.conversation_initiation_metadata_event?.conversation_id || d?.conversation_id;
+      setConvIdOnce(cid);
+    } catch(_) {}
+  }, false);
+
+  (function patchWebSocket(){
+    const OriginalWS = window.WebSocket;
+    if (!OriginalWS) return;
+    function WrappedWS(url, protocols){
+      const ws = protocols ? new OriginalWS(url, protocols) : new OriginalWS(url);
+      ws.addEventListener("message", (ev) => {
+        try {
+          if (typeof ev.data !== "string") return;
+          const d = JSON.parse(ev.data);
+          const cid = d?.conversation_initiation_metadata_event?.conversation_id || d?.conversation_id;
+          if (cid) setConvIdOnce(cid);
+        } catch(_) {}
+      });
+      return ws;
+    }
+    WrappedWS.prototype = OriginalWS.prototype;
+    window.WebSocket = WrappedWS;
+  })();
+
+  function removeExtras(sr){
+    if (!sr) return;
+    try {
+      ['span.opacity-30','a[href*="elevenlabs.io/conversational-ai"]']
+        .forEach(sel => sr.querySelectorAll(sel).forEach(el => el.remove()));
+    } catch(e){}
+  }
+
+  const obs = new MutationObserver(() => {
+    try {
+      const widget = document.querySelector("elevenlabs-convai");
+      if (widget) removeExtras(widget.shadowRoot);
+    } catch(e){}
+  });
+  obs.observe(document, { childList: true, subtree: true });
+
+  try {
+    const tag = document.createElement("elevenlabs-convai");
+    tag.setAttribute("agent-id", AGENT_ID);
+    document.body.appendChild(tag);
+  } catch (e) {}
+
+  (function loadEmbed(){
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
+    s.async = true;
+    document.body.appendChild(s);
+  })();
+
+})();
+    """
+    return (js
+            .replace("__AGENT_ID__", agent_id)
+            .replace("__BRANDING__", branding)
+            .replace("__BRAND__", brand))
+
 ##########updated end##########
 ##### --- Core JS serve_widget_js2222222: instant modal + triple-guard injection + per-brand cache key ---
 def serve_widget_js2(agent_id, branding="Powered by Voizee", brand="default"):
@@ -2547,7 +2628,7 @@ def serve_dhilaktest():
 @app.route('/kopiko')
 def serve_kopiko():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated(agent_id, branding="Powered by kopiko", brand="kopiko")
+    js = serve_widget_js_nofrom(agent_id, branding="Powered by kopiko", brand="kopiko")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/ctobridge')
