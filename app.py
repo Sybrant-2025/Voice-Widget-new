@@ -32,8 +32,8 @@ BRAND_TO_WEBHOOK = {
     "myndwell":    "https://script.google.com/macros/s/AKfycbz52ul8_xCPMWLfRFuuQxqPfgo_YgpnkPgpdsfSlfE_X17SAoVVCjK0B5efxPhfmrXImA/exec",
     "preludesys":  "https://script.google.com/macros/s/AKfycbwZpUmj42D_GB3AgxTqSSdQcua2byy5dvFr7dO5jJBhYrUDNhulPj-RxLtWwlz_87T5Pg/exec",
     "cfobridge":   "https://script.google.com/macros/s/AKfycbxltOr9C6T7Nw2DOKanBjiKVYrma9-EODtoReLUCNTp-3dANl2s0mS3oQACIp_P--Bb/exec",
-    "sybrantvoizee": "https://script.google.com/macros/s/AKfycbyde5ank1ylpdAM3Kn28ZAULySme300V__VjOy7ESLHd0NX-gtoQAvMkmbt0bv7QJ01LQ/exec",
-	"sybrantweb": "https://script.google.com/macros/s/AKfycby7QToFBbEdSgomJfHdJ-ItUNPfSYiwz8r8WpUUCegnsPAI7nS3g1zdvE_3jjVsui1n/exec",
+    "voiceassistant": "https://script.google.com/macros/s/AKfycbyde5ank1ylpdAM3Kn28ZAULySme300V__VjOy7ESLHd0NX-gtoQAvMkmbt0bv7QJ01LQ/exec",
+	"sybrant": "https://script.google.com/macros/s/AKfycby7QToFBbEdSgomJfHdJ-ItUNPfSYiwz8r8WpUUCegnsPAI7nS3g1zdvE_3jjVsui1n/exec",
     "dhilaktest": "https://script.google.com/macros/s/AKfycby0hb5wDlSqtDwLiTWKULqkuZzVmtpJXRgof9ncF5adfIV_y3hL7QmDw7tliYtvF_fRGw/exec",
 	"kopiko": "https://script.google.com/macros/s/AKfycbzip7wk995Q8BfktpVNZp6uJREQ8CqydyTVtxlTG0NucPugFOECa6XBpqo3Xv6pAkgM/exec",
 }
@@ -2459,7 +2459,7 @@ def generate_widget_js(agent_id, branding, brand=""):
 
 
 # --- Serve Branded Widget Scripts ---
-@app.route('/sybrantweb')
+@app.route('/sybrant')
 def serve_sybrant_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
     js = serve_widget_js_updated(agent_id, branding="Powered by Sybrant", brand="Sybrant")
@@ -2508,7 +2508,7 @@ def serve_cfobridge():
     js = serve_widget_js_updated(agent_id, branding="Powered by cfobridge", brand="CFO Bridge")
     return Response(js, mimetype='application/javascript')
 
-@app.route('/sybrantvoizee')
+@app.route('/voiceassistant')
 def serve_sybrant():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
     js = serve_widget_js_updated(agent_id, branding="Powered by sybrant", brand="Sybrant Voizee")
@@ -3864,7 +3864,7 @@ def demo_sybrant():
     <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
   </div>
 
-      <script src="https://voizee.sybrant.com/sybrantvoizee?agent=agent_01jwfxypsyfja9bjqhq5d1zp43"></script>  
+      <script src="https://voizee.sybrant.com/voiceassistant?agent=agent_01jwfxypsyfja9bjqhq5d1zp43"></script>  
 
     <script>
 function removeBrandingFromWidget() {
