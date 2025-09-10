@@ -32,7 +32,8 @@ BRAND_TO_WEBHOOK = {
     "myndwell":    "https://script.google.com/macros/s/AKfycbz52ul8_xCPMWLfRFuuQxqPfgo_YgpnkPgpdsfSlfE_X17SAoVVCjK0B5efxPhfmrXImA/exec",
     "preludesys":  "https://script.google.com/macros/s/AKfycbwZpUmj42D_GB3AgxTqSSdQcua2byy5dvFr7dO5jJBhYrUDNhulPj-RxLtWwlz_87T5Pg/exec",
     "cfobridge":   "https://script.google.com/macros/s/AKfycbxltOr9C6T7Nw2DOKanBjiKVYrma9-EODtoReLUCNTp-3dANl2s0mS3oQACIp_P--Bb/exec",
-    "sybrant":     "https://script.google.com/macros/s/AKfycbxw4RJYQkdWRN3Fu3Vakj5C8h2P-YUN4qJZQrzxjyDk8t2dCY6Wst3wV0pJ2e5h_nn-6Q/exec",
+    "sybrantvoizee":     "https://script.google.com/macros/s/AKfycbxw4RJYQkdWRN3Fu3Vakj5C8h2P-YUN4qJZQrzxjyDk8t2dCY6Wst3wV0pJ2e5h_nn-6Q/exec",
+	"sybrantweb": "https://script.google.com/macros/s/AKfycby7QToFBbEdSgomJfHdJ-ItUNPfSYiwz8r8WpUUCegnsPAI7nS3g1zdvE_3jjVsui1n/exec",
     "dhilaktest":  "https://script.google.com/macros/s/AKfycby0hb5wDlSqtDwLiTWKULqkuZzVmtpJXRgof9ncF5adfIV_y3hL7QmDw7tliYtvF_fRGw/exec",
 	"kopiko": "https://script.google.com/macros/s/AKfycbzip7wk995Q8BfktpVNZp6uJREQ8CqydyTVtxlTG0NucPugFOECa6XBpqo3Xv6pAkgM/exec",
 }
@@ -2458,10 +2459,10 @@ def generate_widget_js(agent_id, branding, brand=""):
 
 
 # --- Serve Branded Widget Scripts ---
-@app.route('/convai-widget.js')
+@app.route('/sybrantweb')
 def serve_sybrant_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_main(agent_id, branding="Powered by Sybrant")
+    js = serve_widget_js_updated(agent_id, branding="Powered by Sybrant", brand="Sybrant")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/successgyan')
@@ -2504,13 +2505,13 @@ def serve_preludesys():
 @app.route('/cfobridge')
 def serve_cfobridge():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated(agent_id, branding="Powered by cfobridge", brand="cfobridge")
+    js = serve_widget_js_updated(agent_id, branding="Powered by cfobridge", brand="CFO Bridge")
     return Response(js, mimetype='application/javascript')
 
-@app.route('/sybrant')
+@app.route('/sybrantvoizee')
 def serve_sybrant():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js2(agent_id, branding="Powered by sybrant", brand="sybrant")
+    js = serve_widget_js2(agent_id, branding="Powered by sybrant", brand="Sybrant Voizee")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/dhilaktest')
@@ -2529,7 +2530,7 @@ def serve_kopiko():
 @app.route('/ctobridge')
 def serve_ctobridge():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_cto(agent_id, branding="Powered by ctobridge", brand="ctobridge")
+    js = serve_widget_js_cto(agent_id, branding="Powered by ctobridge", brand="CTO Bridge")
     return Response(js, mimetype='application/javascript')
 
 ########updated method
@@ -3723,7 +3724,7 @@ observer.observe(document.body, { childList: true, subtree: true });
 
 
 
-@app.route('/demo/sybrant')
+@app.route('/demo/sybrantvoizee')
 def demo_sybrant():
     html = """
 <!DOCTYPE html>
@@ -3863,7 +3864,7 @@ def demo_sybrant():
     <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
   </div>
 
-      <script src="https://voizee.sybrant.com/sybrant?agent=agent_01jwfxypsyfja9bjqhq5d1zp43"></script>  
+      <script src="https://voizee.sybrant.com/sybrantvoizeee?agent=agent_01jwfxypsyfja9bjqhq5d1zp43"></script>  
 
     <script>
 function removeBrandingFromWidget() {
@@ -4091,7 +4092,7 @@ def demo_kopiko():
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CTO Bridge Voizee</title>
+  <title>Kopiko Voizee</title>
   <style>
     body {
       font-family: "Segoe UI", Arial, sans-serif;
