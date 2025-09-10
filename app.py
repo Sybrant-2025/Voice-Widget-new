@@ -4083,7 +4083,7 @@ observer.observe(document.body, { childList: true, subtree: true });
     """
     return render_template_string(html)
 
- @app.route('/demo/kopiko')
+@app.route('/demo/kopiko')
 def demo_kopiko():
     html = """
 <!DOCTYPE html>
