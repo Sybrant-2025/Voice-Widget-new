@@ -2474,13 +2474,13 @@ def serve_successgyan_widget():
 @app.route('/kfwcorp')
 def serve_kfwcorp_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated(agent_id, branding="Powered by kfwcorp", brand="kfwcorp")
+    js = serve_widget_js_updated(agent_id, branding="Powered by kfwcorp", brand="KFW Corp")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/myndwell')
 def serve_myndwell_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated(agent_id, branding="Powered by myndwell", brand="myndwell")
+    js = serve_widget_js_updated(agent_id, branding="Powered by myndwell", brand="Myndwell")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/galent')
@@ -2511,7 +2511,7 @@ def serve_cfobridge():
 @app.route('/sybrantvoizee')
 def serve_sybrant():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_updated(agent_id, branding="Powered by sybrant", brand="Sybrant Voizee")
+    js = serve_widget_js_updated(agent_id, branding="Powered by sybrant", brand="Sybrant Voizee")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/dhilaktest')
@@ -2524,7 +2524,7 @@ def serve_dhilaktest():
 @app.route('/kopiko')
 def serve_kopiko():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated(agent_id, branding="Powered by kopiko", brand="kopiko")
+    js = serve_widget_js_updated(agent_id, branding="Powered by kopiko", brand="Kopiko")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/ctobridge')
