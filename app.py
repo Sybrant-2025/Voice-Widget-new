@@ -1036,6 +1036,7 @@ def serve_widget_js_nofrom(agent_id, branding="Powered by Voizee", brand=""):
   const BRAND = "__BRAND__";
   const BRANDING_TEXT = "__BRANDING__";
 
+  // ===== IDs =====
   let VISIT_ID = (typeof crypto !== "undefined" && crypto.randomUUID)
     ? crypto.randomUUID()
     : (Date.now() + "_" + Math.random().toString(36).slice(2));
@@ -1047,6 +1048,7 @@ def serve_widget_js_nofrom(agent_id, branding="Powered by Voizee", brand=""):
     console.log("[ConvAI] conversation started:", CONV_ID);
   }
 
+  // ===== Track conv_id from messages =====
   window.addEventListener("message", (evt) => {
     try {
       const d = evt?.data;
@@ -1055,6 +1057,7 @@ def serve_widget_js_nofrom(agent_id, branding="Powered by Voizee", brand=""):
     } catch(_) {}
   }, false);
 
+  // ===== Patch WebSocket =====
   (function patchWebSocket(){
     const OriginalWS = window.WebSocket;
     if (!OriginalWS) return;
@@ -1071,37 +1074,64 @@ def serve_widget_js_nofrom(agent_id, branding="Powered by Voizee", brand=""):
       return ws;
     }
     WrappedWS.prototype = OriginalWS.prototype;
+    Object.getOwnPropertyNames(OriginalWS).forEach(k => { try { WrappedWS[k] = OriginalWS[k]; } catch(_){} });
     window.WebSocket = WrappedWS;
   })();
 
+  // ===== Branding removal =====
   function removeExtras(sr){
     if (!sr) return;
     try {
-      ['span.opacity-30','a[href*="elevenlabs.io/conversational-ai"]']
-        .forEach(sel => sr.querySelectorAll(sel).forEach(el => el.remove()));
+      // remove "Powered by ElevenLabs"
+      sr.querySelectorAll("span.opacity-30").forEach(el => el.remove());
+      // remove any link to elevenlabs.io
+      sr.querySelectorAll('a[href*="elevenlabs.io"]').forEach(el => el.remove());
     } catch(e){}
   }
 
-  const obs = new MutationObserver(() => {
-    try {
-      const widget = document.querySelector("elevenlabs-convai");
-      if (widget) removeExtras(widget.shadowRoot);
-    } catch(e){}
-  });
-  obs.observe(document, { childList: true, subtree: true });
+  function observeBrandingRemoval(){
+    const widget = document.querySelector("elevenlabs-convai");
+    if (!widget) return;
+    const sr = widget.shadowRoot;
+    if (!sr) return;
 
+    // Initial cleanup
+    removeExtras(sr);
+
+    // Continuous cleanup
+    const mo = new MutationObserver(() => removeExtras(sr));
+    mo.observe(sr, { childList: true, subtree: true });
+  }
+
+  // ===== Inject widget =====
   try {
     const tag = document.createElement("elevenlabs-convai");
     tag.setAttribute("agent-id", AGENT_ID);
     document.body.appendChild(tag);
   } catch (e) {}
 
+  // ===== Load embed with fallback =====
   (function loadEmbed(){
     const s = document.createElement("script");
     s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
     s.async = true;
+    s.onerror = function(){
+      const fallback = document.createElement("script");
+      fallback.src = "https://elevenlabs.io/convai-widget/index.js";
+      fallback.async = true;
+      document.body.appendChild(fallback);
+    };
     document.body.appendChild(s);
   })();
+
+  // ===== Wait for widget then start branding removal =====
+  const waitForWidget = setInterval(() => {
+    const widget = document.querySelector("elevenlabs-convai");
+    if (widget && widget.shadowRoot) {
+      clearInterval(waitForWidget);
+      observeBrandingRemoval();
+    }
+  }, 300);
 
 })();
     """
@@ -1109,6 +1139,7 @@ def serve_widget_js_nofrom(agent_id, branding="Powered by Voizee", brand=""):
             .replace("__AGENT_ID__", agent_id)
             .replace("__BRANDING__", branding)
             .replace("__BRAND__", brand))
+
 
 ##########updated end##########
 ##### --- Core JS serve_widget_js2222222: instant modal + triple-guard injection + per-brand cache key ---
