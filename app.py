@@ -31,7 +31,7 @@ BRAND_TO_WEBHOOK = {
     "galent":      "https://script.google.com/macros/s/AKfycbzZrTfc6KbWz0L98YjhWiID1Wwwhcg4_MLybcKF4plbCYzOcVMQgsPsS-cnPv5nKxVPSw/exec",
     "myndwell":    "https://script.google.com/macros/s/AKfycbz52ul8_xCPMWLfRFuuQxqPfgo_YgpnkPgpdsfSlfE_X17SAoVVCjK0B5efxPhfmrXImA/exec",
     "preludesys":  "https://script.google.com/macros/s/AKfycbwZpUmj42D_GB3AgxTqSSdQcua2byy5dvFr7dO5jJBhYrUDNhulPj-RxLtWwlz_87T5Pg/exec",
-    "cfobridge":   "https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec",
+    "cfobridge":   "https://script.google.com/macros/s/AKfycbxltOr9C6T7Nw2DOKanBjiKVYrma9-EODtoReLUCNTp-3dANl2s0mS3oQACIp_P--Bb/exec",
     "sybrant":     "https://script.google.com/macros/s/AKfycbxw4RJYQkdWRN3Fu3Vakj5C8h2P-YUN4qJZQrzxjyDk8t2dCY6Wst3wV0pJ2e5h_nn-6Q/exec",
     "dhilaktest":  "https://script.google.com/macros/s/AKfycby0hb5wDlSqtDwLiTWKULqkuZzVmtpJXRgof9ncF5adfIV_y3hL7QmDw7tliYtvF_fRGw/exec",
 }
@@ -2111,7 +2111,7 @@ def serve_preludesys():
 @app.route('/cfobridge')
 def serve_cfobridge():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_cfo(agent_id, branding="Powered by cfobridge", brand="cfobridge")
+    js = serve_widget_js_updated(agent_id, branding="Powered by cfobridge", brand="cfobridge")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/sybrant')
