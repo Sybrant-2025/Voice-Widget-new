@@ -2503,7 +2503,7 @@ def serve_preludesys():
 @app.route('/cfobridge')
 def serve_cfobridge():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated2(agent_id, branding="Powered by cfobridge", brand="cfobridge")
+    js = serve_widget_js_updated(agent_id, branding="Powered by cfobridge", brand="cfobridge")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/sybrant')
