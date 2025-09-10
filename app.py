@@ -24,7 +24,7 @@ SHEET_WEBHOOK_URL_FALLBACK = os.getenv(
 
 # ---- Brand → Apps Script mapping ----
 BRAND_TO_WEBHOOK = {
-    "default":     "https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec",  
+    "default":     "https://script.google.com/macros/s/AKfycbyde5ank1ylpdAM3Kn28ZAULySme300V__VjOy7ESLHd0NX-gtoQAvMkmbt0bv7QJ01LQ/exec",  
     "kfwcorp":     "https://script.google.com/macros/s/AKfycbw3Mw25MO3a0JDsTE9YWpOIx9skESyftz4FUYZY6CnycStnrIcNVjFO7LqKkjlkvyoH7A/exec",
     "successgyan": "https://script.google.com/macros/s/AKfycbyASM8a0kZ649kxqvzmkOiyYbFpdXobDPCUYEF0y3CK-409iEe9dgWnsYp5dhCCOmrLhw/exec",
     "orientbell":  "https://script.google.com/macros/s/AKfycby0hb5wDlSqtDwLiTWKULqkuZzVmtpJXRgof9ncF5adfIV_y3hL7QmDw7tliYtvF_fRGw/exec",
@@ -32,8 +32,8 @@ BRAND_TO_WEBHOOK = {
     "myndwell":    "https://script.google.com/macros/s/AKfycbz52ul8_xCPMWLfRFuuQxqPfgo_YgpnkPgpdsfSlfE_X17SAoVVCjK0B5efxPhfmrXImA/exec",
     "preludesys":  "https://script.google.com/macros/s/AKfycbwZpUmj42D_GB3AgxTqSSdQcua2byy5dvFr7dO5jJBhYrUDNhulPj-RxLtWwlz_87T5Pg/exec",
     "cfobridge":   "https://script.google.com/macros/s/AKfycbxltOr9C6T7Nw2DOKanBjiKVYrma9-EODtoReLUCNTp-3dANl2s0mS3oQACIp_P--Bb/exec",
-    "voiceassistant": "https://script.google.com/macros/s/AKfycbyde5ank1ylpdAM3Kn28ZAULySme300V__VjOy7ESLHd0NX-gtoQAvMkmbt0bv7QJ01LQ/exec",
-	"sybrant": "https://script.google.com/macros/s/AKfycby7QToFBbEdSgomJfHdJ-ItUNPfSYiwz8r8WpUUCegnsPAI7nS3g1zdvE_3jjVsui1n/exec",
+    "Sybrant Voizee": "https://script.google.com/macros/s/AKfycbyde5ank1ylpdAM3Kn28ZAULySme300V__VjOy7ESLHd0NX-gtoQAvMkmbt0bv7QJ01LQ/exec",
+	"sybrant Technologies": "https://script.google.com/macros/s/AKfycby7QToFBbEdSgomJfHdJ-ItUNPfSYiwz8r8WpUUCegnsPAI7nS3g1zdvE_3jjVsui1n/exec",
     "dhilaktest": "https://script.google.com/macros/s/AKfycby0hb5wDlSqtDwLiTWKULqkuZzVmtpJXRgof9ncF5adfIV_y3hL7QmDw7tliYtvF_fRGw/exec",
 	"kopiko": "https://script.google.com/macros/s/AKfycbzip7wk995Q8BfktpVNZp6uJREQ8CqydyTVtxlTG0NucPugFOECa6XBpqo3Xv6pAkgM/exec",
 }
@@ -2462,7 +2462,7 @@ def generate_widget_js(agent_id, branding, brand=""):
 @app.route('/sybrant')
 def serve_sybrant_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated(agent_id, branding="Powered by Sybrant", brand="Sybrant")
+    js = serve_widget_js_updated(agent_id, branding="Powered by Sybrant", brand="Sybrant Technologies")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/successgyan')
