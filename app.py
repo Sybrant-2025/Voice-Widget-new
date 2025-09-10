@@ -29,11 +29,11 @@ BRAND_TO_WEBHOOK = {
     "successgyan": "https://script.google.com/macros/s/AKfycbyASM8a0kZ649kxqvzmkOiyYbFpdXobDPCUYEF0y3CK-409iEe9dgWnsYp5dhCCOmrLhw/exec",
     "orientbell":  "https://script.google.com/macros/s/AKfycby0hb5wDlSqtDwLiTWKULqkuZzVmtpJXRgof9ncF5adfIV_y3hL7QmDw7tliYtvF_fRGw/exec",
     "galent":      "https://script.google.com/macros/s/AKfycbzZrTfc6KbWz0L98YjhWiID1Wwwhcg4_MLybcKF4plbCYzOcVMQgsPsS-cnPv5nKxVPSw/exec",
-    "Myndwell":    "https://script.google.com/macros/s/AKfycbznRQAdKL7e2y7AqOhK6vmFuW9xzKZ29AHJQa8HFPqS01tn_bAF4hiGCohxvex2R8LGeA/exec",
+    "myndwell":    "https://script.google.com/macros/s/AKfycbznRQAdKL7e2y7AqOhK6vmFuW9xzKZ29AHJQa8HFPqS01tn_bAF4hiGCohxvex2R8LGeA/exec",
     "preludesys":  "https://script.google.com/macros/s/AKfycbwZpUmj42D_GB3AgxTqSSdQcua2byy5dvFr7dO5jJBhYrUDNhulPj-RxLtWwlz_87T5Pg/exec",
     "cfobridge":   "https://script.google.com/macros/s/AKfycbxltOr9C6T7Nw2DOKanBjiKVYrma9-EODtoReLUCNTp-3dANl2s0mS3oQACIp_P--Bb/exec",
-    "Sybrant Voizee": "https://script.google.com/macros/s/AKfycbyde5ank1ylpdAM3Kn28ZAULySme300V__VjOy7ESLHd0NX-gtoQAvMkmbt0bv7QJ01LQ/exec",
-	"sybrant Technologies": "https://script.google.com/macros/s/AKfycby7QToFBbEdSgomJfHdJ-ItUNPfSYiwz8r8WpUUCegnsPAI7nS3g1zdvE_3jjVsui1n/exec",
+    "sybrant_voizee": "https://script.google.com/macros/s/AKfycbyde5ank1ylpdAM3Kn28ZAULySme300V__VjOy7ESLHd0NX-gtoQAvMkmbt0bv7QJ01LQ/exec",
+	"sybrant_technologies": "https://script.google.com/macros/s/AKfycby7QToFBbEdSgomJfHdJ-ItUNPfSYiwz8r8WpUUCegnsPAI7nS3g1zdvE_3jjVsui1n/exec",
     "dhilaktest": "https://script.google.com/macros/s/AKfycby0hb5wDlSqtDwLiTWKULqkuZzVmtpJXRgof9ncF5adfIV_y3hL7QmDw7tliYtvF_fRGw/exec",
 	"kopiko": "https://script.google.com/macros/s/AKfycbzip7wk995Q8BfktpVNZp6uJREQ8CqydyTVtxlTG0NucPugFOECa6XBpqo3Xv6pAkgM/exec",
 }
@@ -2462,7 +2462,7 @@ def generate_widget_js(agent_id, branding, brand=""):
 @app.route('/sybrant')
 def serve_sybrant_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated(agent_id, branding="Powered by Sybrant", brand="Sybrant Technologies")
+    js = serve_widget_js_updated(agent_id, branding="Powered by Sybrant", brand="sybrant_technologies")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/successgyan')
@@ -2474,13 +2474,13 @@ def serve_successgyan_widget():
 @app.route('/kfwcorp')
 def serve_kfwcorp_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated(agent_id, branding="Powered by kfwcorp", brand="KFW Corp")
+    js = serve_widget_js_updated(agent_id, branding="Powered by kfwcorp", brand="kfwcorp")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/myndwell')
 def serve_myndwell_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated(agent_id, branding="Powered by myndwell", brand="Myndwell")
+    js = serve_widget_js_updated(agent_id, branding="Powered by myndwell", brand="myndwell")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/galent')
@@ -2505,13 +2505,13 @@ def serve_preludesys():
 @app.route('/cfobridge')
 def serve_cfobridge():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated(agent_id, branding="Powered by cfobridge", brand="CFO Bridge")
+    js = serve_widget_js_updated(agent_id, branding="Powered by cfobridge", brand="cfobridge")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/voiceassistant')
 def serve_sybrant():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated(agent_id, branding="Powered by sybrant", brand="Sybrant Voizee")
+    js = serve_widget_js_updated(agent_id, branding="Powered by sybrant", brand="sybrant_voizee")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/dhilaktest')
@@ -2524,13 +2524,13 @@ def serve_dhilaktest():
 @app.route('/kopiko')
 def serve_kopiko():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated(agent_id, branding="Powered by kopiko", brand="Kopiko")
+    js = serve_widget_js_updated(agent_id, branding="Powered by kopiko", brand="kopiko")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/ctobridge')
 def serve_ctobridge():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_cto(agent_id, branding="Powered by ctobridge", brand="CTO Bridge")
+    js = serve_widget_js_cto(agent_id, branding="Powered by ctobridge", brand="ctobridge")
     return Response(js, mimetype='application/javascript')
 
 ########updated method
