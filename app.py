@@ -24,17 +24,17 @@ SHEET_WEBHOOK_URL_FALLBACK = os.getenv(
 
 # ---- Brand → Apps Script mapping ----
 BRAND_TO_WEBHOOK = {
-    "default":     "https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec",  # cfobridge default
-    "kfwcorp":     "https://script.google.com/macros/s/AKfycbxy0M-bIHT92nT_FxpyIHXTxqU1UX-bhvoJkVbgfFzb2ZlmY79WUubg2xlvE6pwdus/exec",
+    "default":     "https://script.google.com/macros/s/AKfycbwrkqqFYAuoV9_zg1PYSC5Cr134XZ6mD_OqMhjX_oxMq7fzINpMQY46HtxgR0gkj1inPA/exec",  
+    "kfwcorp":     "https://script.google.com/macros/s/AKfycbw3Mw25MO3a0JDsTE9YWpOIx9skESyftz4FUYZY6CnycStnrIcNVjFO7LqKkjlkvyoH7A/exec",
     "successgyan": "https://script.google.com/macros/s/AKfycbyASM8a0kZ649kxqvzmkOiyYbFpdXobDPCUYEF0y3CK-409iEe9dgWnsYp5dhCCOmrLhw/exec",
     "orientbell":  "https://script.google.com/macros/s/AKfycby0hb5wDlSqtDwLiTWKULqkuZzVmtpJXRgof9ncF5adfIV_y3hL7QmDw7tliYtvF_fRGw/exec",
     "galent":      "https://script.google.com/macros/s/AKfycbzZrTfc6KbWz0L98YjhWiID1Wwwhcg4_MLybcKF4plbCYzOcVMQgsPsS-cnPv5nKxVPSw/exec",
     "myndwell":    "https://script.google.com/macros/s/AKfycbz52ul8_xCPMWLfRFuuQxqPfgo_YgpnkPgpdsfSlfE_X17SAoVVCjK0B5efxPhfmrXImA/exec",
     "preludesys":  "https://script.google.com/macros/s/AKfycbwZpUmj42D_GB3AgxTqSSdQcua2byy5dvFr7dO5jJBhYrUDNhulPj-RxLtWwlz_87T5Pg/exec",
     "cfobridge":   "https://script.google.com/macros/s/AKfycbxltOr9C6T7Nw2DOKanBjiKVYrma9-EODtoReLUCNTp-3dANl2s0mS3oQACIp_P--Bb/exec",
-    "sybrantvoizee":     "https://script.google.com/macros/s/AKfycbxw4RJYQkdWRN3Fu3Vakj5C8h2P-YUN4qJZQrzxjyDk8t2dCY6Wst3wV0pJ2e5h_nn-6Q/exec",
+    "sybrantvoizee": "https://script.google.com/macros/s/AKfycbyde5ank1ylpdAM3Kn28ZAULySme300V__VjOy7ESLHd0NX-gtoQAvMkmbt0bv7QJ01LQ/exec",
 	"sybrantweb": "https://script.google.com/macros/s/AKfycby7QToFBbEdSgomJfHdJ-ItUNPfSYiwz8r8WpUUCegnsPAI7nS3g1zdvE_3jjVsui1n/exec",
-    "dhilaktest":  "https://script.google.com/macros/s/AKfycby0hb5wDlSqtDwLiTWKULqkuZzVmtpJXRgof9ncF5adfIV_y3hL7QmDw7tliYtvF_fRGw/exec",
+    "dhilaktest": "https://script.google.com/macros/s/AKfycby0hb5wDlSqtDwLiTWKULqkuZzVmtpJXRgof9ncF5adfIV_y3hL7QmDw7tliYtvF_fRGw/exec",
 	"kopiko": "https://script.google.com/macros/s/AKfycbzip7wk995Q8BfktpVNZp6uJREQ8CqydyTVtxlTG0NucPugFOECa6XBpqo3Xv6pAkgM/exec",
 }
 
@@ -2474,13 +2474,13 @@ def serve_successgyan_widget():
 @app.route('/kfwcorp')
 def serve_kfwcorp_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_main(agent_id, branding="Powered by kfwcorp", brand="kfwcorp")
+    js = serve_widget_js_updated(agent_id, branding="Powered by kfwcorp", brand="kfwcorp")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/myndwell')
 def serve_myndwell_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_main(agent_id, branding="Powered by myndwell", brand="myndwell")
+    js = serve_widget_js_updated(agent_id, branding="Powered by myndwell", brand="myndwell")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/galent')
@@ -2511,7 +2511,7 @@ def serve_cfobridge():
 @app.route('/sybrantvoizee')
 def serve_sybrant():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js2(agent_id, branding="Powered by sybrant", brand="Sybrant Voizee")
+    js = serve_widget_updated(agent_id, branding="Powered by sybrant", brand="Sybrant Voizee")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/dhilaktest')
@@ -3724,7 +3724,7 @@ observer.observe(document.body, { childList: true, subtree: true });
 
 
 
-@app.route('/demo/sybrantvoizee')
+@app.route('/demo/sybrant')
 def demo_sybrant():
     html = """
 <!DOCTYPE html>
