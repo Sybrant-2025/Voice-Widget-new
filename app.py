@@ -38,6 +38,22 @@ BRAND_TO_WEBHOOK = {
 	"kopiko": "https://script.google.com/macros/s/AKfycbzip7wk995Q8BfktpVNZp6uJREQ8CqydyTVtxlTG0NucPugFOECa6XBpqo3Xv6pAkgM/exec",
 }
 
+
+# pretty labels for sheet display
+BRAND_DISPLAY_NAMES = {
+    "sybrant": "Sybrant Technologies",
+    "kfwcorp": "KFW Corp",
+    "myndwell": "Myndwell",
+    "cfobridge": "CFO Bridge",
+    "galent": "Galent",
+    "orientbell": "Orientbell Tiles",
+    "preludesys": "PreludeSys",
+    "voiceassistant": "Sybrant Voizee",
+    "dhilaktest": "Dhilak Test",
+    "kopiko": "Kopiko",
+}
+
+
 DRY_RUN_SHEETS = os.getenv("DRY_RUN_SHEETS", "0") == "1"
 LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG").upper()
 
@@ -103,7 +119,14 @@ def _send_to_sheet(webhook_url: str, payload: dict, tag: str = "sheet"):
 
 def _send_to_sheet_brand(payload: dict, brand: str):
     url = _brand_webhook(brand)
-    return _send_to_sheet(url, payload, tag=(brand or "default"))
+    
+    # Always lower internally for routing
+    bkey = (brand or "").lower().strip()
+    
+    # Use mapped display name for Sheets
+    payload["brand"] = BRAND_DISPLAY_NAMES.get(bkey, brand)
+    
+    return _send_to_sheet(url, payload, tag=(bkey or "default"))
 
 # ---------- ElevenLabs helpers ----------
 def _pull_transcript(conv_id: str, api_key: str):
