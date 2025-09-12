@@ -4104,7 +4104,6 @@ def demo_sybrant():
     <a href="https://voizee.sybrant.com/demo/ctobridge">CTO Bridge</a>
     <a href="https://voizee.sybrant.com/demo/galent">Galent</a>
     <a href="http://voizee.sybrant.com/demo/kopiko">Kopiko</a>
-    <a href="https://voizee.sybrant.com/demo/leaserush">LeaseRush</a>
     <a href="https://voizee.sybrant.com/demo/myndwell">Myndwell</a>
     <a href="https://voizee.sybrant.com/demo/orientbell">OrientBell</a>
     <a href="http://voizee.sybrant.com/demo/preludesys">PreludeSys</a>
