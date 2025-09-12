@@ -1227,7 +1227,7 @@ def serve_ctobridge():
     return Response(js, mimetype='application/javascript')
 
 @app.route('/demo')
-def serve_ctobridge():
+def serve_demo():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
     js = serve_widget_js_updated(agent_id, branding="Powered by Sybrant", brand="demo")
     return Response(js, mimetype='application/javascript')
