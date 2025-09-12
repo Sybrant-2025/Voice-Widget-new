@@ -3429,7 +3429,7 @@ def demo_myndwell():
     </head>
     <body>
         <div class="logo">
-            <img src="https://myndwell.io/wp-content/uploads/2022/11/logo.png" alt="Myndwell Logo" height="60">
+            <img src="https://myndwell.io/_next/static/media/logo.0155ab6c.png" alt="Myndwell Logo" height="60">
         </div>
         <h2>Myndwell Voizee Assistant Demo</h2>
         <div class="widget-wrapper">
