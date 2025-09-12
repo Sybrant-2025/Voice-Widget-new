@@ -3308,6 +3308,7 @@ observer.observe(document.body, { childList: true, subtree: true });
 
 
 @app.route('/demo/kfwcorp')
+@app.route('/demo/chrobridge')
 def demo_kfwcorp():
     html = """
     <!DOCTYPE html>
@@ -3865,175 +3866,278 @@ def demo_sybrant():
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sybrant Voizee</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --primary: linear-gradient(135deg, #3b82f6, #6366f1);
+      --bg-dark: #0f172a;
+      --glass-bg: rgba(255, 255, 255, 0.1);
+      --glass-border: rgba(255, 255, 255, 0.2);
+      --text-light: #e2e8f0;
+      --text-muted: #94a3b8;
+    }
+
     body {
-      font-family: "Segoe UI", Arial, sans-serif;
+      font-family: "Inter", sans-serif;
       margin: 0;
       padding: 0;
-      background: linear-gradient(135deg, #f5f7fa, #e4ebf7);
-      color: #222;
+      background: var(--bg-dark);
+      color: var(--text-light);
+      display: flex;
+      flex-direction: row;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated background orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.6;
+      animation: float 20s infinite alternate ease-in-out;
+      z-index: 0;
+    }
+    .orb.blue { background: #3b82f6; width: 400px; height: 400px; top: 10%; left: -150px; }
+    .orb.indigo { background: #6366f1; width: 500px; height: 500px; bottom: -100px; right: -200px; }
+
+    @keyframes float {
+      from { transform: translateY(0) translateX(0); }
+      to { transform: translateY(-40px) translateX(30px); }
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(16px);
+      border-right: 1px solid var(--glass-border);
+      padding: 30px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      position: fixed;
+      top: 0; bottom: 0; left: 0;
+      z-index: 2;
+    }
+
+    .sidebar h3 {
+      text-align: center;
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 1px;
+      color: #cbd5e1;
+    }
+
+    .sidebar a {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--glass-bg);
+      color: var(--text-light);
+      text-decoration: none;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+    .sidebar a:hover {
+      background: var(--primary);
+      transform: translateX(6px);
+    }
+    .sidebar a::after {
+      content: "↗";
+      font-size: 12px;
+      opacity: 0.5;
+    }
+
+    /* Main Content */
+    .main-content {
+      margin-left: 280px;
+      flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
-      min-height: 100vh;
+      padding: 40px 20px;
+      position: relative;
+      z-index: 1;
     }
 
+    /* Header */
     header {
       display: flex;
       justify-content: center;
-      margin-top: 40px;
+      margin-bottom: 30px;
     }
 
     .logo-box {
-      background: #000;
-      padding: 12px 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 16px 30px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
     }
-
+    .logo-box::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(120deg, transparent, rgba(255,255,255,0.3), transparent);
+      transform: rotate(25deg);
+      animation: shine 4s infinite;
+    }
+    @keyframes shine {
+      from { transform: rotate(25deg) translateX(-100%); }
+      to { transform: rotate(25deg) translateX(100%); }
+    }
     .logo-box img {
       height: 60px;
       display: block;
+      position: relative;
+      z-index: 1;
     }
 
     .title-section {
       text-align: center;
-      margin: 40px 0 30px;
+      margin: 20px 0 30px;
     }
-
     .title-section h1 {
-      font-size: 32px;
+      font-size: 40px;
       font-weight: 700;
+      background: var(--primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
       margin: 0;
-      color: #222;
     }
-
     .title-section h2 {
-      font-size: 22px;
+      font-size: 20px;
       font-weight: 500;
       margin: 10px 0;
-      color: #555;
+      color: var(--text-muted);
     }
-
     .title-section p {
-      font-size: 16px;
+      font-size: 15px;
       margin: 6px 0;
-      color: #666;
+      color: #cbd5e1;
     }
 
+    /* Assistant Container */
     .assistant-container {
-      background: #fff;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
       border-radius: 20px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
       padding: 30px;
-      max-width: 600px;
-      width: 90%;
+      max-width: 720px;
+      width: 95%;
       text-align: center;
       margin-bottom: 40px;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      transition: transform 0.4s ease, box-shadow 0.4s ease;
     }
-
     .assistant-container:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.4);
     }
 
     .robot-image {
-  text-align: center;
-  margin: 20px 0 80px 30px;
-}
-
-.robot-image img {
-  max-width: 280px;  /* keeps it responsive */
-  width: 100%;
-  height: auto;
-  display: inline-block;
-}
-
-
-    .start-btn {
-      margin-top: 20px;
-      padding: 12px 24px;
-      font-size: 16px;
-      border-radius: 30px;
-      border: none;
-      background: #0077ff;
-      color: #fff;
-      cursor: pointer;
-      transition: background 0.3s;
+      margin: 20px 0 40px;
+    }
+    .robot-image img {
+      max-width: 280px;
+      width: 100%;
+      animation: pulse 6s infinite ease-in-out;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.9; }
     }
 
-    .start-btn:hover {
-      background: #005ecc;
+    /* Footer */
+    footer {
+      margin-top: auto;
+      padding: 20px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    footer a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
     }
 
-    [class*="_status_1968y_121"] {
-  display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-  height: 0 !important;
-  font-size: 0 !important;
-}
+    /* Hide widget branding */
+    [class*="_status_"] {
+      display: none !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main-content { margin-left: 0; padding: 20px; }
+      .title-section h1 { font-size: 28px; }
+    }
   </style>
 </head>
 <body>
 
-  <header>
-    <div class="logo-box">
-      <img src="https://sybrant.com/wp-content/uploads/2025/05/sybrant.png" alt="Sybrant Logo">
+  <!-- Background Orbs -->
+  <div class="orb blue"></div>
+  <div class="orb indigo"></div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h3>Voizee for Different Companies</h3>
+    <h3>Click to Know More</h2>
+    <a href="https://voizee.sybrant.com/demo/cfobridge">CFO Bridge</a>
+    <a href="https://voizee.sybrant.com/demo/chrobridge">CHRO Bridge</a>
+    <a href="https://voizee.sybrant.com/demo/ctobridge">CTO Bridge</a>
+    <a href="https://voizee.sybrant.com/demo/galent">Galent</a>
+    <a href="http://voizee.sybrant.com/demo/kopiko">Kopiko</a>
+    <a href="https://voizee.sybrant.com/demo/leaserush">LeaseRush</a>
+    <a href="https://voizee.sybrant.com/demo/myndwell">Myndwell</a>
+    <a href="https://voizee.sybrant.com/demo/orientbell">OrientBell</a>
+    <a href="http://voizee.sybrant.com/demo/preludesys">PreludeSys</a>
+    <a href="https://voizee.sybrant.com/demo/successgyan">SuccessGyan</a>
+    <!-- <a href="https://voizee.sybrant.com/demo/sybrantservices">Sybrant Services</a> -->
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header>
+      <div class="logo-box">
+        <img src="https://sybrant.com/wp-content/uploads/2025/05/sybrant.png" alt="Sybrant Logo" />
+      </div>
+    </header>
+
+    <div class="title-section">
+      <h1>Sybrant Voizee</h1>
+      <h2>Sales Agent Demo</h2>
+      <p>Click <b>"Start a call"</b> and ask your questions about Sybrant Voizee.</p>
+      <p>We will customize this for your products / services.</p>
     </div>
-  </header>
 
-  <div class="title-section">
-    <h1>Sybrant Voizee</h1>
-    <h2>Sales Agent Demo</h2>
-    <p>Click <b>"Start a call"</b> and ask your questions about Sybrant Voizee.</p>
-    <p>We will customize this for your products / services.</p>
+    <div class="assistant-container">
+      <div class="robot-image">
+        <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
+      </div>
+      <script src="https://voizee.sybrant.com/voiceassistant?agent=agent_01jwfxypsyfja9bjqhq5d1zp43"></script>
+    </div>
+
+    <footer>
+      © 2025 Sybrant Technologies · Powered by <a href="https://sybrant.com">Sybrant</a>
+    </footer>
   </div>
-
-    <div class="robot-image">
-    <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
-  </div>
-
-      <script src="https://voizee.sybrant.com/voiceassistant?agent=agent_01jwfxypsyfja9bjqhq5d1zp43"></script>  
-
-    <script>
-function removeBrandingFromWidget() {
-  const widget = document.querySelector('elevenlabs-convai');
-  if (!widget || !widget.shadowRoot) return false;
-
-  const shadow = widget.shadowRoot;
-  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"]), [class*="_status_1968y_121"]');
-
-  brandingElements.forEach(el => el.remove());
-
-  // Optionally remove footer shadow or extra boxes
-  const footer = shadow.querySelector('[class*="_box_"]');
-  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
-    footer.remove();
-  }
-
-  return brandingElements.length > 0;
-}
-
-const tryRemove = () => {
-  const success = removeBrandingFromWidget();
-  if (!success) {
-    setTimeout(tryRemove, 300);  // retry until it appears
-  }
-};
-
-tryRemove(); // start the removal loop
-
-// Also attach MutationObserver in case of dynamic updates
-const observer = new MutationObserver(() => removeBrandingFromWidget());
-observer.observe(document.body, { childList: true, subtree: true });
-</script>
-
 
 </body>
 </html>
