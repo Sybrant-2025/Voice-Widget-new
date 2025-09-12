@@ -36,6 +36,7 @@ BRAND_TO_WEBHOOK = {
 	"sybrant": "https://script.google.com/macros/s/AKfycbzW-OSCQ1bJA17bqac6WlsdXs3pVrUvPlFhhbIud_uZwuQugD8HoHRxG3NWp-J6e0wP/exec",
     "dhilaktest": "https://script.google.com/macros/s/AKfycby0hb5wDlSqtDwLiTWKULqkuZzVmtpJXRgof9ncF5adfIV_y3hL7QmDw7tliYtvF_fRGw/exec",
 	"kopiko": "https://script.google.com/macros/s/AKfycbzip7wk995Q8BfktpVNZp6uJREQ8CqydyTVtxlTG0NucPugFOECa6XBpqo3Xv6pAkgM/exec",
+	"demo": "https://script.google.com/macros/s/AKfycbx5P0eiH1v7SE1Uoy1R_V4u-ab7dOqJJO7CpLFxgjkH7C8gMXwICzsaGTl3AWG2KU_Y0g/exec",
 }
 
 
@@ -51,6 +52,7 @@ BRAND_DISPLAY_NAMES = {
     "voiceassistant": "Sybrant Voizee",
     "dhilaktest": "Dhilak Test",
     "kopiko": "Kopiko",
+	"demo": "Demo"
 }
 
 
@@ -1143,1454 +1145,10 @@ def serve_widget_js_nofrom(agent_id, branding="Powered by Voizee", brand=""):
 
 ##########updated end##########
 ##### --- Core JS serve_widget_js2222222: instant modal + triple-guard injection + per-brand cache key ---
-def serve_widget_js2(agent_id, branding="Powered by Voizee", brand="default"):
-    js = """
-(function(){
-  const AGENT_ID = "__AGENT_ID__";
-  const BRAND = "__BRAND__";
-  const BRANDING_TEXT = "__BRANDING__";
-
-  // Inject widget
-  try {
-    const tag = document.createElement("elevenlabs-convai");
-    tag.setAttribute("agent-id", AGENT_ID);
-    document.body.appendChild(tag);
-  } catch (e) {
-    console.error("Widget creation failed", e);
-  }
-
-  // Load embed script
-  (function loadEmbed(){
-    const s = document.createElement("script");
-    s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
-    s.async = true;
-    s.onerror = function(){
-      const fallback = document.createElement("script");
-      fallback.src = "https://elevenlabs.io/convai-widget/index.js";
-      fallback.async = true;
-      document.body.appendChild(fallback);
-    };
-    document.body.appendChild(s);
-  })();
-
-  // Remove branding, avatar and prompt
-  function removeExtras(sr){
-    if (!sr) return;
-    try {
-      const selectors = [
-        'span.opacity-30', // "Powered by ElevenLabs"
-        'div[style*="avatar.png"]', // avatar image
-        'div.relative.text-sm.max-w-64', // "Speak to know more"
-        'div.relative.shrink-0.w-9.h-9'  // avatar wrapper
-      ];
-      selectors.forEach(sel => {
-        sr.querySelectorAll(sel).forEach(el => el.remove());
-      });
-    } catch(e){
-      console.warn("Brand cleanup error", e);
-    }
-  }
-
-  // Try hooking call button
-  function hookButton(){
-    const widget = document.querySelector("elevenlabs-convai");
-    if (!widget) return false;
-    const sr = widget.shadowRoot;
-    if (!sr) return false;
-
-    removeExtras(sr);
-
-    const selectors = [
-      'button[title="Start a call"]',
-      'button[aria-label="Start a call"]',
-      'button[title*="Start"]',
-      'button[aria-label*="Start"]'
-    ];
-    for (const sel of selectors) {
-      const btn = sr.querySelector(sel);
-      if (btn && !btn._hooked) {
-        btn._hooked = true;
-        interceptClick(btn);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  // Show modal on click
-  function interceptClick(btn){
-    window.__last_call_btn = btn;
-    btn.addEventListener("click", (e) => {
-      const ttl = parseInt(localStorage.getItem("convai_form_submitted") || "0");
-      if (Date.now() < ttl) return;
-
-      if (btn._allowCall) {
-        btn._allowCall = false;
-        return;
-      }
-
-      e.preventDefault();
-      e.stopImmediatePropagation();
-
-      const modal = document.getElementById("convai-visitor-modal");
-      if (modal) modal.style.display = "flex";
-    }, true);
-  }
-
-  // Inject visitor form
-  function createVisitorModal(){
-    if (document.getElementById("convai-visitor-modal")) return;
-    const modal = document.createElement("div");
-    modal.id = "convai-visitor-modal";
-    modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;align-items:center;justify-content:center;";
-    modal.innerHTML = `
-      <div style="background:white;border-radius:8px;padding:20px;max-width:400px;width:90%;font-family:sans-serif;">
-        <div style="text-align:right;"><button id="convai-close" style="font-size:18px;background:none;border:none;">×</button></div>
-        <h3 style="margin-top:0;">Tell us about you</h3>
-        <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
-          <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <input name="phone" placeholder="Phone (optional)" style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <div style="display:flex;gap:10px;">
-            <button type="submit" style="flex:1;padding:10px;background:#007bff;color:white;border:none;border-radius:4px;">Submit</button>
-            <button type="button" id="convai-cancel" style="padding:10px;background:#eee;border:none;border-radius:4px;">Cancel</button>
-          </div>
-        </form>
-      </div>
-    `;
-    document.body.appendChild(modal);
-
-    modal.querySelector("#convai-close").onclick = () => modal.style.display = "none";
-    modal.querySelector("#convai-cancel").onclick = () => modal.style.display = "none";
-
-    const form = modal.querySelector("#convai-form");
-    form.onsubmit = async function(ev){
-      ev.preventDefault();
-      const fd = new FormData(form);
-      const data = Object.fromEntries(fd.entries());
-      data.agent_id = AGENT_ID;
-      data.brand = BRAND;
-      data.url = location.href;
-      data.timestamp = new Date().toISOString();
-
-      try {
-        await fetch("https://voice-widget-new-production-177d.up.railway.app/log-visitor", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
-        });
-      } catch(err){
-        console.warn("Logging failed", err);
-      }
-
-      localStorage.setItem("convai_form_submitted", (Date.now() + 5*60*1000).toString());
-      modal.style.display = "none";
-
-      try {
-        if (window.__last_call_btn) {
-          window.__last_call_btn._allowCall = true;
-          window.__last_call_btn.click();
-        }
-      } catch(err) {}
-    }
-  }
-
-  createVisitorModal();
-
-  // Observe and poll widget for shadow access
-  const obs = new MutationObserver(() => {
-    try {
-      const found = hookButton();
-      if (found) obs.disconnect();
-    } catch(e){}
-  });
-  obs.observe(document, { childList: true, subtree: true });
-
-  let tries = 0;
-  const poll = setInterval(() => {
-    const ok = hookButton();
-    if (ok || ++tries > 50) clearInterval(poll);
-  }, 300);
-})();
-    """
-    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
-
-
-# def serve_widget_js_main(agent_id, branding="Powered by Voizee", brand="cfobridge"):
-#     js = """
-# (function(){
-#   const AGENT_ID = "__AGENT_ID__";
-#   const BRAND = "__BRAND__";
-#   const BRANDING_TEXT = "__BRANDING__";
-
-#   // Inject widget
-#   try {
-#     const tag = document.createElement("elevenlabs-convai");
-#     tag.setAttribute("agent-id", AGENT_ID);
-#     document.body.appendChild(tag);
-#   } catch (e) {
-#     console.error("Widget creation failed", e);
-#   }
-
-#   // Load embed script
-#   (function loadEmbed(){
-#     const s = document.createElement("script");
-#     s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
-#     s.async = true;
-#     s.onerror = function(){
-#       const fallback = document.createElement("script");
-#       fallback.src = "https://elevenlabs.io/convai-widget/index.js";
-#       fallback.async = true;
-#       document.body.appendChild(fallback);
-#     };
-#     document.body.appendChild(s);
-#   })();
-
-#   // Remove branding, avatar and prompt
-#   function removeExtras(sr){
-#     if (!sr) return;
-#     try {
-#       const selectors = [
-#         'span.opacity-30', // "Powered by ElevenLabs"
-#       ];
-#       selectors.forEach(sel => {
-#         sr.querySelectorAll(sel).forEach(el => el.remove());
-#       });
-#     } catch(e){
-#       console.warn("Brand cleanup error", e);
-#     }
-#   }
-
-#   // Try hooking call button
-#   function hookButton(){
-#     const widget = document.querySelector("elevenlabs-convai");
-#     if (!widget) return false;
-#     const sr = widget.shadowRoot;
-#     if (!sr) return false;
-
-#     removeExtras(sr);
-
-#     const selectors = [
-#       'button[title="Start a call"]',
-#       'button[aria-label="Start a call"]',
-#       'button[title*="Start"]',
-#       'button[aria-label*="Start"]'
-#     ];
-#     for (const sel of selectors) {
-#       const btn = sr.querySelector(sel);
-#       if (btn && !btn._hooked) {
-#         btn._hooked = true;
-#         interceptClick(btn);
-#         return true;
-#       }
-#     }
-#     return false;
-#   }
-
-#   // Show modal on click
-#   function interceptClick(btn){
-#     window.__last_call_btn = btn;
-#     btn.addEventListener("click", (e) => {
-#       const ttl = parseInt(localStorage.getItem("convai_form_submitted") || "0");
-#       if (Date.now() < ttl) return;
-
-#       if (btn._allowCall) {
-#         btn._allowCall = false;
-#         return;
-#       }
-
-#       e.preventDefault();
-#       e.stopImmediatePropagation();
-
-#       const modal = document.getElementById("convai-visitor-modal");
-#       if (modal) modal.style.display = "flex";
-#     }, true);
-#   }
-
-#   // Inject visitor form
-#   function createVisitorModal(){
-#     if (document.getElementById("convai-visitor-modal")) return;
-#     const modal = document.createElement("div");
-#     modal.id = "convai-visitor-modal";
-#     modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;align-items:center;justify-content:center;";
-#     modal.innerHTML = `
-#       <div style="background:white;border-radius:8px;padding:20px;max-width:400px;width:90%;font-family:sans-serif;">
-#         <div style="text-align:right;"><button id="convai-close" style="font-size:18px;background:none;border:none;">×</button></div>
-#         <h3 style="margin-top:0;">Tell us about you</h3>
-#         <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
-#           <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-# 		  <input name="company" placeholder="Company name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-#           <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-#           <input name="phone" placeholder="Phone" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-#           <div style="display:flex;gap:10px;">
-#             <button type="submit" style="flex:1;padding:10px;background:#007bff;color:white;border:none;border-radius:4px;">Submit</button>
-#             <button type="button" id="convai-cancel" style="padding:10px;background:#eee;border:none;border-radius:4px;">Cancel</button>
-#           </div>
-#         </form>
-#       </div>
-#     `;
-#     document.body.appendChild(modal);
-
-#     modal.querySelector("#convai-close").onclick = () => modal.style.display = "none";
-#     modal.querySelector("#convai-cancel").onclick = () => modal.style.display = "none";
-
-#     const form = modal.querySelector("#convai-form");
-#     form.onsubmit = async function(ev){
-#       ev.preventDefault();
-#       const fd = new FormData(form);
-#       const data = Object.fromEntries(fd.entries());
-#       data.agent_id = AGENT_ID;
-#       data.brand = BRAND;
-#       data.url = location.href;
-#       data.timestamp = new Date().toISOString();
-
-#       try {
-#         await fetch("https://voice-widget-new-production-177d.up.railway.app/log-visitor", {
-#           method: "POST",
-#           headers: { "Content-Type": "application/json" },
-#           body: JSON.stringify(data)
-#         });
-#       } catch(err){
-#         console.warn("Logging failed", err);
-#       }
-
-#       localStorage.setItem("convai_form_submitted", (Date.now() + 24*60*60*1000).toString());
-#       modal.style.display = "none";
-
-#       try {
-#         if (window.__last_call_btn) {
-#           window.__last_call_btn._allowCall = true;
-#           window.__last_call_btn.click();
-#         }
-#       } catch(err) {}
-#     }
-#   }
-
-#   createVisitorModal();
-
-#   // Observe and poll widget for shadow access
-#   const obs = new MutationObserver(() => {
-#     try {
-#       const found = hookButton();
-#       if (found) obs.disconnect();
-#     } catch(e){}
-#   });
-#   obs.observe(document, { childList: true, subtree: true });
-
-#   let tries = 0;
-#   const poll = setInterval(() => {
-#     const ok = hookButton();
-#     if (ok || ++tries > 50) clearInterval(poll);
-#   }, 300);
-# })();
-#     """
-#     return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
-
-# Testttt
-def serve_widget_js_test(agent_id, branding="Powered by Voizee", brand=""):
-    js = """
-(function(){
-  const AGENT_ID = "__AGENT_ID__";
-  const BRAND = "__BRAND__";
-  const BRANDING_TEXT = "__BRANDING__";
-
-  // Inject widget
-  try {
-    const tag = document.createElement("elevenlabs-convai");
-    tag.setAttribute("agent-id", AGENT_ID);
-    document.body.appendChild(tag);
-  } catch (e) { console.error("Widget creation failed", e); }
-
-  // Load embed script
-  (function loadEmbed(){
-    const s = document.createElement("script");
-    s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
-    s.async = true;
-    s.onerror = function(){
-      const fallback = document.createElement("script");
-      fallback.src = "https://elevenlabs.io/convai-widget/index.js";
-      fallback.async = true;
-      document.body.appendChild(fallback);
-    };
-    document.body.appendChild(s);
-  })();
-
-  // --- Optional light cleanup ---
-  function removeExtras(sr){
-    if (!sr) return;
-    try {
-      ['span.opacity-30','p.whitespace-nowrap','a[href*="elevenlabs.io/conversational-ai"]']
-        .forEach(sel => sr.querySelectorAll(sel).forEach(el => el.remove()));
-    } catch(_) {}
-  }
-
-  // === Modal (same blocking behavior as CFO, with TTL) ===
-  function interceptClick(btn){
-    window.__last_call_btn = btn;
-    btn.addEventListener("click", (e) => {
-      const ttl = parseInt(localStorage.getItem("convai_form_submitted") || "0");
-      if (Date.now() < ttl) return;           // already submitted within TTL → allow call
-
-      if (btn._allowCall) {                    // second click after submit → allow call
-        btn._allowCall = false;
-        return;
-      }
-
-      e.preventDefault();
-      e.stopImmediatePropagation();
-
-      const modal = document.getElementById("convai-visitor-modal");
-      if (modal) modal.style.display = "flex";
-    }, true);
-  }
-
-  function createVisitorModal(){
-    if (document.getElementById("convai-visitor-modal")) return;
-    const modal = document.createElement("div");
-    modal.id = "convai-visitor-modal";
-    modal.style = "display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:999999;align-items:center;justify-content:center;";
-    modal.innerHTML = `
-      <div style="background:white;border-radius:8px;padding:20px;max-width:420px;width:92%;font-family:sans-serif;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <h3 style="margin:0;font-size:18px;">Tell us about you</h3>
-          <button id="convai-close" style="font-size:20px;background:none;border:none;line-height:1;cursor:pointer;">×</button>
-        </div>
-        <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
-          <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:6px;">
-          <input name="company" placeholder="Company name" style="padding:10px;border:1px solid #ccc;border-radius:6px;">
-          <input name="email" type="email" placeholder="Email" style="padding:10px;border:1px solid #ccc;border-radius:6px;">
-          <input name="phone" placeholder="Phone" style="padding:10px;border:1px solid #ccc;border-radius:6px;">
-          <div style="display:flex;gap:10px;justify-content:flex-end;">
-            <button type="button" id="convai-cancel" style="padding:10px 14px;border-radius:6px;border:1px solid #ddd;background:#f5f5f5;cursor:pointer;">Cancel</button>
-            <button type="submit" style="padding:10px 16px;border-radius:6px;border:none;background:#0b72e7;color:#fff;cursor:pointer;">Submit</button>
-          </div>
-        </form>
-      </div>
-    `;
-    document.body.appendChild(modal);
-
-    modal.querySelector("#convai-close").onclick = () => modal.style.display = "none";
-    modal.querySelector("#convai-cancel").onclick = () => modal.style.display = "none";
-
-    const form = modal.querySelector("#convai-form");
-    form.onsubmit = async function(ev){
-      ev.preventDefault();
-      const fd = new FormData(form);
-      const data = Object.fromEntries(fd.entries());
-      data.agent_id = AGENT_ID;
-      data.brand = BRAND;
-      data.url = location.href;
-      data.timestamp = new Date().toISOString();
-      if (window.__voizee_last_conv_id) data.conversation_id = window.__voizee_last_conv_id;
-
-      try {
-        await fetch("https://voice-widget-new-production-177d.up.railway.app/log-conversation-test", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
-        });
-      } catch(_) {}
-
-      // TTL 24h; allow actual call
-      localStorage.setItem("convai_form_submitted", String(Date.now() + 24*60*60*1000));
-      modal.style.display = "none";
-
-      try {
-        if (window.__last_call_btn) {
-          window.__last_call_btn._allowCall = true;
-          window.__last_call_btn.click();
-        }
-      } catch(_) {}
-    };
-  }
-
-  // Hook "Start a call" button like CFO
-  function hookButton(){
-    const widget = document.querySelector("elevenlabs-convai");
-    if (!widget) return false;
-    const sr = widget.shadowRoot;
-    if (!sr) return false;
-
-    removeExtras(sr);
-
-    const selectors = [
-      'button[title="Start a call"]',
-      'button[aria-label="Start a call"]',
-      'button[title*="Start"]',
-      'button[aria-label*="Start"]'
-    ];
-    for (const sel of selectors) {
-      const btn = sr.querySelector(sel);
-      if (btn && !btn._hooked) {
-        btn._hooked = true;
-        interceptClick(btn);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  // Create modal now
-  createVisitorModal();
-
-  // Observe and poll to hook button (CFO-style)
-  const obs = new MutationObserver(() => { try { if (hookButton()) obs.disconnect(); } catch(e){} });
-  obs.observe(document, { childList: true, subtree: true });
-  let tries = 0;
-  const poll = setInterval(() => { if (hookButton() || ++tries > 80) clearInterval(poll); }, 300);
-
-  // === Conversation tracking for transcript ===
-  function getConvId(ev){
-    return ev?.detail?.conversationId || ev?.detail?.id || ev?.detail?.conversation_id || "";
-  }
-
-  function wireConvEvents(widget){
-    if (!widget || widget._wiredTest) return;
-    widget._wiredTest = true;
-
-    // On start: cache brand/url/agent + remember ID locally
-    ["conversation-started","conversationStarted","conversation-created"].forEach(evt=>{
-      widget.addEventListener(evt,(event)=>{
-        const convId = getConvId(event);
-        if (!convId) return;
-        window.__voizee_last_conv_id = convId;
-
-        fetch("https://voice-widget-new-production-177d.up.railway.app/cache-conversation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            conversation_id: convId,
-            url: location.href,
-            brand: BRAND,
-            agent_id: AGENT_ID
-          })
-        }).catch(()=>{});
-      });
-    });
-
-    // On end: trigger backend finalize (server pulls transcript & writes to sheet)
-    ["conversation-ended","conversationEnded"].forEach(evt=>{
-      widget.addEventListener(evt,()=>{
-        const convId = window.__voizee_last_conv_id;
-        if (!convId) return;
-        fetch("https://voice-widget-new-production-177d.up.railway.app/finalize-conversation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ conversation_id: convId })
-        }).catch(()=>{});
-      });
-    });
-  }
-
-  // Make sure we wire conversation events even if widget loads later
-  function tryWire(){
-    const w = document.querySelector("elevenlabs-convai");
-    if (!w) return false;
-    wireConvEvents(w);
-    return true;
-  }
-  if (!tryWire()){
-    const mo = new MutationObserver(()=>{ if (tryWire()) mo.disconnect(); });
-    mo.observe(document, { childList:true, subtree:true });
-    let k=0; const poll2=setInterval(()=>{ if (tryWire() || ++k > 100) clearInterval(poll2); }, 300);
-  }
-})();
-    """
-    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
-
-
-
 ##test end
 
-def serve_widget_js_main(agent_id, branding="Powered by Voizee", brand=""):
-    js = """
-(function(){
-  const AGENT_ID = "__AGENT_ID__";
-  const BRAND = "__BRAND__";
-  const BRANDING_TEXT = "__BRANDING__";
 
-  // Inject widget
-  try {
-    const tag = document.createElement("elevenlabs-convai");
-    tag.setAttribute("agent-id", AGENT_ID);
-    document.body.appendChild(tag);
-  } catch (e) {
-    console.error("Widget creation failed", e);
-  }
 
-  // Load embed script
-  (function loadEmbed(){
-    const s = document.createElement("script");
-    s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
-    s.async = true;
-    s.onerror = function(){
-      const fallback = document.createElement("script");
-      fallback.src = "https://elevenlabs.io/convai-widget/index.js";
-      fallback.async = true;
-      document.body.appendChild(fallback);
-    };
-    document.body.appendChild(s);
-  })();
-
-  // Remove branding, avatar and prompt
-  function removeExtras(sr){
-    if (!sr) return;
-    try {
-      const selectors = [
-        'span.opacity-30', // "Powered by ElevenLabs"
-		'p.whitespace-nowrap', // Conversational AI footer
-        'a[href*="elevenlabs.io/conversational-ai"]' // link itself
-      ];
-      selectors.forEach(sel => {
-        sr.querySelectorAll(sel).forEach(el => el.remove());
-      });
-    } catch(e){
-      console.warn("Brand cleanup error", e);
-    }
-  }
-
-  // Try hooking call button
-  function hookButton(){
-    const widget = document.querySelector("elevenlabs-convai");
-    if (!widget) return false;
-    const sr = widget.shadowRoot;
-    if (!sr) return false;
-
-    removeExtras(sr);
-
-    const selectors = [
-      'button[title="Start a call"]',
-      'button[aria-label="Start a call"]',
-      'button[title*="Start"]',
-      'button[aria-label*="Start"]'
-    ];
-    for (const sel of selectors) {
-      const btn = sr.querySelector(sel);
-      if (btn && !btn._hooked) {
-        btn._hooked = true;
-        interceptClick(btn);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  // Show modal on click
-  function interceptClick(btn){
-    window.__last_call_btn = btn;
-    btn.addEventListener("click", (e) => {
-      const ttl = parseInt(localStorage.getItem("convai_form_submitted") || "0");
-      if (Date.now() < ttl) return;
-
-      if (btn._allowCall) {
-        btn._allowCall = false;
-        return;
-      }
-
-      e.preventDefault();
-      e.stopImmediatePropagation();
-
-      const modal = document.getElementById("convai-visitor-modal");
-      if (modal) modal.style.display = "flex";
-    }, true);
-  }
-
-  // Inject visitor form
-  function createVisitorModal(){
-    if (document.getElementById("convai-visitor-modal")) return;
-    const modal = document.createElement("div");
-    modal.id = "convai-visitor-modal";
-    modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;align-items:center;justify-content:center;";
-    modal.innerHTML = `
-      <div style="background:white;border-radius:8px;padding:20px;max-width:400px;width:90%;font-family:sans-serif;">
-        <div style="text-align:right;"><button id="convai-close" style="font-size:18px;background:none;border:none;">×</button></div>
-        <h3 style="margin-top:0;">Tell us about you</h3>
-        <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
-          <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-		  <input name="company" placeholder="Company name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <input name="phone" placeholder="Phone" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <div style="display:flex;gap:10px;">
-            <button type="submit" style="flex:1;padding:10px;background:#007bff;color:white;border:none;border-radius:4px;">Submit</button>
-            <button type="button" id="convai-cancel" style="padding:10px;background:#eee;border:none;border-radius:4px;">Cancel</button>
-          </div>
-        </form>
-      </div>
-    `;
-    document.body.appendChild(modal);
-
-    modal.querySelector("#convai-close").onclick = () => modal.style.display = "none";
-    modal.querySelector("#convai-cancel").onclick = () => modal.style.display = "none";
-
-    const form = modal.querySelector("#convai-form");
-    form.onsubmit = async function(ev){
-      ev.preventDefault();
-      const fd = new FormData(form);
-      const data = Object.fromEntries(fd.entries());
-      data.agent_id = AGENT_ID;
-      data.brand = BRAND;
-      data.url = location.href;
-      data.timestamp = new Date().toISOString();
-
-      try {
-        await fetch("https://voice-widget-new-production-177d.up.railway.app/log-visitor", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
-        });
-      } catch(err){
-        console.warn("Logging failed", err);
-      }
-
-      localStorage.setItem("convai_form_submitted", (Date.now() + 24*60*60*1000).toString());
-      modal.style.display = "none";
-
-      try {
-        if (window.__last_call_btn) {
-          window.__last_call_btn._allowCall = true;
-          window.__last_call_btn.click();
-        }
-      } catch(err) {}
-    }
-  }
-
-  createVisitorModal();
-
-  // Observe and poll widget for shadow access
-  const obs = new MutationObserver(() => {
-    try {
-      const found = hookButton();
-      if (found) obs.disconnect();
-    } catch(e){}
-  });
-  obs.observe(document, { childList: true, subtree: true });
-
-  let tries = 0;
-  const poll = setInterval(() => {
-    const ok = hookButton();
-    if (ok || ++tries > 50) clearInterval(poll);
-  }, 300);
-})();
-    """
-    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
-
-
-
-# --- Core JS cfobridge instant modal + triple-guard injection + per-brand cache key ---
-def serve_widget_js_cfo(agent_id, branding="Powered by Voizee", brand="cfobridge"):
-    js = """
-(function(){
-  const AGENT_ID = "__AGENT_ID__";
-  const BRAND = "__BRAND__";
-  const BRANDING_TEXT = "__BRANDING__";
-
-  // Inject widget
-  try {
-    const tag = document.createElement("elevenlabs-convai");
-    tag.setAttribute("agent-id", AGENT_ID);
-    document.body.appendChild(tag);
-  } catch (e) {
-    console.error("Widget creation failed", e);
-  }
-
-  // Load embed script
-  (function loadEmbed(){
-    const s = document.createElement("script");
-    s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
-    s.async = true;
-    s.onerror = function(){
-      const fallback = document.createElement("script");
-      fallback.src = "https://elevenlabs.io/convai-widget/index.js";
-      fallback.async = true;
-      document.body.appendChild(fallback);
-    };
-    document.body.appendChild(s);
-  })();
-
-  // Remove branding, avatar and prompt
-  function removeExtras(sr){
-    if (!sr) return;
-    try {
-      const selectors = [
-        'span.opacity-30', // "Powered by ElevenLabs"
-      ];
-      selectors.forEach(sel => {
-        sr.querySelectorAll(sel).forEach(el => el.remove());
-      });
-    } catch(e){
-      console.warn("Brand cleanup error", e);
-    }
-  }
-
-  // Try hooking call button
-  function hookButton(){
-    const widget = document.querySelector("elevenlabs-convai");
-    if (!widget) return false;
-    const sr = widget.shadowRoot;
-    if (!sr) return false;
-
-    removeExtras(sr);
-
-    const selectors = [
-      'button[title="Start a call"]',
-      'button[aria-label="Start a call"]',
-      'button[title*="Start"]',
-      'button[aria-label*="Start"]'
-    ];
-    for (const sel of selectors) {
-      const btn = sr.querySelector(sel);
-      if (btn && !btn._hooked) {
-        btn._hooked = true;
-        interceptClick(btn);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  // Show modal on click
-  function interceptClick(btn){
-    window.__last_call_btn = btn;
-    btn.addEventListener("click", (e) => {
-      const ttl = parseInt(localStorage.getItem("convai_form_submitted") || "0");
-      if (Date.now() < ttl) return;
-
-      if (btn._allowCall) {
-        btn._allowCall = false;
-        return;
-      }
-
-      e.preventDefault();
-      e.stopImmediatePropagation();
-
-      const modal = document.getElementById("convai-visitor-modal");
-      if (modal) modal.style.display = "flex";
-    }, true);
-  }
-
-  // Inject visitor form
-  function createVisitorModal(){
-    if (document.getElementById("convai-visitor-modal")) return;
-    const modal = document.createElement("div");
-    modal.id = "convai-visitor-modal";
-    modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;align-items:center;justify-content:center;";
-    modal.innerHTML = `
-      <div style="background:white;border-radius:8px;padding:20px;max-width:400px;width:90%;font-family:sans-serif;">
-        <div style="text-align:right;"><button id="convai-close" style="font-size:18px;background:none;border:none;">×</button></div>
-        <h3 style="margin-top:0;">Tell us about you</h3>
-        <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
-          <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-		  <input name="company" placeholder="Company name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <input name="phone" placeholder="Phone" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <div style="display:flex;gap:10px;">
-            <button type="submit" style="flex:1;padding:10px;background:#007bff;color:white;border:none;border-radius:4px;">Submit</button>
-            <button type="button" id="convai-cancel" style="padding:10px;background:#eee;border:none;border-radius:4px;">Cancel</button>
-          </div>
-        </form>
-      </div>
-    `;
-    document.body.appendChild(modal);
-
-    modal.querySelector("#convai-close").onclick = () => modal.style.display = "none";
-    modal.querySelector("#convai-cancel").onclick = () => modal.style.display = "none";
-
-    const form = modal.querySelector("#convai-form");
-    form.onsubmit = async function(ev){
-      ev.preventDefault();
-      const fd = new FormData(form);
-      const data = Object.fromEntries(fd.entries());
-      data.agent_id = AGENT_ID;
-      data.brand = BRAND;
-      data.url = location.href;
-      data.timestamp = new Date().toISOString();
-
-      try {
-        await fetch("https://voice-widget-new-production-177d.up.railway.app/log-visitor-cfo", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
-        });
-      } catch(err){
-        console.warn("Logging failed", err);
-      }
-
-      localStorage.setItem("convai_form_submitted", (Date.now() + 24*60*60*1000).toString());
-      modal.style.display = "none";
-
-      try {
-        if (window.__last_call_btn) {
-          window.__last_call_btn._allowCall = true;
-          window.__last_call_btn.click();
-        }
-      } catch(err) {}
-    }
-  }
-
-  createVisitorModal();
-
-  // Observe and poll widget for shadow access
-  const obs = new MutationObserver(() => {
-    try {
-      const found = hookButton();
-      if (found) obs.disconnect();
-    } catch(e){}
-  });
-  obs.observe(document, { childList: true, subtree: true });
-
-  let tries = 0;
-  const poll = setInterval(() => {
-    const ok = hookButton();
-    if (ok || ++tries > 50) clearInterval(poll);
-  }, 300);
-})();
-    """
-    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
-
-
-
-
-
-
-def serve_widget_js_cto(agent_id, branding="Powered by Voizee", brand="cfobridge"):
-    js = """
-(function(){
-  const AGENT_ID = "__AGENT_ID__";
-  const BRAND = "__BRAND__";
-  const BRANDING_TEXT = "__BRANDING__";
-
-  // Inject widget
-  try {
-    const tag = document.createElement("elevenlabs-convai");
-    tag.setAttribute("agent-id", AGENT_ID);
-    document.body.appendChild(tag);
-  } catch (e) {
-    console.error("Widget creation failed", e);
-  }
-
-  // Load embed script
-  (function loadEmbed(){
-    const s = document.createElement("script");
-    s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
-    s.async = true;
-    s.onerror = function(){
-      const fallback = document.createElement("script");
-      fallback.src = "https://elevenlabs.io/convai-widget/index.js";
-      fallback.async = true;
-      document.body.appendChild(fallback);
-    };
-    document.body.appendChild(s);
-  })();
-
-  // Remove branding, avatar and prompt
-  function removeExtras(sr){
-    if (!sr) return;
-    try {
-      const selectors = [
-        'span.opacity-30', // "Powered by ElevenLabs"
-      ];
-      selectors.forEach(sel => {
-        sr.querySelectorAll(sel).forEach(el => el.remove());
-      });
-    } catch(e){
-      console.warn("Brand cleanup error", e);
-    }
-  }
-
-  // Try hooking call button
-  function hookButton(){
-    const widget = document.querySelector("elevenlabs-convai");
-    if (!widget) return false;
-    const sr = widget.shadowRoot;
-    if (!sr) return false;
-
-    removeExtras(sr);
-
-    const selectors = [
-      'button[title="Start a call"]',
-      'button[aria-label="Start a call"]',
-      'button[title*="Start"]',
-      'button[aria-label*="Start"]'
-    ];
-    for (const sel of selectors) {
-      const btn = sr.querySelector(sel);
-      if (btn && !btn._hooked) {
-        btn._hooked = true;
-        interceptClick(btn);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  // Show modal on click
-  function interceptClick(btn){
-    window.__last_call_btn = btn;
-    btn.addEventListener("click", (e) => {
-      const ttl = parseInt(localStorage.getItem("convai_form_submitted") || "0");
-      if (Date.now() < ttl) return;
-
-      if (btn._allowCall) {
-        btn._allowCall = false;
-        return;
-      }
-
-      e.preventDefault();
-      e.stopImmediatePropagation();
-
-      const modal = document.getElementById("convai-visitor-modal");
-      if (modal) modal.style.display = "flex";
-    }, true);
-  }
-
-  // Inject visitor form
-  function createVisitorModal(){
-    if (document.getElementById("convai-visitor-modal")) return;
-    const modal = document.createElement("div");
-    modal.id = "convai-visitor-modal";
-    modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;align-items:center;justify-content:center;";
-    modal.innerHTML = `
-      <div style="background:white;border-radius:8px;padding:20px;max-width:400px;width:90%;font-family:sans-serif;">
-        <div style="text-align:right;"><button id="convai-close" style="font-size:18px;background:none;border:none;">×</button></div>
-        <h3 style="margin-top:0;">Tell us about you</h3>
-        <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
-          <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-		  <input name="company" placeholder="Company name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <input name="phone" placeholder="Phone" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <div style="display:flex;gap:10px;">
-            <button type="submit" style="flex:1;padding:10px;background:#007bff;color:white;border:none;border-radius:4px;">Submit</button>
-            <button type="button" id="convai-cancel" style="padding:10px;background:#eee;border:none;border-radius:4px;">Cancel</button>
-          </div>
-        </form>
-      </div>
-    `;
-    document.body.appendChild(modal);
-
-    modal.querySelector("#convai-close").onclick = () => modal.style.display = "none";
-    modal.querySelector("#convai-cancel").onclick = () => modal.style.display = "none";
-
-    const form = modal.querySelector("#convai-form");
-    form.onsubmit = async function(ev){
-      ev.preventDefault();
-      const fd = new FormData(form);
-      const data = Object.fromEntries(fd.entries());
-      data.agent_id = AGENT_ID;
-      data.brand = BRAND;
-      data.url = location.href;
-      data.timestamp = new Date().toISOString();
-
-      try {
-        await fetch("https://voice-widget-new-production-177d.up.railway.app/log-visitor-cto", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
-        });
-      } catch(err){
-        console.warn("Logging failed", err);
-      }
-
-      localStorage.setItem("convai_form_submitted", (Date.now() + 24*60*60*1000).toString());
-      modal.style.display = "none";
-
-      try {
-        if (window.__last_call_btn) {
-          window.__last_call_btn._allowCall = true;
-          window.__last_call_btn.click();
-        }
-      } catch(err) {}
-    }
-  }
-
-  createVisitorModal();
-
-  // Observe and poll widget for shadow access
-  const obs = new MutationObserver(() => {
-    try {
-      const found = hookButton();
-      if (found) obs.disconnect();
-    } catch(e){}
-  });
-  obs.observe(document, { childList: true, subtree: true });
-
-  let tries = 0;
-  const poll = setInterval(() => {
-    const ok = hookButton();
-    if (ok || ++tries > 50) clearInterval(poll);
-  }, 300);
-})();
-    """
-    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
-
-# --- Core JS generator222222: instant modal + triple-guard injection + per-brand cache key ---
-def generate_widget_js2(agent_id, brand=""):
-    return f"""
-    (function() {{
-        // --- 1. Hide branding instantly ---
-        const preloadStyle = document.createElement("style");
-        preloadStyle.textContent = `
-            [class*="poweredBy"],
-            div[part="branding"],
-            span:has(a[href*="elevenlabs"]),
-            a[href*="elevenlabs"],
-            [class*="branding"],
-            div[class*="branding"],
-            img[alt*='logo'],
-            div[part='feedback-button'],
-            [class*="_status_"] {{
-                display: none !important;
-                opacity: 0 !important;
-                visibility: hidden !important;
-                height: 0 !important;
-                font-size: 0 !important;
-                line-height: 0 !important;
-                pointer-events: none !important;
-            }}
-        `;
-        document.head.appendChild(preloadStyle);
-
-        // --- 2. Inject widget ---
-        const tag = document.createElement("elevenlabs-convai");
-        tag.setAttribute("agent-id", "{agent_id}");
-        document.body.appendChild(tag);
-
-        const script = document.createElement("script");
-        script.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
-        script.async = true;
-        script.type = "text/javascript";
-        document.body.appendChild(script);
-
-        // --- 3. Create popup form modal ---
-        function createModal() {{
-            if (document.getElementById('visitor-form-modal')) return;
-
-            const modal = document.createElement('div');
-            modal.id = 'visitor-form-modal';
-            modal.style = `
-                display:none; position:fixed; z-index:99999;
-                top:0; left:0; width:100%; height:100%;
-                background:rgba(0,0,0,0.6);
-                align-items:center; justify-content:center;
-            `;
-
-            modal.innerHTML = `
-                <div style="
-                    background:white; padding:25px; border-radius:10px;
-                    width:300px; font-family:sans-serif; position:relative;
-                ">
-                    <span id="close-form" style="
-                        position:absolute; top:5px; right:10px; cursor:pointer;
-                        font-size:18px; font-weight:bold;
-                    ">&times;</span>
-
-                    <form id="visitor-form">
-                        <h3 style="margin-bottom:12px;">Enter your details</h3>
-                        <input type="text" name="name" placeholder="Name" required style="margin-bottom:8px; width:100%; padding:8px;" />
-                        <input type="tel" name="mobile" placeholder="Mobile (+91...)" required style="margin-bottom:8px; width:100%; padding:8px;" />
-                        <input type="email" name="email" placeholder="Email" required style="margin-bottom:15px; width:100%; padding:8px;" />
-                        <button type="submit" style="
-                            width:100%; padding:10px; background:#0b72e7;
-                            color:white; border:none; border-radius:5px;
-                            cursor:pointer;
-                        ">Start Call</button>
-                    </form>
-                </div>
-            `;
-            document.body.appendChild(modal);
-
-            const modalEl = document.getElementById('visitor-form-modal');
-            document.getElementById('close-form').onclick = () => modalEl.style.display = 'none';
-            window.onclick = (e) => {{ if (e.target === modalEl) modalEl.style.display = 'none'; }};
-
-            // --- form submit ---
-            document.getElementById('visitor-form').addEventListener('submit', function(e) {{
-                e.preventDefault();
-                const name = this.name.value.trim();
-                const mobile = this.mobile.value.trim();
-                const email = this.email.value.trim();
-                const url = window.location.href;
-
-                fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {{
-                    method: 'POST',
-                    headers: {{ 'Content-Type': 'application/json' }},
-                    body: JSON.stringify({{ name, mobile, email, url, brand: "{brand}" }})
-                }}).catch(err => console.error("Log visitor failed", err));
-
-                // cache 15 min expiry
-                localStorage.setItem("convai_form_submitted", (Date.now() + 15*60*1000).toString());
-                modalEl.style.display = 'none';
-
-                // trigger real widget button
-                const widget = document.querySelector('elevenlabs-convai');
-                const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
-                realBtn?.click();
-            }});
-        }}
-
-        // --- 4. Intercept Start button ---
-        const observer = new MutationObserver(() => {{
-            const widget = document.querySelector('elevenlabs-convai');
-            if (!widget || !widget.shadowRoot) return;
-
-            // nuke branding inside shadowRoot
-            const branding = widget.shadowRoot.querySelector('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"]');
-            if (branding) branding.remove();
-
-            const startBtn = widget.shadowRoot.querySelector('button[title="Start a call"]');
-            if (startBtn && !startBtn._hooked) {{
-                startBtn._hooked = true;
-                const clone = startBtn.cloneNode(true);
-                startBtn.style.display = 'none';
-
-                clone.addEventListener('click', (e) => {{
-                    e.preventDefault();
-                    const expiry = localStorage.getItem("convai_form_submitted");
-                    if (expiry && Date.now() < parseInt(expiry)) {{
-                        startBtn.click();
-                    }} else {{
-                        document.getElementById('visitor-form-modal').style.display = 'flex';
-                    }}
-                }});
-
-                startBtn.parentElement.appendChild(clone);
-                createModal();
-            }}
-        }});
-        observer.observe(document.body, {{ childList: true, subtree: true }});
-    }})();
-    """
-
-
-
-
-
-
-# --- Helper to add "no-store" cache headers for widget JS endpoints ---
-# def no_store(response: Response) -> Response:
-#     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0, private"
-#     response.headers["Pragma"] = "no-cache"
-#     response.headers["Expires"] = "0"
-#     return response
-
-
-
-# --- JS Generator ---
-def generate_widget_js(agent_id, branding, brand=""):
-    return f"""
-    (function() {{
-        // Immediately apply global CSS to hide branding early (before widget loads)
-        const preloadStyle = document.createElement("style");
-        preloadStyle.textContent = `
-            [class*="poweredBy"],
-            div[part="branding"],
-            span:has(a[href*="elevenlabs"]),
-            a[href*="elevenlabs"],
-            span:has([href*="conversational"]),
-            a[href*="conversational"],
-            [class*="_poweredBy_"],
-            [class*="branding"],
-            div[class*="branding"],
-            div[part="branding"] {{
-                display: none !important;
-                opacity: 0 !important;
-                visibility: hidden !important;
-                height: 0 !important;
-                font-size: 0 !important;
-                line-height: 0 !important;
-                pointer-events: none !important;                
-            }}
-            div[part="branding"],
-            [class*="_status_1968y_121"] {{
-                display: none !important;
-                opacity: 0 !important;
-                visibility: hidden !important;
-                height: 0 !important;
-                font-size: 0 !important;
-                line-height: 0 !important;
-                pointer-events: none !important;
-            }}
-        `;
-        document.head.appendChild(preloadStyle);
-
-        // Inject the widget tag
-        const tag = document.createElement("elevenlabs-convai");
-        tag.setAttribute("agent-id", "{agent_id}");
-        document.body.appendChild(tag);
-
-        // Inject widget script
-        const script = document.createElement("script");
-        script.src = "https://elevenlabs.io/convai-widget/index.js";
-        script.async = true;
-        document.body.appendChild(script);
-
-        // Observe the DOM for widget load and apply custom styles
-        const observer = new MutationObserver(() => {{
-            const widget = document.querySelector('elevenlabs-convai');
-            if (!widget || !widget.shadowRoot) return;
-            const shadowRoot = widget.shadowRoot;
-
-            // Try to forcibly remove branding again if found inside Shadow DOM
-            const brandingElem = shadowRoot.querySelector('[class*="poweredBy"], div[part="branding"]');
-            if (brandingElem) {{
-                brandingElem.remove(); // REMOVE instead of customizing
-            }}
-
-            if (!shadowRoot.querySelector("#custom-style")) {{
-                const style = document.createElement("style");
-                style.id = "custom-style";
-                style.textContent = `
-                    div[part='branding'],
-                    a[href*="elevenlabs"],
-                    span:has(a[href*="elevenlabs"]) {{
-                        display: none !important;
-                    }}
-
-                    [class*="_avatar_"] {{
-                        display: none !important;
-                    }}
-
-                    [class*="_box_"] {{
-                        background: transparent !important;
-                        box-shadow: none !important;
-                        border: none !important;
-                        padding: 0 !important;
-                        margin: 0 !important;
-                        display: flex !important;
-                        align-items: center !important;
-                        justify-content: center !important;
-                    }}
-
-                    [class*="_btn_"] {{
-                        border-radius: 30px !important;
-                        padding: 10px 20px !important;
-                        background-color: #0b72e7 !important;
-                        color: #fff !important;
-                        border: none !important;
-                        cursor: pointer !important;
-                        font-weight: 500;
-                        font-size: 14px;
-                    }}
-
-                    div[part='feedback-button'],
-                    img[alt*='logo'] {{
-                        display: none !important;
-                    }}
-                `;
-                shadowRoot.appendChild(style);
-            }}
-
-            const startCallButton = shadowRoot.querySelector('button[title="Start a call"]');
-            if (startCallButton && !startCallButton._hooked) {{
-                startCallButton._hooked = true;
-                const clonedButton = startCallButton.cloneNode(true);
-                startCallButton.style.display = 'none';
-
-                clonedButton.style.backgroundColor = "#0b72e7";
-                clonedButton.style.color = "#fff";
-                clonedButton.style.border = "none";
-                clonedButton.style.padding = "10px 20px";
-                clonedButton.style.borderRadius = "6px";
-                clonedButton.style.cursor = "pointer";
-
-                const wrapper = document.createElement('div');
-                wrapper.appendChild(clonedButton);
-                startCallButton.parentElement.appendChild(wrapper);
-
-                clonedButton.addEventListener('click', (e) => {{
-                    e.stopPropagation();
-                    e.preventDefault();
-                    const expiry = localStorage.getItem("convai_form_submitted");
-                    if (expiry && Date.now() < parseInt(expiry)) {{
-                        startCallButton.click();
-                    }} else {{
-                        document.getElementById('visitor-form-modal').style.display = 'flex';
-                    }}
-                }});
-            }}
-        }});
-        observer.observe(document.body, {{ childList: true, subtree: true }});
-
-        // Visitor form modal logic
-        window.addEventListener('DOMContentLoaded', () => {{
-            const modal = document.createElement('div');
-            modal.id = 'visitor-form-modal';
-            modal.style = `
-                display: none;
-                position: fixed;
-                z-index: 99999;
-                top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0, 0, 0, 0.6);
-                align-items: center;
-                justify-content: center;
-            `;
-
-            modal.innerHTML = `
-                <div id="form-container" style="
-                    background: white;
-                    padding: 30px;
-                    border-radius: 12px;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-                    width: 320px;
-                    font-family: sans-serif;
-                    position: relative;
-                ">
-                    <span id="close-form" style="
-                        position: absolute;
-                        top: 8px;
-                        right: 12px;
-                        cursor: pointer;
-                        font-size: 18px;
-                        font-weight: bold;
-                    ">&times;</span>
-
-                    <form id="visitor-form">
-                        <h3 style="margin-bottom: 15px;">Tell us about you</h3>
-                        <input type="text" placeholder="Name" name="name" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
-                        <input type="tel" placeholder="Mobile (+91...)" name="mobile" required style="margin-bottom: 10px; width: 100%; padding: 8px;" />
-                        <input type="email" placeholder="Email" name="email" required style="margin-bottom: 20px; width: 100%; padding: 8px;" />
-                        <button type="submit" style="width: 100%; padding: 10px; background: #1e88e5; color: white; border: none; border-radius: 4px;">Start Call</button>
-                    </form>
-                </div>
-            `;
-            document.body.appendChild(modal);
-
-            const modalEl = document.getElementById('visitor-form-modal');
-            const closeForm = document.getElementById('close-form');
-
-            closeForm.onclick = () => modalEl.style.display = 'none';
-            window.onclick = (e) => {{
-                if (e.target === modalEl) modalEl.style.display = 'none';
-            }};
-
-            document.getElementById('visitor-form').addEventListener('submit', function(e) {{
-                e.preventDefault();
-
-                const name = this.name.value.trim();
-                const mobile = this.mobile.value.trim();
-                const email = this.email.value.trim();
-                const url = window.location.href;
-
-                if (!name || !mobile || !email) {{
-                    alert("Please fill all fields.");
-                    return;
-                }}
-
-                fetch('https://voice-widget-new-production-177d.up.railway.app/log-visitor', {{
-                    method: 'POST',
-                    headers: {{ 'Content-Type': 'application/json' }},
-                    body: JSON.stringify({{ name, mobile, email, url, brand: "{brand}" }})
-                }});
-
-                localStorage.setItem("convai_form_submitted", (Date.now() + 150000).toString());
-                modalEl.style.display = 'none';
-
-                const widget = document.querySelector('elevenlabs-convai');
-                const realBtn = widget?.shadowRoot?.querySelector('button[title="Start a call"]');
-                realBtn?.click();
-            }});
-        }});
-    }})();
-    """
 
 
 # --- Serve Branded Widget Scripts ---
@@ -2603,7 +1161,7 @@ def serve_sybrant_widget():
 @app.route('/successgyan')
 def serve_successgyan_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_main(agent_id, branding="Powered by successgyan", brand="successgyan")
+    js = serve_widget_js_updated(agent_id, branding="Powered by successgyan", brand="successgyan")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/kfwcorp')
@@ -2621,7 +1179,7 @@ def serve_myndwell_widget():
 @app.route('/galent')
 def serve_galent():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_main(agent_id, branding="Powered by galent", brand="galent")
+    js = serve_widget_js_updated(agent_id, branding="Powered by galent", brand="galent")
     return Response(js, mimetype='application/javascript')
 
 
@@ -2634,7 +1192,7 @@ def serve_orientbell():
 @app.route('/preludesys')
 def serve_preludesys():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_main(agent_id, branding="Powered by preludesys", brand="preludesys")
+    js = serve_widget_js_updated(agent_id, branding="Powered by preludesys", brand="preludesys")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/cfobridge')
@@ -2665,7 +1223,13 @@ def serve_kopiko():
 @app.route('/ctobridge')
 def serve_ctobridge():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_cto(agent_id, branding="Powered by ctobridge", brand="ctobridge")
+    js = serve_widget_js_updated(agent_id, branding="Powered by ctobridge", brand="ctobridge")
+    return Response(js, mimetype='application/javascript')
+
+@app.route('/demo')
+def serve_ctobridge():
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    js = serve_widget_js_updated(agent_id, branding="Powered by Sybrant", brand="demo")
     return Response(js, mimetype='application/javascript')
 
 ########updated method
@@ -2822,318 +1386,6 @@ def favicon():
 
 #######updated method end
 
-# def get_webhook_url(brand):
-#     brand = (brand or "").lower()
-#     if brand == "successgyan":
-#         return GOOGLE_SHEET_WEBHOOK_URL_SUCCESSGYAN
-#     elif brand == "kfwcorp":
-#         return GOOGLE_SHEET_WEBHOOK_URL_KFWCORP
-#     elif brand == "orientbell":
-#         return GOOGLE_SHEET_WEBHOOK_URL_ORIENTBELL
-#     elif brand == "galent":
-#         return GOOGLE_SHEET_WEBHOOK_URL_GALENT
-#     elif brand == "myndwell":
-#         return GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL
-#     elif brand == "preludesys":
-#         return GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS
-#     elif brand == "cfobridge":
-#         return GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE
-#     elif brand == "ctobridge":
-#         return GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE
-#     elif brand == "sybrant":
-#         return GOOGLE_SHEET_WEBHOOK_URL_SYBRANT
-#     elif brand == "dhilaktest":
-#         return GOOGLE_SHEET_WEBHOOK_URL_D
-#     else:
-#         return GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
-
-# @app.route('/log-visitor', methods=['POST'])
-# def log_visitor():
-#     data = request.json
-#     brand = data.get("brand", "").lower()
-#     webhook_url = get_webhook_url(brand)
-#     print(f"[DEBUG] Incoming data: {data}")
-#     print(f"[DEBUG] Using webhook URL: {webhook_url}")
-
-#     append_to_log(data, webhook_url)
-
-#     all_entries = read_log()
-#     remaining = []
-
-#     for entry in all_entries:
-#         try:
-#             res = requests.post(entry["webhook_url"], json=entry, timeout=10)
-#             print(f"[DEBUG] POST {entry['webhook_url']} => {res.status_code}")
-#             if res.status_code == 200:
-#                 print(f"[{entry['brand']}] Sent to Google Sheet: {entry}")
-#             else:
-#                 remaining.append(entry)
-#         except Exception as e:
-#             print(f"[{entry['brand']}] Exception: {e}")
-#             remaining.append(entry)
-
-#     write_log(remaining)
-#     return jsonify({"status": "ok", "pending": len(remaining)})
-
-
-# --- Form Submission Logging try2 ---
-# @app.route('/log-visitor', methods=['POST'])
-# def log_visitor():
-#     data = request.json
-#     brand = data.get("brand", "").lower()
-#     webhook_url = get_webhook_url(brand)
-
-#     # --- Always log first (with webhook_url) ---
-#     append_to_log(data, webhook_url)
-
-#     # --- Retry sending all entries (including new one) ---
-#     all_entries = read_log()
-#     remaining = []
-
-#     for entry in all_entries:
-#         try:
-#             res = requests.post(entry["webhook_url"], json=entry, timeout=10)
-#             if res.status_code == 200:
-#                 print(f"[{entry['brand']}] Sent to Google Sheet: {entry}")
-#             else:
-#                 print(f"[{entry['brand']}] Failed {res.status_code}, keeping in log")
-#                 remaining.append(entry)
-#         except Exception as e:
-#             print(f"Error sending to Google Sheet for {entry['brand']}: {e}")
-#             remaining.append(entry)
-
-#     # Keep only unsent
-#     write_log(remaining)
-
-#     return jsonify({"status": "ok", "pending": len(remaining)})
-
-
-
-# --- Form Submission Logging try1 ---
-# @app.route('/log-visitor', methods=['POST'])
-# def log_visitor():
-#     data = request.json
-#     print("Visitor Info:", data)
-#     try:
-#         res = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=data)
-#         print("Google Sheet Response:", res.text)
-#     except Exception as e:
-#         print("Error sending to Google Sheet:", e)
-#     return {"status": "ok"}
-
-# webhook_url = "https://script.google.com/macros/s/AKfycbyjjh4lvPTR2xytjabkcofRYIPzFF0UOGI9McuYZCQt8UbQszgH_hMKtUS4Jkyp1S9V/exec"
-
-@app.route('/log-visitor-cfo', methods=['POST'])
-def log_visitor_cfo():
-    try:
-        data = request.get_json(force=True)
-        name = data.get("name", "")
-        email = data.get("email", "")
-        phone = data.get("phone", "")
-        company = data.get("company", "")
-        url = data.get("url","")
-
-        # --- Webhook URL (replace with your Apps Script deployment link) ---
-        webhook_url = "https://script.google.com/macros/s/AKfycby44_YekE32aU3_l8yNLnELnUwTn1bC6-KI3X24XcQ1kSBC4r2vJprKmwwaUF1YMMg/exec"
-
-        payload = {
-            "name": name,
-            "email": email,
-            "phone": phone,
-            "company": company,
-            "url": url
-        }
-
-        # Forward data to Google Sheets Apps Script
-        resp = requests.post(webhook_url, json=payload, timeout=10)
-
-        if resp.status_code == 200:
-            return jsonify({"status": "success", "message": "Data logged to CFO sheet"}), 200
-        else:
-            return jsonify({"status": "error", "message": f"Webhook error {resp.status_code}"}), 500
-
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-@app.route('/log-visitor-cto', methods=['POST'])
-def log_visitor_cto():
-    try:
-        data = request.get_json(force=True)
-        name = data.get("name", "")
-        email = data.get("email", "")
-        phone = data.get("phone", "")
-        company = data.get("company", "")
-       	url = data.get("url","")
-
-        # --- Webhook URL (replace with your Apps Script deployment link) ---
-        webhook_url = "https://script.google.com/macros/s/AKfycbz4auMUL8qvivxQgYrGs9qDx4sH3r62_mZjuACSJeB5f95k1O6fy8tAt415qtOeW7Ty7g/exec"
-
-        payload = {
-            "name": name,
-            "email": email,
-            "phone": phone,
-            "company": company,
-            "url": url
-        }
-
-        # Forward data to Google Sheets Apps Script
-        resp = requests.post(webhook_url, json=payload, timeout=10)
-
-        if resp.status_code == 200:
-            return jsonify({"status": "success", "message": "Data logged to CFO sheet"}), 200
-        else:
-            return jsonify({"status": "error", "message": f"Webhook error {resp.status_code}"}), 500
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-
-# @app.route('/log-conversation-test', methods=['POST'])
-# def log_conversation():
-#     data = request.json
-#     conv_id = data.get("conversation_id")
-
-#     if not conv_id:
-#         return jsonify({"error": "No conversation_id"}), 400
-
-#     # Fetch conversation data from ElevenLabs
-#     headers = {"xi-api-key": sk_6faeafdfe5f7dc8c5ee97a22e9b5f714bd95514dee556435}
-#     url = f"https://api.elevenlabs.io/v1/convai/conversations/{conv_id}"
-
-#     resp = requests.get(url, headers=headers)
-#     conv_data = resp.json()
-
-#     payload = {
-#         "conversation_id": conv_id,
-#         "url": data.get("url", ""),
-#         "transcription": conv_data.get("transcription", ""),
-#         "recordingUrl": conv_data.get("recording_url", "")
-#     }
-
-#     # Send to Google Sheets
-#     try:
-#         requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=payload, timeout=5)
-#     except Exception as e:
-#         app.logger.error(f"Google Sheets error: {e}")
-
-#     return jsonify({"status": "ok"})
-
-def send_to_sheet_verbose(webhook_url: str, payload: dict, tag: str = "sheet"):
-    try:
-        resp = requests.post(webhook_url, json=payload, timeout=15)
-        body = resp.text
-        print(f"[{tag}] status={resp.status_code} len={len(body)} body_head={body[:500]!r}")
-        resp.raise_for_status()
-        # Apps Script sometimes returns 200 with HTML error; treat non-JSON as warning
-        try:
-            _ = resp.json()
-        except Exception:
-            print(f"[{tag}] WARNING: response not JSON; check Apps Script doPost. Body head above.")
-        return True
-    except Exception as e:
-        print(f"[{tag}] ERROR posting to sheet: {e}")
-        return False
-
-def send_to_sheet_brand(payload, brand: str):
-    brand = (brand or "").lower()
-    if brand == "successgyan":
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_SUCCESSGYAN
-    elif brand == "kfwcorp":
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_KFWCORP
-    elif brand == "orientbell":
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_ORIENTBELL
-    elif brand == "galent":
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_GALENT
-    elif brand == "myndwell":
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_MYNDWELL
-    elif brand == "preludesys":
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_PRELUDESYS
-    elif brand == "cfobridge":
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_CFOBRIDGE
-    elif brand == "sybrant":
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_SYBRANT
-    elif brand == "dhilaktest":
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DHILAK
-    else:
-        webhook_url = GOOGLE_SHEET_WEBHOOK_URL_DEFAULT
-    return send_to_sheet_verbose(webhook_url, payload, tag=f"{brand or 'default'}")
-
-
-
-
-@app.route("/log-conversation-test", methods=["POST"])
-def log_conversation_test():
-    data = request.get_json(force=True) or {}
-    brand = (data.get("brand") or "").lower()
-
-    key = data.get("email") or data.get("phone") or ""
-    now = time.time()
-
-    if key and key in recent_visitors and now - recent_visitors[key]["ts"] < 24*3600:
-        # minimal update (keeps latest url/conv_id)
-        update_payload = {
-            "email": data.get("email",""),
-            "phone": data.get("phone",""),
-            "brand": brand,
-            "url": data.get("url",""),
-            "conversation_id": data.get("conversation_id","")
-        }
-        send_to_sheet_brand(update_payload, brand)
-        return jsonify({"status": "duplicate", "message": "updated existing row"}), 200
-
-    ok = send_to_sheet_brand(data, brand)
-    if ok and key:
-        recent_visitors[key] = {"data": data, "ts": now}
-    return jsonify({"status":"ok"})
-
-
-
-@app.route("/cache-conversation", methods=["POST"])
-def cache_conversation():
-    data = request.get_json(force=True)
-    conv_id = data.get("conversation_id")
-    if not conv_id:
-        return jsonify({"status": "error", "message": "no conv id"}), 400
-
-    cached_conversations[conv_id] = {
-        "url": data.get("url"),
-        "brand": (data.get("brand") or "").lower(),
-        "agent_id": data.get("agent_id"),
-        "ts": time.time()
-    }
-    return jsonify({"status": "cached"})
-
-
-
-@app.route("/finalize-conversation", methods=["POST"])
-def finalize_conversation():
-    data = request.get_json(force=True)
-    conv_id = data.get("conversation_id")
-    if not conv_id:
-        return jsonify({"status": "error", "message": "no conv id"}), 400
-
-    headers = {"xi-api-key": ELEVENLABS_API_KEY, "Accept": "application/json"}
-    try:
-        r = requests.get(f"https://api.elevenlabs.io/v1/convai/conversations/{conv_id}", headers=headers, timeout=20)
-        r.raise_for_status()
-        conv = r.json()
-    except Exception as e:
-        return jsonify({"status": "error", "message": f"failed transcript {e}"}), 500
-
-    transcript = [(t.get("role",""), t.get("message","")) for t in conv.get("transcript", [])]
-    cached = cached_conversations.get(conv_id, {}) or {}
-    brand = cached.get("brand") or ""
-    url = cached.get("url") or ""
-    agent_id = cached.get("agent_id") or ""
-
-    payload = {
-        "conversation_id": conv_id,
-        "brand": brand,
-        "agent_id": agent_id,
-        "url": url,
-        "transcript": transcript
-    }
-    send_to_sheet_brand(payload, brand)
-    return jsonify({"status":"finalized","lines":len(transcript)})
 
 
 # testttttttttttt endddddddddddd
@@ -3227,82 +1479,226 @@ def demo_dhilaktest():
 @app.route('/demo/successgyan')
 def demo_successgyan():
     html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>SuccessGyan Voizee Assistant Demo</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                text-align: center;
-                margin: 0;
-                padding: 0;
-                background: #f5f7fa;
-            }
-            .logo {
-                margin-top: 40px;
-                background: #181A1C;
-            }
-            .widget-wrapper {
-                margin-top: 60px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 400px;
-                position: relative;
-            }
-            /* Override widget position via script injection */
-            script + elevenlabs-convai {
-                position: absolute !important;
-                bottom: 50% !important;
-                right: 50% !important;
-                transform: translate(50%, 50%) !important;
-                z-index: 1000 !important;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="logo">
-            <img src="https://successgyan.com/wp-content/uploads/2024/02/SG-logo-1@2x-150x67.png" alt="SuccessGyan Logo" height="60">
-        </div>
-        <h2>SuccessGyan Voizee Assistant Demo</h2>
-        <div class="widget-wrapper">
-            <script src="https://voizee.sybrant.com/successgyan?agent=agent_01k06m09xefx4vxwc0drtf6sje"></script>
-        </div>
-            <script>
-function removeBrandingFromWidget() {
-  const widget = document.querySelector('elevenlabs-convai');
-  if (!widget || !widget.shadowRoot) return false;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sybrant Voizee</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="https://successgyan.com/wp-content/uploads/2024/02/cropped-round-favicon-icon.png">
 
-  const shadow = widget.shadowRoot;
-  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
+  <style>
+    :root {
+      --primary: linear-gradient(135deg, #3b82f6, #6366f1);
+      --bg-dark: #0f172a;
+      --glass-bg: rgba(255, 255, 255, 0.1);
+      --glass-border: rgba(255, 255, 255, 0.2);
+      --text-light: #e2e8f0;
+      --text-muted: #94a3b8;
+    }
 
-  brandingElements.forEach(el => el.remove());
+    body {
+      font-family: "Inter", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg-dark);
+      color: var(--text-light);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      position: relative;
+    }
 
-  // Optionally remove footer shadow or extra boxes
-  const footer = shadow.querySelector('[class*="_box_"]');
-  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
-    footer.remove();
-  }
+    /* Animated background orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.6;
+      animation: float 20s infinite alternate ease-in-out;
+      z-index: 0;
+    }
+    .orb.blue { background: #3b82f6; width: 400px; height: 400px; top: 10%; left: -150px; }
+    .orb.indigo { background: #6366f1; width: 500px; height: 500px; bottom: -100px; right: -200px; }
 
-  return brandingElements.length > 0;
-}
+    @keyframes float {
+      from { transform: translateY(0) translateX(0); }
+      to { transform: translateY(-40px) translateX(30px); }
+    }
 
-const tryRemove = () => {
-  const success = removeBrandingFromWidget();
-  if (!success) {
-    setTimeout(tryRemove, 300);  // retry until it appears
-  }
-};
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      text-align: center;
+      z-index: 1;
+      max-width: 900px;
+      width: 100%;
+    }
 
-tryRemove(); // start the removal loop
+    /* Header */
+    header {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
 
-// Also attach MutationObserver in case of dynamic updates
-const observer = new MutationObserver(() => removeBrandingFromWidget());
-observer.observe(document.body, { childList: true, subtree: true });
-</script>
-    </body>
-    </html>
+    .logo-box {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 16px 30px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .logo-box::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(120deg, transparent, rgba(255,255,255,0.3), transparent);
+      transform: rotate(25deg);
+      animation: shine 4s infinite;
+    }
+    @keyframes shine {
+      from { transform: rotate(25deg) translateX(-100%); }
+      to { transform: rotate(25deg) translateX(100%); }
+    }
+    .logo-box img {
+      height: 60px;
+      display: block;
+      position: relative;
+      z-index: 1;
+    }
+
+    .title-section {
+      margin: 20px 0 30px;
+    }
+    .title-section h1 {
+      font-size: 40px;
+      font-weight: 700;
+      background: var(--primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0;
+    }
+    .title-section h2 {
+      font-size: 20px;
+      font-weight: 500;
+      margin: 10px 0;
+      color: var(--text-muted);
+    }
+    .title-section p {
+      font-size: 15px;
+      margin: 6px 0;
+      color: #cbd5e1;
+    }
+
+    /* Assistant Container */
+    .assistant-container {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      padding: 30px;
+      max-width: 720px;
+      width: 95%;
+      text-align: center;
+      margin-bottom: 40px;
+      transition: transform 0.4s ease, box-shadow 0.4s ease;
+    }
+    .assistant-container:hover {
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.4);
+    }
+
+    .robot-image {
+      margin: 20px 0 40px;
+    }
+    .robot-image img {
+      max-width: 280px;
+      width: 100%;
+      animation: pulse 6s infinite ease-in-out;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.9; }
+    }
+
+    /* Footer */
+    footer {
+      margin-top: auto;
+      padding: 20px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+      z-index: 1;
+    }
+    footer a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Hide widget branding */
+    [class*="_status_"] {
+      display: none !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .title-section h1 { font-size: 28px; }
+      .logo-box img { height: 50px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Orbs -->
+  <div class="orb blue"></div>
+  <div class="orb indigo"></div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header>
+      <div class="logo-box">
+        <img src="https://successgyan.com/wp-content/uploads/2024/02/SG-logo-1@2x-150x67.png" alt="Logo" />
+      </div>
+    </header>
+
+    <div class="title-section">
+      <h1>Successgyan Voizee Assistant Demo</h1>
+      <p>Click <b>"Start a call"</b> and ask your questions.</p>
+      <p>We will customize this for your products / services.</p>
+    </div>
+
+    <div class="assistant-container">
+      <div class="robot-image">
+        <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
+      </div>
+      <script src="https://voizee.sybrant.com/demo?agent=agent_3501k18965z0fetshdah8ressxza"></script>
+    </div>
+
+    <footer>
+      © 2025 Sybrant Technologies · Powered by <a href="https://sybrant.com">Sybrant</a>
+    </footer>
+  </div>
+
+</body>
+</html>
     """
     return render_template_string(html)
 
@@ -3312,81 +1708,225 @@ observer.observe(document.body, { childList: true, subtree: true });
 def demo_kfwcorp():
     html = """
     <!DOCTYPE html>
-    <html>
-    <head>
-        <title>kfwcorp Voizee Assistant Demo</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                text-align: center;
-                margin: 0;
-                padding: 0;
-                background: #f5f7fa;
-            }
-            .logo {
-                margin-top: 40px;
-                background: #001F54;
-            }
-            .widget-wrapper {
-                margin-top: 60px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 400px;
-                position: relative;
-            }
-            /* Override widget position via script injection */
-            script + elevenlabs-convai {
-                position: absolute !important;
-                bottom: 50% !important;
-                right: 50% !important;
-                transform: translate(50%, 50%) !important;
-                z-index: 1000 !important;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="logo">
-            <img src="https://kfwcorp.com/assets/img/logo-w.png" alt="KFWCorpl Logo" height="60">
-        </div>
-        <h2>KFWCorp Voizee Assistant Demo</h2>
-        <div class="widget-wrapper">
-            <script src="/kfwcorp?agent=agent_01jzm4vq12f58bfgnyr07ac819"></script>
-        </div>
-      <script>
-function removeBrandingFromWidget() {
-  const widget = document.querySelector('elevenlabs-convai');
-  if (!widget || !widget.shadowRoot) return false;
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>kfwcorp Voizee Assistant Demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="https://kfwcorp.com/assets/img/tab.png">
 
-  const shadow = widget.shadowRoot;
-  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
+  <style>
+    :root {
+      --primary: linear-gradient(135deg, #3b82f6, #6366f1);
+      --bg-dark: #0f172a;
+      --glass-bg: rgba(255, 255, 255, 0.1);
+      --glass-border: rgba(255, 255, 255, 0.2);
+      --text-light: #e2e8f0;
+      --text-muted: #94a3b8;
+    }
 
-  brandingElements.forEach(el => el.remove());
+    body {
+      font-family: "Inter", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg-dark);
+      color: var(--text-light);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      position: relative;
+    }
 
-  // Optionally remove footer shadow or extra boxes
-  const footer = shadow.querySelector('[class*="_box_"]');
-  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
-    footer.remove();
-  }
+    /* Animated background orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.6;
+      animation: float 20s infinite alternate ease-in-out;
+      z-index: 0;
+    }
+    .orb.blue { background: #3b82f6; width: 400px; height: 400px; top: 10%; left: -150px; }
+    .orb.indigo { background: #6366f1; width: 500px; height: 500px; bottom: -100px; right: -200px; }
 
-  return brandingElements.length > 0;
-}
+    @keyframes float {
+      from { transform: translateY(0) translateX(0); }
+      to { transform: translateY(-40px) translateX(30px); }
+    }
 
-const tryRemove = () => {
-  const success = removeBrandingFromWidget();
-  if (!success) {
-    setTimeout(tryRemove, 300);  // retry until it appears
-  }
-};
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      text-align: center;
+      z-index: 1;
+      max-width: 900px;
+      width: 100%;
+    }
 
-tryRemove(); // start the removal loop
+    /* Header */
+    header {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
 
-// Also attach MutationObserver in case of dynamic updates
-const observer = new MutationObserver(() => removeBrandingFromWidget());
-observer.observe(document.body, { childList: true, subtree: true });
-</script>
-    </body>
-    </html>
+    .logo-box {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 16px 30px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .logo-box::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(120deg, transparent, rgba(255,255,255,0.3), transparent);
+      transform: rotate(25deg);
+      animation: shine 4s infinite;
+    }
+    @keyframes shine {
+      from { transform: rotate(25deg) translateX(-100%); }
+      to { transform: rotate(25deg) translateX(100%); }
+    }
+    .logo-box img {
+      height: 60px;
+      display: block;
+      position: relative;
+      z-index: 1;
+    }
+
+    .title-section {
+      margin: 20px 0 30px;
+    }
+    .title-section h1 {
+      font-size: 40px;
+      font-weight: 700;
+      background: var(--primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0;
+    }
+    .title-section h2 {
+      font-size: 20px;
+      font-weight: 500;
+      margin: 10px 0;
+      color: var(--text-muted);
+    }
+    .title-section p {
+      font-size: 15px;
+      margin: 6px 0;
+      color: #cbd5e1;
+    }
+
+    /* Assistant Container */
+    .assistant-container {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      padding: 30px;
+      max-width: 720px;
+      width: 95%;
+      text-align: center;
+      margin-bottom: 40px;
+      transition: transform 0.4s ease, box-shadow 0.4s ease;
+    }
+    .assistant-container:hover {
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.4);
+    }
+
+    .robot-image {
+      margin: 20px 0 40px;
+    }
+    .robot-image img {
+      max-width: 280px;
+      width: 100%;
+      animation: pulse 6s infinite ease-in-out;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.9; }
+    }
+
+    /* Footer */
+    footer {
+      margin-top: auto;
+      padding: 20px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+      z-index: 1;
+    }
+    footer a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Hide widget branding */
+    [class*="_status_"] {
+      display: none !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .title-section h1 { font-size: 28px; }
+      .logo-box img { height: 50px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Orbs -->
+  <div class="orb blue"></div>
+  <div class="orb indigo"></div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header>
+      <div class="logo-box">
+        <img src="https://kfwcorp.com/assets/img/logo-w.png" alt="kfwcorp Logo" />
+      </div>
+    </header>
+
+    <div class="title-section">
+      <h1>KFW Corp Voizee Assistant Demo</h1>
+      <p>Click <b>"Start a call"</b> and ask your questions.</p>
+      <p>We will customize this for your products / services.</p>
+    </div>
+
+    <div class="assistant-container">
+      <div class="robot-image">
+        <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
+      </div>
+      <script src="https://voizee.sybrant.com/demo?agent=agent_4301k4yjp68seawayd65egj0dwb5"></script>
+    </div>
+
+    <footer>
+      © 2025 Sybrant Technologies · Powered by <a href="https://sybrant.com">Sybrant</a>
+    </footer>
+  </div>
+
+</body>
+</html>
     """
     return render_template_string(html)
 
@@ -3394,165 +1934,453 @@ observer.observe(document.body, { childList: true, subtree: true });
 @app.route('/demo/myndwell')
 def demo_myndwell():
     html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Myndwell Voizee Assistant Demo</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                text-align: center;
-                margin: 0;
-                padding: 0;
-                background: #f5f7fa;
-            }
-            .logo {
-                margin-top: 40px;
-            }
-            .widget-wrapper {
-                margin-top: 60px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 400px;
-                position: relative;
-            }
-            /* Override widget position via script injection */
-            script + elevenlabs-convai {
-                position: absolute !important;
-                bottom: 50% !important;
-                right: 50% !important;
-                transform: translate(50%, 50%) !important;
-                z-index: 1000 !important;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="logo">
-            <img src="https://myndwell.io/_next/static/media/logo.0155ab6c.png" alt="Myndwell Logo" height="60">
-        </div>
-        <h2>Myndwell Voizee Assistant Demo</h2>
-        <div class="widget-wrapper">
-            <script src="https://voizee.sybrant.com/myndwell?agent=agent_01k099ck2mf0tr5g558de7w0av"></script>
-        </div>
-    <script>
-function removeBrandingFromWidget() {
-  const widget = document.querySelector('elevenlabs-convai');
-  if (!widget || !widget.shadowRoot) return false;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Myndwell Voizee Assistant Demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="https://myndwell.io/_next/static/media/logo.0155ab6c.png">
 
-  const shadow = widget.shadowRoot;
-  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
+  <style>
+    :root {
+      --primary: linear-gradient(135deg, #3b82f6, #6366f1);
+      --bg-dark: #0f172a;
+      --glass-bg: rgba(255, 255, 255, 0.1);
+      --glass-border: rgba(255, 255, 255, 0.2);
+      --text-light: #e2e8f0;
+      --text-muted: #94a3b8;
+    }
 
-  brandingElements.forEach(el => el.remove());
+    body {
+      font-family: "Inter", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg-dark);
+      color: var(--text-light);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      position: relative;
+    }
 
-  // Optionally remove footer shadow or extra boxes
-  const footer = shadow.querySelector('[class*="_box_"]');
-  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
-    footer.remove();
-  }
+    /* Animated background orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.6;
+      animation: float 20s infinite alternate ease-in-out;
+      z-index: 0;
+    }
+    .orb.blue { background: #3b82f6; width: 400px; height: 400px; top: 10%; left: -150px; }
+    .orb.indigo { background: #6366f1; width: 500px; height: 500px; bottom: -100px; right: -200px; }
 
-  return brandingElements.length > 0;
-}
+    @keyframes float {
+      from { transform: translateY(0) translateX(0); }
+      to { transform: translateY(-40px) translateX(30px); }
+    }
 
-const tryRemove = () => {
-  const success = removeBrandingFromWidget();
-  if (!success) {
-    setTimeout(tryRemove, 300);  // retry until it appears
-  }
-};
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      text-align: center;
+      z-index: 1;
+      max-width: 900px;
+      width: 100%;
+    }
 
-tryRemove(); // start the removal loop
+    /* Header */
+    header {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
 
-// Also attach MutationObserver in case of dynamic updates
-const observer = new MutationObserver(() => removeBrandingFromWidget());
-observer.observe(document.body, { childList: true, subtree: true });
-</script>
-    </body>
-    </html>
-    """
+    .logo-box {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 16px 30px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .logo-box::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(120deg, transparent, rgba(255,255,255,0.3), transparent);
+      transform: rotate(25deg);
+      animation: shine 4s infinite;
+    }
+    @keyframes shine {
+      from { transform: rotate(25deg) translateX(-100%); }
+      to { transform: rotate(25deg) translateX(100%); }
+    }
+    .logo-box img {
+      height: 60px;
+      display: block;
+      position: relative;
+      z-index: 1;
+    }
+
+    .title-section {
+      margin: 20px 0 30px;
+    }
+    .title-section h1 {
+      font-size: 40px;
+      font-weight: 700;
+      background: var(--primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0;
+    }
+    .title-section h2 {
+      font-size: 20px;
+      font-weight: 500;
+      margin: 10px 0;
+      color: var(--text-muted);
+    }
+    .title-section p {
+      font-size: 15px;
+      margin: 6px 0;
+      color: #cbd5e1;
+    }
+
+    /* Assistant Container */
+    .assistant-container {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      padding: 30px;
+      max-width: 720px;
+      width: 95%;
+      text-align: center;
+      margin-bottom: 40px;
+      transition: transform 0.4s ease, box-shadow 0.4s ease;
+    }
+    .assistant-container:hover {
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.4);
+    }
+
+    .robot-image {
+      margin: 20px 0 40px;
+    }
+    .robot-image img {
+      max-width: 280px;
+      width: 100%;
+      animation: pulse 6s infinite ease-in-out;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.9; }
+    }
+
+    /* Footer */
+    footer {
+      margin-top: auto;
+      padding: 20px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+      z-index: 1;
+    }
+    footer a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Hide widget branding */
+    [class*="_status_"] {
+      display: none !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .title-section h1 { font-size: 28px; }
+      .logo-box img { height: 50px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Orbs -->
+  <div class="orb blue"></div>
+  <div class="orb indigo"></div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header>
+      <div class="logo-box">
+        <img src="https://myndwell.io/_next/static/media/logo.0155ab6c.png" alt="Myndwell Logo" />
+      </div>
+    </header>
+
+    <div class="title-section">
+      <h1>Myndwell Voizee Assistant Demo</h1>
+      <p>Click <b>"Start a call"</b> and ask your questions.</p>
+      <p>We will customize this for your products / services.</p>
+    </div>
+
+    <div class="assistant-container">
+      <div class="robot-image">
+        <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
+      </div>
+      <script src="https://voizee.sybrant.com/demo?agent=agent_0001k4yjr8esecetfyf8pnb4awjb"></script>
+    </div>
+
+    <footer>
+      © 2025 Sybrant Technologies · Powered by <a href="https://sybrant.com">Sybrant</a>
+    </footer>
+  </div>
+
+</body>
+</html>
+ """
     return render_template_string(html)
 
 
 @app.route('/demo/galent')
 def demo_galent():
     html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Galent Voizee Assistant Demo</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                text-align: center;
-                margin: 0;
-                padding: 0;
-                background: #f5f7fa;
-            }
-            .logo {
-                margin-top: 40px;
-            }
-            .widget-wrapper {
-                margin-top: 60px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 400px;
-                position: relative;
-            }
-            /* Override widget position via script injection */
-            script + elevenlabs-convai {
-                position: absolute !important;
-                bottom: 50% !important;
-                right: 50% !important;
-                transform: translate(50%, 50%) !important;
-                z-index: 1000 !important;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="logo">
-            <img src="https://galent.com/wp-content/themes/twentytwentyone/img/icons/galent-nav-logo.svg" alt="galent Logo" height="60">
-        </div>
-        <h2>Galent Voizee Assistant Demo</h2>
-        <div class="widget-wrapper">
-            <script src="/galent?agent=agent_01k0bxx69dezk91kdpvgj9k8yn"></script>
-        </div>
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Galent Voizee Assistant Demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="https://galent.com/wp-content/themes/twentytwentyone/img/icons/favicon.png">
 
-    <script>
-function removeBrandingFromWidget() {
-  const widget = document.querySelector('elevenlabs-convai');
-  if (!widget || !widget.shadowRoot) return false;
+  <style>
+    :root {
+      --primary: linear-gradient(135deg, #3b82f6, #6366f1);
+      --bg-dark: #0f172a;
+      --glass-bg: rgba(255, 255, 255, 0.1);
+      --glass-border: rgba(255, 255, 255, 0.2);
+      --text-light: #e2e8f0;
+      --text-muted: #94a3b8;
+    }
 
-  const shadow = widget.shadowRoot;
-  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
+    body {
+      font-family: "Inter", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg-dark);
+      color: var(--text-light);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      position: relative;
+    }
 
-  brandingElements.forEach(el => el.remove());
+    /* Animated background orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.6;
+      animation: float 20s infinite alternate ease-in-out;
+      z-index: 0;
+    }
+    .orb.blue { background: #3b82f6; width: 400px; height: 400px; top: 10%; left: -150px; }
+    .orb.indigo { background: #6366f1; width: 500px; height: 500px; bottom: -100px; right: -200px; }
 
-  // Optionally remove footer shadow or extra boxes
-  const footer = shadow.querySelector('[class*="_box_"]');
-  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
-    footer.remove();
-  }
+    @keyframes float {
+      from { transform: translateY(0) translateX(0); }
+      to { transform: translateY(-40px) translateX(30px); }
+    }
 
-  return brandingElements.length > 0;
-}
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      text-align: center;
+      z-index: 1;
+      max-width: 900px;
+      width: 100%;
+    }
 
-const tryRemove = () => {
-  const success = removeBrandingFromWidget();
-  if (!success) {
-    setTimeout(tryRemove, 300);  // retry until it appears
-  }
-};
+    /* Header */
+    header {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
 
-tryRemove(); // start the removal loop
+    .logo-box {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 16px 30px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .logo-box::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(120deg, transparent, rgba(255,255,255,0.3), transparent);
+      transform: rotate(25deg);
+      animation: shine 4s infinite;
+    }
+    @keyframes shine {
+      from { transform: rotate(25deg) translateX(-100%); }
+      to { transform: rotate(25deg) translateX(100%); }
+    }
+    .logo-box img {
+      height: 60px;
+      display: block;
+      position: relative;
+      z-index: 1;
+    }
 
-// Also attach MutationObserver in case of dynamic updates
-const observer = new MutationObserver(() => removeBrandingFromWidget());
-observer.observe(document.body, { childList: true, subtree: true });
-</script>
+    .title-section {
+      margin: 20px 0 30px;
+    }
+    .title-section h1 {
+      font-size: 40px;
+      font-weight: 700;
+      background: var(--primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0;
+    }
+    .title-section h2 {
+      font-size: 20px;
+      font-weight: 500;
+      margin: 10px 0;
+      color: var(--text-muted);
+    }
+    .title-section p {
+      font-size: 15px;
+      margin: 6px 0;
+      color: #cbd5e1;
+    }
 
-    </body>
-    </html>
+    /* Assistant Container */
+    .assistant-container {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      padding: 30px;
+      max-width: 720px;
+      width: 95%;
+      text-align: center;
+      margin-bottom: 40px;
+      transition: transform 0.4s ease, box-shadow 0.4s ease;
+    }
+    .assistant-container:hover {
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.4);
+    }
+
+    .robot-image {
+      margin: 20px 0 40px;
+    }
+    .robot-image img {
+      max-width: 280px;
+      width: 100%;
+      animation: pulse 6s infinite ease-in-out;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.9; }
+    }
+
+    /* Footer */
+    footer {
+      margin-top: auto;
+      padding: 20px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+      z-index: 1;
+    }
+    footer a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Hide widget branding */
+    [class*="_status_"] {
+      display: none !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .title-section h1 { font-size: 28px; }
+      .logo-box img { height: 50px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Orbs -->
+  <div class="orb blue"></div>
+  <div class="orb indigo"></div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header>
+      <div class="logo-box">
+        <img src="https://galent.com/wp-content/themes/twentytwentyone/img/icons/galent-nav-logo.svg" alt="Logo" />
+      </div>
+    </header>
+
+    <div class="title-section">
+      <h1>Galent Voizee Assistant Demo</h1>
+      <p>Click <b>"Start a call"</b> and ask your questions.</p>
+      <p>We will customize this for your products / services.</p>
+    </div>
+
+    <div class="assistant-container">
+      <div class="robot-image">
+        <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
+      </div>
+      <script src="https://voizee.sybrant.com/demo?agent=agent_01k0bxx69dezk91kdpvgj9k8yn"></script>
+    </div>
+
+    <footer>
+      © 2025 Sybrant Technologies · Powered by <a href="https://sybrant.com">Sybrant</a>
+    </footer>
+  </div>
+
+</body>
+</html>
     """
     return render_template_string(html)
 
@@ -3560,301 +2388,679 @@ observer.observe(document.body, { childList: true, subtree: true });
 @app.route('/demo/orientbell')
 def demo_orientbell():
     html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>orientbell Voizee Assistantt Demo</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                text-align: center;
-                margin: 0;
-                padding: 0;
-                background: #f5f7fa;
-            }
-            .logo {
-                margin-top: 40px;
-            }
-            .widget-wrapper {
-                margin-top: 60px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 400px;
-                position: relative;
-            }
-            /* Override widget position via script injection */
-            script + elevenlabs-convai {
-                position: absolute !important;
-                bottom: 50% !important;
-                right: 50% !important;
-                transform: translate(50%, 50%) !important;
-                z-index: 1000 !important;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="logo">
-            <img src="https://tiles.orientbell.com/landingpage/logo/logo.png" alt="galent Logo" height="60">
-        </div>
-        <h2>Orientbell Voizee Assistant Demo</h2>
-        <div class="widget-wrapper">
-            <script src="https://voizee.sybrant.com/orientbell?agent=agent_0501k16aqfe5f0xvnp0eg2c532bt"></script>
-        </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OrientBell Voizee Assistant Demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="https://tiles.orientbell.com/landingpage/logo/logo.png">
 
-    <script>
-function removeBrandingFromWidget() {
-  const widget = document.querySelector('elevenlabs-convai');
-  if (!widget || !widget.shadowRoot) return false;
+  <style>
+    :root {
+      --primary: linear-gradient(135deg, #3b82f6, #6366f1);
+      --bg-dark: #0f172a;
+      --glass-bg: rgba(255, 255, 255, 0.1);
+      --glass-border: rgba(255, 255, 255, 0.2);
+      --text-light: #e2e8f0;
+      --text-muted: #94a3b8;
+    }
 
-  const shadow = widget.shadowRoot;
-  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
+    body {
+      font-family: "Inter", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg-dark);
+      color: var(--text-light);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      position: relative;
+    }
 
-  brandingElements.forEach(el => el.remove());
+    /* Animated background orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.6;
+      animation: float 20s infinite alternate ease-in-out;
+      z-index: 0;
+    }
+    .orb.blue { background: #3b82f6; width: 400px; height: 400px; top: 10%; left: -150px; }
+    .orb.indigo { background: #6366f1; width: 500px; height: 500px; bottom: -100px; right: -200px; }
 
-  // Optionally remove footer shadow or extra boxes
-  const footer = shadow.querySelector('[class*="_box_"]');
-  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
-    footer.remove();
-  }
+    @keyframes float {
+      from { transform: translateY(0) translateX(0); }
+      to { transform: translateY(-40px) translateX(30px); }
+    }
 
-  return brandingElements.length > 0;
-}
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      text-align: center;
+      z-index: 1;
+      max-width: 900px;
+      width: 100%;
+    }
 
-const tryRemove = () => {
-  const success = removeBrandingFromWidget();
-  if (!success) {
-    setTimeout(tryRemove, 300);  // retry until it appears
-  }
-};
+    /* Header */
+    header {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
 
-tryRemove(); // start the removal loop
+    .logo-box {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 16px 30px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .logo-box::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(120deg, transparent, rgba(255,255,255,0.3), transparent);
+      transform: rotate(25deg);
+      animation: shine 4s infinite;
+    }
+    @keyframes shine {
+      from { transform: rotate(25deg) translateX(-100%); }
+      to { transform: rotate(25deg) translateX(100%); }
+    }
+    .logo-box img {
+      height: 60px;
+      display: block;
+      position: relative;
+      z-index: 1;
+    }
 
-// Also attach MutationObserver in case of dynamic updates
-const observer = new MutationObserver(() => removeBrandingFromWidget());
-observer.observe(document.body, { childList: true, subtree: true });
-</script>
+    .title-section {
+      margin: 20px 0 30px;
+    }
+    .title-section h1 {
+      font-size: 40px;
+      font-weight: 700;
+      background: var(--primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0;
+    }
+    .title-section h2 {
+      font-size: 20px;
+      font-weight: 500;
+      margin: 10px 0;
+      color: var(--text-muted);
+    }
+    .title-section p {
+      font-size: 15px;
+      margin: 6px 0;
+      color: #cbd5e1;
+    }
 
-    </body>
-    </html>
+    /* Assistant Container */
+    .assistant-container {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      padding: 30px;
+      max-width: 720px;
+      width: 95%;
+      text-align: center;
+      margin-bottom: 40px;
+      transition: transform 0.4s ease, box-shadow 0.4s ease;
+    }
+    .assistant-container:hover {
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.4);
+    }
+
+    .robot-image {
+      margin: 20px 0 40px;
+    }
+    .robot-image img {
+      max-width: 280px;
+      width: 100%;
+      animation: pulse 6s infinite ease-in-out;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.9; }
+    }
+
+    /* Footer */
+    footer {
+      margin-top: auto;
+      padding: 20px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+      z-index: 1;
+    }
+    footer a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Hide widget branding */
+    [class*="_status_"] {
+      display: none !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .title-section h1 { font-size: 28px; }
+      .logo-box img { height: 50px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Orbs -->
+  <div class="orb blue"></div>
+  <div class="orb indigo"></div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header>
+      <div class="logo-box">
+        <img src="https://tiles.orientbell.com/landingpage/logo/logo.png" alt="Logo" />
+      </div>
+    </header>
+
+    <div class="title-section">
+      <h1>OrientBell Voizee Assistant Demo</h1>
+      <p>Click <b>"Start a call"</b> and ask your questions.</p>
+      <p>We will customize this for your products / services.</p>
+    </div>
+
+    <div class="assistant-container">
+      <div class="robot-image">
+        <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
+      </div>
+      <script src="https://voizee.sybrant.com/demo?agent=agent_0501k16aqfe5f0xvnp0eg2c532bt"></script>
+    </div>
+
+    <footer>
+      © 2025 Sybrant Technologies · Powered by <a href="https://sybrant.com">Sybrant</a>
+    </footer>
+  </div>
+
+</body>
+</html>
     """
     return render_template_string(html)    
-
-
-@app.route('/demo/test')
-def demo_test():
-    html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>orientbell Voizee Assistantt Demo</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                text-align: center;
-                margin: 0;
-                padding: 0;
-                background: #f5f7fa;
-            }
-            .logo {
-                margin-top: 40px;
-            }
-            .widget-wrapper {
-                margin-top: 60px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 400px;
-                position: relative;
-            }
-            /* Override widget position via script injection */
-            script + elevenlabs-convai {
-                position: absolute !important;
-                bottom: 50% !important;
-                right: 50% !important;
-                transform: translate(50%, 50%) !important;
-                z-index: 1000 !important;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="logo">
-            <img src="https://tiles.orientbell.com/landingpage/logo/logo.png" alt="galent Logo" height="60">
-        </div>
-        <h2>Orientbell Voizee Assistant Demo</h2>
-        <div class="widget-wrapper">
-            <script src="https://voizee.sybrant.com/test?agent=agent_0501k16aqfe5f0xvnp0eg2c532bt"></script>
-        </div>
-    </body>
-    </html>
-    """
-    return render_template_string(html)    
-
-
-
+   
 
 @app.route('/demo/preludesys')
 def demo_preludesys():
     html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Preludesys Voizee Assistantt Demo</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                text-align: center;
-                margin: 0;
-                padding: 0;
-                background: #f5f7fa;
-            }
-            .logo {
-                margin-top: 40px;
-                background: #000000;
-            }
-            
-        </style>
-    </head>
-    <body>
-        <div class="logo">
-            <img src="https://preludesys.com/wp-content/themes/preludesys/images/logo.svg" alt="preludesys Logo" height="60">
-        </div>
-        <h2>Preludesys Voizee Assistant Demo</h2>
-        
-    
-    <script src="https://voizee.sybrant.com/preludesys?agent=agent_3501k18965z0fetshdah8ressxza"></script>  
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PreludeSys Voizee Assistant Demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="https://preludesys.com/wp-content/themes/preludesys/images/logo.svg">
 
-    <script>
-function removeBrandingFromWidget() {
-  const widget = document.querySelector('elevenlabs-convai');
-  if (!widget || !widget.shadowRoot) return false;
+  <style>
+    :root {
+      --primary: linear-gradient(135deg, #3b82f6, #6366f1);
+      --bg-dark: #0f172a;
+      --glass-bg: rgba(255, 255, 255, 0.1);
+      --glass-border: rgba(255, 255, 255, 0.2);
+      --text-light: #e2e8f0;
+      --text-muted: #94a3b8;
+    }
 
-  const shadow = widget.shadowRoot;
-  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
+    body {
+      font-family: "Inter", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg-dark);
+      color: var(--text-light);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      position: relative;
+    }
 
-  brandingElements.forEach(el => el.remove());
+    /* Animated background orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.6;
+      animation: float 20s infinite alternate ease-in-out;
+      z-index: 0;
+    }
+    .orb.blue { background: #3b82f6; width: 400px; height: 400px; top: 10%; left: -150px; }
+    .orb.indigo { background: #6366f1; width: 500px; height: 500px; bottom: -100px; right: -200px; }
 
-  // Optionally remove footer shadow or extra boxes
-  const footer = shadow.querySelector('[class*="_box_"]');
-  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
-    footer.remove();
-  }
+    @keyframes float {
+      from { transform: translateY(0) translateX(0); }
+      to { transform: translateY(-40px) translateX(30px); }
+    }
 
-  return brandingElements.length > 0;
-}
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      text-align: center;
+      z-index: 1;
+      max-width: 900px;
+      width: 100%;
+    }
 
-const tryRemove = () => {
-  const success = removeBrandingFromWidget();
-  if (!success) {
-    setTimeout(tryRemove, 300);  // retry until it appears
-  }
-};
+    /* Header */
+    header {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
 
-tryRemove(); // start the removal loop
+    .logo-box {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 16px 30px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .logo-box::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(120deg, transparent, rgba(255,255,255,0.3), transparent);
+      transform: rotate(25deg);
+      animation: shine 4s infinite;
+    }
+    @keyframes shine {
+      from { transform: rotate(25deg) translateX(-100%); }
+      to { transform: rotate(25deg) translateX(100%); }
+    }
+    .logo-box img {
+      height: 60px;
+      display: block;
+      position: relative;
+      z-index: 1;
+    }
 
-// Also attach MutationObserver in case of dynamic updates
-const observer = new MutationObserver(() => removeBrandingFromWidget());
-observer.observe(document.body, { childList: true, subtree: true });
-</script>
+    .title-section {
+      margin: 20px 0 30px;
+    }
+    .title-section h1 {
+      font-size: 40px;
+      font-weight: 700;
+      background: var(--primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0;
+    }
+    .title-section h2 {
+      font-size: 20px;
+      font-weight: 500;
+      margin: 10px 0;
+      color: var(--text-muted);
+    }
+    .title-section p {
+      font-size: 15px;
+      margin: 6px 0;
+      color: #cbd5e1;
+    }
 
-    </body>
-    </html>
+    /* Assistant Container */
+    .assistant-container {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      padding: 30px;
+      max-width: 720px;
+      width: 95%;
+      text-align: center;
+      margin-bottom: 40px;
+      transition: transform 0.4s ease, box-shadow 0.4s ease;
+    }
+    .assistant-container:hover {
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.4);
+    }
+
+    .robot-image {
+      margin: 20px 0 40px;
+    }
+    .robot-image img {
+      max-width: 280px;
+      width: 100%;
+      animation: pulse 6s infinite ease-in-out;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.9; }
+    }
+
+    /* Footer */
+    footer {
+      margin-top: auto;
+      padding: 20px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+      z-index: 1;
+    }
+    footer a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Hide widget branding */
+    [class*="_status_"] {
+      display: none !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .title-section h1 { font-size: 28px; }
+      .logo-box img { height: 50px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Orbs -->
+  <div class="orb blue"></div>
+  <div class="orb indigo"></div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header>
+      <div class="logo-box">
+        <img src="https://preludesys.com/wp-content/themes/preludesys/images/logo.svg" alt="Logo" />
+      </div>
+    </header>
+
+    <div class="title-section">
+      <h1>PreludeSys Voizee Assistant Demo</h1>
+      <p>Click <b>"Start a call"</b> and ask your questions.</p>
+      <p>We will customize this for your products / services.</p>
+    </div>
+
+    <div class="assistant-container">
+      <div class="robot-image">
+        <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
+      </div>
+      <script src="https://voizee.sybrant.com/demo?agent=agent_3501k18965z0fetshdah8ressxza"></script>
+    </div>
+
+    <footer>
+      © 2025 Sybrant Technologies · Powered by <a href="https://sybrant.com">Sybrant</a>
+    </footer>
+  </div>
+
+</body>
+</html>
     """
     return render_template_string(html)    
 
 @app.route('/demo/cfobridge')
 def demo_cfobridge():
     html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>CFOBridge Voizee Assistantt Demo</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                text-align: center;
-                margin: 0;
-                padding: 0;
-                background: #f5f7fa;
-            }
-            .logo {
-                margin-top: 40px;
-                background: #000000;
-            }
-            
-        </style>
-    </head>
-    <body>
-        <div class="logo">
-            <img src="https://cfobridge.com/assets/images/logo.webp" alt="cfobridge Logo" height="60">
-        </div>
-        <h2>CFOBridge Voizee Assistant Demo</h2>
-        
-    
-    <script src="https://voizee.sybrant.com/cfobridge?agent=agent_3201k2c2hxn4e0stk07tkjmgj4e5"></script>  
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CFOBridge Voizee Assistant Demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="https://cfobridge.com/assets/images/logo.webp">
 
-<script>
-  const styleEnhancerInterval = setInterval(() => {
-    const widget = document.querySelector("elevenlabs-convai");
-    const shadow = widget?.shadowRoot;
-    const realStart = shadow?.querySelector('button[title="Start a call"]');
-    const clone = shadow?.querySelector('button[title="Start a call"] + div > button');
-
-    if (clone && !clone._cfoStyled) {
-      clone._cfoStyled = true;
-      Object.assign(clone.style, {
-        backgroundColor: "#0b72e7",
-        color: "#fff",
-        border: "none",
-        padding: "14px 28px",
-        borderRadius: "8px",
-        fontSize: "16px",
-        fontWeight: "bold",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-        cursor: "pointer"
-      });
-
-      clearInterval(styleEnhancerInterval); // Stop retrying once styled
+  <style>
+    :root {
+      --primary: linear-gradient(135deg, #3b82f6, #6366f1);
+      --bg-dark: #0f172a;
+      --glass-bg: rgba(255, 255, 255, 0.1);
+      --glass-border: rgba(255, 255, 255, 0.2);
+      --text-light: #e2e8f0;
+      --text-muted: #94a3b8;
     }
-  }, 300);
-</script>
 
+    body {
+      font-family: "Inter", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg-dark);
+      color: var(--text-light);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      position: relative;
+    }
 
-    <script>
-function removeBrandingFromWidget() {
-  const widget = document.querySelector('elevenlabs-convai');
-  if (!widget || !widget.shadowRoot) return false;
+    /* Animated background orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.6;
+      animation: float 20s infinite alternate ease-in-out;
+      z-index: 0;
+    }
+    .orb.blue { background: #3b82f6; width: 400px; height: 400px; top: 10%; left: -150px; }
+    .orb.indigo { background: #6366f1; width: 500px; height: 500px; bottom: -100px; right: -200px; }
 
-  const shadow = widget.shadowRoot;
-  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"])');
+    @keyframes float {
+      from { transform: translateY(0) translateX(0); }
+      to { transform: translateY(-40px) translateX(30px); }
+    }
 
-  brandingElements.forEach(el => el.remove());
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      text-align: center;
+      z-index: 1;
+      max-width: 900px;
+      width: 100%;
+    }
 
-  // Optionally remove footer shadow or extra boxes
-  const footer = shadow.querySelector('[class*="_box_"]');
-  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
-    footer.remove();
-  }
+    /* Header */
+    header {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
 
-  return brandingElements.length > 0;
-}
+    .logo-box {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 16px 30px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .logo-box::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(120deg, transparent, rgba(255,255,255,0.3), transparent);
+      transform: rotate(25deg);
+      animation: shine 4s infinite;
+    }
+    @keyframes shine {
+      from { transform: rotate(25deg) translateX(-100%); }
+      to { transform: rotate(25deg) translateX(100%); }
+    }
+    .logo-box img {
+      height: 60px;
+      display: block;
+      position: relative;
+      z-index: 1;
+    }
 
-const tryRemove = () => {
-  const success = removeBrandingFromWidget();
-  if (!success) {
-    setTimeout(tryRemove, 300);  // retry until it appears
-  }
-};
+    .title-section {
+      margin: 20px 0 30px;
+    }
+    .title-section h1 {
+      font-size: 40px;
+      font-weight: 700;
+      background: var(--primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0;
+    }
+    .title-section h2 {
+      font-size: 20px;
+      font-weight: 500;
+      margin: 10px 0;
+      color: var(--text-muted);
+    }
+    .title-section p {
+      font-size: 15px;
+      margin: 6px 0;
+      color: #cbd5e1;
+    }
 
-tryRemove(); // start the removal loop
+    /* Assistant Container */
+    .assistant-container {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      padding: 30px;
+      max-width: 720px;
+      width: 95%;
+      text-align: center;
+      margin-bottom: 40px;
+      transition: transform 0.4s ease, box-shadow 0.4s ease;
+    }
+    .assistant-container:hover {
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.4);
+    }
 
-// Also attach MutationObserver in case of dynamic updates
-const observer = new MutationObserver(() => removeBrandingFromWidget());
-observer.observe(document.body, { childList: true, subtree: true });
-</script>
+    .robot-image {
+      margin: 20px 0 40px;
+    }
+    .robot-image img {
+      max-width: 280px;
+      width: 100%;
+      animation: pulse 6s infinite ease-in-out;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.9; }
+    }
 
-    </body>
-    </html>
+    /* Footer */
+    footer {
+      margin-top: auto;
+      padding: 20px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+      z-index: 1;
+    }
+    footer a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Hide widget branding */
+    [class*="_status_"] {
+      display: none !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .title-section h1 { font-size: 28px; }
+      .logo-box img { height: 50px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Orbs -->
+  <div class="orb blue"></div>
+  <div class="orb indigo"></div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header>
+      <div class="logo-box">
+        <img src="https://cfobridge.com/assets/images/logo.webp" alt="Logo" />
+      </div>
+    </header>
+
+    <div class="title-section">
+      <h1>CFOBridge Voizee Assistant Demo</h1>
+      <p>Click <b>"Start a call"</b> and ask your questions.</p>
+      <p>We will customize this for your products / services.</p>
+    </div>
+
+    <div class="assistant-container">
+      <div class="robot-image">
+        <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
+      </div>
+      <script src="https://voizee.sybrant.com/demo?agent=agent_0001k4yjma29e8hshpq6snzpvy4b"></script>
+    </div>
+
+    <footer>
+      © 2025 Sybrant Technologies · Powered by <a href="https://sybrant.com">Sybrant</a>
+    </footer>
+  </div>
+
+</body>
+</html>
     """
     return render_template_string(html) 
 
@@ -3870,6 +3076,7 @@ def demo_sybrant():
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sybrant Voizee</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="https://sybrant.com/wp-content/uploads/2025/05/cropped-site-logo-180x180.jpg">
   <style>
     :root {
       --primary: linear-gradient(135deg, #3b82f6, #6366f1);
@@ -4152,170 +3359,220 @@ def demo_ctobridge():
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CTO Bridge Voizee</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CTOBridge Voizee Assistant Demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="https://ctobridge.com/assets/img/logo.png">
+
   <style>
+    :root {
+      --primary: linear-gradient(135deg, #3b82f6, #6366f1);
+      --bg-dark: #0f172a;
+      --glass-bg: rgba(255, 255, 255, 0.1);
+      --glass-border: rgba(255, 255, 255, 0.2);
+      --text-light: #e2e8f0;
+      --text-muted: #94a3b8;
+    }
+
     body {
-      font-family: "Segoe UI", Arial, sans-serif;
+      font-family: "Inter", sans-serif;
       margin: 0;
       padding: 0;
-      background: linear-gradient(135deg, #f5f7fa, #e4ebf7);
-      color: #222;
+      background: var(--bg-dark);
+      color: var(--text-light);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Animated background orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.6;
+      animation: float 20s infinite alternate ease-in-out;
+      z-index: 0;
+    }
+    .orb.blue { background: #3b82f6; width: 400px; height: 400px; top: 10%; left: -150px; }
+    .orb.indigo { background: #6366f1; width: 500px; height: 500px; bottom: -100px; right: -200px; }
+
+    @keyframes float {
+      from { transform: translateY(0) translateX(0); }
+      to { transform: translateY(-40px) translateX(30px); }
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
-      min-height: 100vh;
+      padding: 40px 20px;
+      text-align: center;
+      z-index: 1;
+      max-width: 900px;
+      width: 100%;
     }
 
+    /* Header */
     header {
       display: flex;
       justify-content: center;
-      margin-top: 40px;
+      margin-bottom: 30px;
     }
 
     .logo-box {
-      # background: #000;
-      padding: 12px 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 16px 30px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
     }
-
+    .logo-box::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(120deg, transparent, rgba(255,255,255,0.3), transparent);
+      transform: rotate(25deg);
+      animation: shine 4s infinite;
+    }
+    @keyframes shine {
+      from { transform: rotate(25deg) translateX(-100%); }
+      to { transform: rotate(25deg) translateX(100%); }
+    }
     .logo-box img {
       height: 60px;
       display: block;
+      position: relative;
+      z-index: 1;
     }
 
     .title-section {
-      text-align: center;
-      margin: 40px 0 30px;
+      margin: 20px 0 30px;
     }
-
     .title-section h1 {
-      font-size: 32px;
+      font-size: 40px;
       font-weight: 700;
+      background: var(--primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
       margin: 0;
-      color: #222;
     }
-
     .title-section h2 {
-      font-size: 22px;
+      font-size: 20px;
       font-weight: 500;
       margin: 10px 0;
-      color: #555;
+      color: var(--text-muted);
     }
-
     .title-section p {
-      font-size: 16px;
+      font-size: 15px;
       margin: 6px 0;
-      color: #666;
+      color: #cbd5e1;
     }
 
+    /* Assistant Container */
     .assistant-container {
-      background: #fff;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
       border-radius: 20px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
       padding: 30px;
-      max-width: 600px;
-      width: 90%;
+      max-width: 720px;
+      width: 95%;
       text-align: center;
       margin-bottom: 40px;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      transition: transform 0.4s ease, box-shadow 0.4s ease;
     }
-
     .assistant-container:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.4);
     }
 
     .robot-image {
-  text-align: center;
-  margin: 20px 0 80px 30px;
-}
-
-.robot-image img {
-  max-width: 280px;  /* keeps it responsive */
-  width: 100%;
-  height: auto;
-  display: inline-block;
-}
-
-
-    .start-btn {
-      margin-top: 20px;
-      padding: 12px 24px;
-      font-size: 16px;
-      border-radius: 30px;
-      border: none;
-      background: #0077ff;
-      color: #fff;
-      cursor: pointer;
-      transition: background 0.3s;
+      margin: 20px 0 40px;
+    }
+    .robot-image img {
+      max-width: 280px;
+      width: 100%;
+      animation: pulse 6s infinite ease-in-out;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.9; }
     }
 
-    .start-btn:hover {
-      background: #005ecc;
+    /* Footer */
+    footer {
+      margin-top: auto;
+      padding: 20px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+      z-index: 1;
+    }
+    footer a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
     }
 
-    [class*="_status_1968y_121"] {
-  display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-  height: 0 !important;
-  font-size: 0 !important;
-}
+    /* Hide widget branding */
+    [class*="_status_"] {
+      display: none !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .title-section h1 { font-size: 28px; }
+      .logo-box img { height: 50px; }
+    }
   </style>
 </head>
 <body>
 
-  <header>
-    <div class="logo-box">
-      <img src="https://ctobridge.com/assets/img/logo.png" alt="CTOBridge Logo">
+  <!-- Background Orbs -->
+  <div class="orb blue"></div>
+  <div class="orb indigo"></div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header>
+      <div class="logo-box">
+        <img src="https://ctobridge.com/assets/img/logo.png" alt="Logo" />
+      </div>
+    </header>
+
+    <div class="title-section">
+      <h1>CTOBridge Voizee Assistant Demo</h1>
+      <p>Click <b>"Start a call"</b> and ask your questions.</p>
+      <p>We will customize this for your products / services.</p>
     </div>
-  </header>
 
-  <div class="title-section">
-    <h1>CTO Bridge Voizee Assistant Demo</h1>
-    <p>Click <b>"Start a call"</b> and ask your questions about CTO Bridge.</p>
+    <div class="assistant-container">
+      <div class="robot-image">
+        <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
+      </div>
+      <script src="https://voizee.sybrant.com/demo?agent=agent_4801k3fnfz4nexdt8mfts31zx0rd"></script>
+    </div>
+
+    <footer>
+      © 2025 Sybrant Technologies · Powered by <a href="https://sybrant.com">Sybrant</a>
+    </footer>
   </div>
-
- 
-      <script src="https://voizee.sybrant.com/ctobridge?agent=agent_4801k3fnfz4nexdt8mfts31zx0rd"></script>  
-
-    <script>
-function removeBrandingFromWidget() {
-  const widget = document.querySelector('elevenlabs-convai');
-  if (!widget || !widget.shadowRoot) return false;
-
-  const shadow = widget.shadowRoot;
-  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"]), [class*="_status_1968y_121"]');
-
-  brandingElements.forEach(el => el.remove());
-
-  // Optionally remove footer shadow or extra boxes
-  const footer = shadow.querySelector('[class*="_box_"]');
-  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
-    footer.remove();
-  }
-
-  return brandingElements.length > 0;
-}
-
-const tryRemove = () => {
-  const success = removeBrandingFromWidget();
-  if (!success) {
-    setTimeout(tryRemove, 300);  // retry until it appears
-  }
-};
-
-tryRemove(); // start the removal loop
-
-// Also attach MutationObserver in case of dynamic updates
-const observer = new MutationObserver(() => removeBrandingFromWidget());
-observer.observe(document.body, { childList: true, subtree: true });
-</script>
-
 
 </body>
 </html>
@@ -4328,177 +3585,229 @@ def demo_kopiko():
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kopiko Voizee</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kopiko Voizee Assistant Demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="https://www.mayora.com/storage/files/new-kopiko-logo.jpg">
+
   <style>
+    :root {
+      --primary: linear-gradient(135deg, #3b82f6, #6366f1);
+      --bg-dark: #0f172a;
+      --glass-bg: rgba(255, 255, 255, 0.1);
+      --glass-border: rgba(255, 255, 255, 0.2);
+      --text-light: #e2e8f0;
+      --text-muted: #94a3b8;
+    }
+
     body {
-      font-family: "Segoe UI", Arial, sans-serif;
+      font-family: "Inter", sans-serif;
       margin: 0;
       padding: 0;
-      background: linear-gradient(135deg, #f5f7fa, #e4ebf7);
-      color: #222;
+      background: var(--bg-dark);
+      color: var(--text-light);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Animated background orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.6;
+      animation: float 20s infinite alternate ease-in-out;
+      z-index: 0;
+    }
+    .orb.blue { background: #3b82f6; width: 400px; height: 400px; top: 10%; left: -150px; }
+    .orb.indigo { background: #6366f1; width: 500px; height: 500px; bottom: -100px; right: -200px; }
+
+    @keyframes float {
+      from { transform: translateY(0) translateX(0); }
+      to { transform: translateY(-40px) translateX(30px); }
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
-      min-height: 100vh;
+      padding: 40px 20px;
+      text-align: center;
+      z-index: 1;
+      max-width: 900px;
+      width: 100%;
     }
 
+    /* Header */
     header {
       display: flex;
       justify-content: center;
-      margin-top: 40px;
+      margin-bottom: 30px;
     }
 
     .logo-box {
-      # background: #000;
-      padding: 12px 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 16px 30px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
     }
-
+    .logo-box::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(120deg, transparent, rgba(255,255,255,0.3), transparent);
+      transform: rotate(25deg);
+      animation: shine 4s infinite;
+    }
+    @keyframes shine {
+      from { transform: rotate(25deg) translateX(-100%); }
+      to { transform: rotate(25deg) translateX(100%); }
+    }
     .logo-box img {
       height: 60px;
       display: block;
+      position: relative;
+      z-index: 1;
     }
 
     .title-section {
-      text-align: center;
-      margin: 40px 0 30px;
+      margin: 20px 0 30px;
     }
-
     .title-section h1 {
-      font-size: 32px;
+      font-size: 40px;
       font-weight: 700;
+      background: var(--primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
       margin: 0;
-      color: #222;
     }
-
     .title-section h2 {
-      font-size: 22px;
+      font-size: 20px;
       font-weight: 500;
       margin: 10px 0;
-      color: #555;
+      color: var(--text-muted);
     }
-
     .title-section p {
-      font-size: 16px;
+      font-size: 15px;
       margin: 6px 0;
-      color: #666;
+      color: #cbd5e1;
     }
 
+    /* Assistant Container */
     .assistant-container {
-      background: #fff;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
       border-radius: 20px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
       padding: 30px;
-      max-width: 600px;
-      width: 90%;
+      max-width: 720px;
+      width: 95%;
       text-align: center;
       margin-bottom: 40px;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      transition: transform 0.4s ease, box-shadow 0.4s ease;
     }
-
     .assistant-container:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.4);
     }
 
     .robot-image {
-  text-align: center;
-  margin: 20px 0 80px 30px;
-}
-
-.robot-image img {
-  max-width: 280px;  /* keeps it responsive */
-  width: 100%;
-  height: auto;
-  display: inline-block;
-}
-
-
-    .start-btn {
-      margin-top: 20px;
-      padding: 12px 24px;
-      font-size: 16px;
-      border-radius: 30px;
-      border: none;
-      background: #0077ff;
-      color: #fff;
-      cursor: pointer;
-      transition: background 0.3s;
+      margin: 20px 0 40px;
+    }
+    .robot-image img {
+      max-width: 280px;
+      width: 100%;
+      animation: pulse 6s infinite ease-in-out;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.9; }
     }
 
-    .start-btn:hover {
-      background: #005ecc;
+    /* Footer */
+    footer {
+      margin-top: auto;
+      padding: 20px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+      z-index: 1;
+    }
+    footer a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
     }
 
-    [class*="_status_1968y_121"] {
-  display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-  height: 0 !important;
-  font-size: 0 !important;
-}
+    /* Hide widget branding */
+    [class*="_status_"] {
+      display: none !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .title-section h1 { font-size: 28px; }
+      .logo-box img { height: 50px; }
+    }
   </style>
 </head>
 <body>
 
-  <header>
-    <div class="logo-box">
-      <img src="https://www.mayora.com/storage/files/new-kopiko-logo.jpg" alt="Kopiko Logo">
+  <!-- Background Orbs -->
+  <div class="orb blue"></div>
+  <div class="orb indigo"></div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header>
+      <div class="logo-box">
+        <img src="https://www.mayora.com/storage/files/new-kopiko-logo.jpg" alt="Logo" />
+      </div>
+    </header>
+
+    <div class="title-section">
+      <h1>Kopiko Voizee Assistant Demo</h1>
+      <p>Click <b>"Start a call"</b> and ask your questions.</p>
+      <p>We will customize this for your products / services.</p>
     </div>
-  </header>
 
-  <div class="title-section">
-    <h1>Kopiko Voizee Assistant Demo</h1>
-    <p>Click <b>"Start a call"</b> and ask your questions about Kopiko.</p>
+    <div class="assistant-container">
+      <div class="robot-image">
+        <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
+      </div>
+      <script src="https://voizee.sybrant.com/kopiko?agent=agent_8601k4mej4mpesm895yv6zhey96y"></script>
+    </div>
+
+    <footer>
+      © 2025 Sybrant Technologies · Powered by <a href="https://sybrant.com">Sybrant</a>
+    </footer>
   </div>
-
- 
-      <script src="https://voizee.sybrant.com/kopiko?agent=agent_8601k4mej4mpesm895yv6zhey96y"></script>  
-
-    <script>
-function removeBrandingFromWidget() {
-  const widget = document.querySelector('elevenlabs-convai');
-  if (!widget || !widget.shadowRoot) return false;
-
-  const shadow = widget.shadowRoot;
-  const brandingElements = shadow.querySelectorAll('[class*="poweredBy"], div[part="branding"], a[href*="elevenlabs"], span:has(a[href*="elevenlabs"]), [class*="_status_1968y_121"]');
-
-  brandingElements.forEach(el => el.remove());
-
-  // Optionally remove footer shadow or extra boxes
-  const footer = shadow.querySelector('[class*="_box_"]');
-  if (footer && footer.textContent.toLowerCase().includes('elevenlabs')) {
-    footer.remove();
-  }
-
-  return brandingElements.length > 0;
-}
-
-const tryRemove = () => {
-  const success = removeBrandingFromWidget();
-  if (!success) {
-    setTimeout(tryRemove, 300);  // retry until it appears
-  }
-};
-
-tryRemove(); // start the removal loop
-
-// Also attach MutationObserver in case of dynamic updates
-const observer = new MutationObserver(() => removeBrandingFromWidget());
-observer.observe(document.body, { childList: true, subtree: true });
-</script>
-
 
 </body>
 </html>
     """
     return render_template_string(html)
 
-
+@app.route('/favicon.ico')
+def favicon():
+    return ('', 204)
     
 # --- Health Check & Root ---
 @app.route('/')
