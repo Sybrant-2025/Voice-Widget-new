@@ -3805,10 +3805,7 @@ def demo_kopiko():
     """
     return render_template_string(html)
 
-@app.route('/favicon.ico')
-def favicon():
-    return ('', 204)
-    
+
 # --- Health Check & Root ---
 @app.route('/')
 def home():
