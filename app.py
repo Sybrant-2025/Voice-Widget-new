@@ -639,7 +639,6 @@ def serve_widget_js_updated(agent_id, branding="Powered by Voizee", brand=""):
             .replace("__BRANDING__", branding)
             .replace("__BRAND__", brand))
 
-
 def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     js = r"""
 (function(){
@@ -649,7 +648,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
 
   // ===== One-insert per visit guards =====
-  const SENT_KEY = "convai_sent_visit_id"; // stores the VISIT_ID that already submitted
+  const SENT_KEY = "convai_sent_visit_id"; // stores the VISIT_ID already submitted
   function hasSentForVisit(visitId){ try { return localStorage.getItem(SENT_KEY) === visitId; } catch(_) { return false; } }
   function markSentForVisit(visitId){ try { localStorage.setItem(SENT_KEY, visitId); } catch(_) {} }
 
@@ -688,17 +687,12 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   let _convIdResolve;
   const conversationIdReady = new Promise(res => (_convIdResolve = res));
 
-  // Will POST cached visitor_log at most once per page load
-  let __cachedLogSent = false;
-
-  // Fire-and-forget sender (tries sendBeacon, falls back to fetch; never waits)
+  // Fire-and-forget JSON send
   function sendAsyncJSON(url, obj){
     try {
       const payload = JSON.stringify(obj);
-      // Try beacon (works during navigation, hidden, etc.)
       const ok = navigator.sendBeacon && navigator.sendBeacon(url, new Blob([payload], {type:"application/json"}));
       if (ok) return;
-      // Fallback: non-blocking fetch (no await)
       fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -708,15 +702,9 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     } catch(_) {}
   }
 
-  function sendCachedVisitorLog(reason){
-    if (__cachedLogSent) return;
-    if (hasSentForVisit(VISIT_ID)) return;  // already sent for this visit
-    const cached = getFormCache();
-    if (!cached) return;
-
-    __cachedLogSent = true;         // per-page guard
-    markSentForVisit(VISIT_ID);     // per-visit (prevents later duplicates)
-
+  // Only log once per visit
+  function sendVisitorLog(fields, reason){
+    if (hasSentForVisit(VISIT_ID)) return;
     const payload = {
       event: "visitor_log",
       visit_id: VISIT_ID,
@@ -724,14 +712,12 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       brand: BRAND,
       url: location.href,
       timestamp: new Date().toISOString(),
-      name: cached.name || "",
-      company: cached.company || "",
-      email: cached.email || "",
-      phone: cached.phone || "",
-      conversation_id: CONV_ID || null
+      conversation_id: CONV_ID || null,
+      ...fields
     };
+    markSentForVisit(VISIT_ID);
     sendAsyncJSON(LOG_ENDPOINT, payload);
-    console.log("[ConvAI] auto-logged cached form → sheet (", reason, ")");
+    console.log("[ConvAI] logged visitor → sheet (", reason, ")");
   }
 
   function setConvIdOnce(cid){
@@ -739,7 +725,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     CONV_ID = cid;
     try { _convIdResolve(CONV_ID); } catch(_) {}
 
-    // 1) Update sheet with conversation_id (won't create extra visitor rows)
+    // Only update conv_id (won't create duplicate visitor row)
     sendAsyncJSON(LOG_ENDPOINT, {
       event: "conversation_id",
       visit_id: VISIT_ID,
@@ -750,168 +736,19 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       timestamp: new Date().toISOString()
     });
 
-    // 2) If TTL path (skipped modal), log cached data once (unless we already did this visit)
+    // If TTL skipped form and not logged yet, log cached form now
     if (ttlActive() && !hasSentForVisit(VISIT_ID)) {
-      sendCachedVisitorLog("conv_id_arrived");
+      const cached = getFormCache();
+      if (cached) sendVisitorLog(cached, "conv_id_arrived");
     }
 
-    // 3) End hooks + unload beacons
     setupCallEndHooks && setupCallEndHooks();
     setupUnloadBeacons && setupUnloadBeacons();
   }
 
-  // Listen to messages that carry conversation_id
-  window.addEventListener("message", (evt) => {
-    try {
-      const d = evt?.data;
-      const cid =
-        d?.conversation_initiation_metadata_event?.conversation_id ||
-        d?.conversation_id;
-      setConvIdOnce(cid);
-    } catch(_) {}
-  }, false);
-
-  // Also sniff inbound WebSocket frames
-  (function patchWebSocket(){
-    const OriginalWS = window.WebSocket;
-    if (!OriginalWS) return;
-    function WrappedWS(url, protocols){
-      const ws = protocols ? new OriginalWS(url, protocols) : new OriginalWS(url);
-      ws.addEventListener("message", (ev) => {
-        try {
-          if (typeof ev.data !== "string") return;
-          const d = JSON.parse(ev.data);
-          const cid = d?.conversation_initiation_metadata_event?.conversation_id || d?.conversation_id;
-          if (cid) setConvIdOnce(cid);
-        } catch(_) {}
-      });
-      return ws;
-    }
-    WrappedWS.prototype = OriginalWS.prototype;
-    Object.getOwnPropertyNames(OriginalWS).forEach(k => { try { WrappedWS[k] = OriginalWS[k]; } catch(_){} });
-    window.WebSocket = WrappedWS;
-  })();
-
-  // ===== UI helpers =====
-  function removeExtras(sr){
-    if (!sr) return;
-    try { ['span.opacity-30','a[href*="elevenlabs.io/conversational-ai"]'].forEach(sel => {
-      sr.querySelectorAll(sel).forEach(el => el.remove());
-    }); } catch(e){}
-  }
-
-  // ===== START button (modal gate) =====
-  function hookStartButton(){
-    const widget = document.querySelector("elevenlabs-convai");
-    if (!widget) return false;
-    const sr = widget.shadowRoot;
-    if (!sr) return false;
-
-    removeExtras(sr);
-
-    const sels = [
-      'button[title="Start a call"]',
-      'button[aria-label="Start a call"]',
-      'button[title*="Start"]',
-      'button[aria-label*="Start"]'
-    ];
-    for (const sel of sels) {
-      const btn = sr.querySelector(sel);
-      if (btn && !btn._hooked) {
-        btn._hooked = true;
-        interceptStartClick(btn);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  function interceptStartClick(btn){
-    window.__last_call_btn = btn;
-    btn.addEventListener("click", (e) => {
-      // TTL path → auto-log once, no modal
-      if (ttlActive() && getFormCache() && !hasSentForVisit(VISIT_ID)) {
-        sendCachedVisitorLog("start_btn_ttl_active");
-        return; // allow normal call start
-      }
-      if (btn._allowCall) { btn._allowCall = false; return; }
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      const modal = document.getElementById("convai-visitor-modal");
-      if (modal) modal.style.display = "flex";
-    }, true);
-  }
-
-  // ===== END button → optional client-side transcript trigger later =====
-  function hookEndButton(){
-    const widget = document.querySelector("elevenlabs-convai");
-    if (!widget) return false;
-    const sr = widget.shadowRoot;
-    if (!sr) return false;
-
-    let btn = sr.querySelector('button[aria-label="End"], button[title="End"], button[aria-label="End call"], button[title="End call"]');
-    if (!btn) {
-      const icon = sr.querySelector('slot[name="icon-phone-off"]');
-      if (icon) btn = icon.closest('button');
-    }
-    if (!btn) {
-      const allButtons = Array.from(sr.querySelectorAll('button'));
-      btn = allButtons.find(b => (b.textContent || "").trim().toLowerCase() === "end");
-    }
-    if (!btn) return false;
-
-    if (!btn.__endHooked) {
-      btn.__endHooked = true;
-      btn.addEventListener("click", () => {
-        setTimeout(() => {
-          if (!CONV_ID) return;
-          sendAsyncJSON("https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated", {
-            visit_id: VISIT_ID,
-            conversation_id: CONV_ID,
-            agent_id: AGENT_ID,
-            brand: BRAND,
-            url: location.href
-          });
-          console.log("[ConvAI] requested transcript (T+30s) for", CONV_ID);
-        }, 30000);
-      }, { capture: true });
-    }
-    return true;
-  }
-
-  function setupCallEndHooks(){
-    hookEndButton();
-    const widget = document.querySelector("elevenlabs-convai");
-    const sr = widget && widget.shadowRoot;
-    if (!sr) return;
-    if (!window.__endBtnObserver){
-      window.__endBtnObserver = new MutationObserver(() => { hookEndButton(); });
-      window.__endBtnObserver.observe(sr, { childList: true, subtree: true });
-    }
-  }
-
-  // ===== Unload beacons for transcript =====
-  function setupUnloadBeacons(){
-    function beacon(){
-      if (!CONV_ID) return;
-      sendAsyncJSON("https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated-beacon", {
-        visit_id: VISIT_ID,
-        conversation_id: CONV_ID,
-        agent_id: AGENT_ID,
-        brand: BRAND,
-        url: location.href
-      });
-    }
-    window.addEventListener("pagehide", beacon);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden") beacon();
-    });
-  }
-
-  // ===== Visitor Modal =====
+  // ===== Form modal =====
   function createVisitorModal(){
     if (document.getElementById("convai-visitor-modal")) return;
-
     const modal = document.createElement("div");
     modal.id = "convai-visitor-modal";
     modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;align-items:center;justify-content:center;";
@@ -929,106 +766,457 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
             <button type="button" id="convai-cancel" style="padding:10px;background:#eee;border:none;border-radius:4px;">Cancel</button>
           </div>
         </form>
-      </div>
-    `;
+      </div>`;
     document.body.appendChild(modal);
 
-    try {
-      const cached = getFormCache();
-      if (cached) {
-        modal.querySelector('input[name="name"]').value    = cached.name || "";
-        modal.querySelector('input[name="company"]').value = cached.company || "";
-        modal.querySelector('input[name="email"]').value   = cached.email || "";
-        modal.querySelector('input[name="phone"]').value   = cached.phone || "";
-      }
-    } catch(_) {}
+    // close buttons
+    modal.querySelector("#convai-close").onclick = ()=> modal.style.display="none";
+    modal.querySelector("#convai-cancel").onclick = ()=> modal.style.display="none";
 
-    modal.querySelector("#convai-close").onclick = () => modal.style.display = "none";
-    modal.querySelector("#convai-cancel").onclick = () => modal.style.display = "none";
-
-    const form = modal.querySelector("#convai-form");
-    form.onsubmit = function(ev){
+    // validate + submit
+    modal.querySelector("#convai-form").onsubmit = function(ev){
       ev.preventDefault();
-      if (form.__submitting) return; // guard
+      const fd = new FormData(this);
+      const fields = Object.fromEntries(fd.entries());
 
-      form.__submitting = true;
-      const submitBtn = modal.querySelector("#convai-submit");
-      const cancelBtn = modal.querySelector("#convai-cancel");
-      const disable = (el, on)=>{ if(!el) return; el.disabled=on; el.style.opacity=on?"0.6":""; el.style.pointerEvents=on?"none":""; };
+      // Validation
+      if (!fields.name.trim() || !fields.company.trim() || !fields.email.trim() || !fields.phone.trim()) {
+        alert("All fields are required."); return;
+      }
+      if (!/^[6-9]\d{9}$/.test(fields.phone)) {
+        alert("Enter a valid 10-digit Indian mobile number starting with 6,7,8,9."); return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(fields.email)) {
+        alert("Enter a valid email address."); return;
+      }
 
-      disable(submitBtn, true);
-      disable(cancelBtn, true);
-
-      const fd = new FormData(form);
-      const fields = Object.fromEntries(fd.entries()); // name, company, email, phone
       saveFormCache(fields);
+      sendVisitorLog(fields, "form_submit");
+      modal.style.display="none";
 
-      // Build payload and mark "sent for this visit" BEFORE sending to avoid any duplicate paths
-      const payload = {
-        event: "visitor_log",
-        visit_id: VISIT_ID,
-        agent_id: AGENT_ID,
-        brand: BRAND,
-        url: location.href,
-        timestamp: new Date().toISOString(),
-        conversation_id: CONV_ID || null,
-        ...fields
-      };
-      markSentForVisit(VISIT_ID); // ensures no other pathway re-sends this visit
-      __cachedLogSent = true;     // also mute the cached auto-logger for this page
-
-      // Fire-and-forget send (don’t wait)
-      sendAsyncJSON(LOG_ENDPOINT, payload);
-
-      // Close UI immediately and start the call
-      try { modal.style.display = "none"; } catch(_) {}
       try {
         if (window.__last_call_btn) {
           window.__last_call_btn._allowCall = true;
           window.__last_call_btn.click();
         }
       } catch(_) {}
-
-      // Keep controls disabled; we’re done
     };
   }
 
-  // ===== Inject widget & boot =====
+  // Inject widget + embed
   try {
     const tag = document.createElement("elevenlabs-convai");
     tag.setAttribute("agent-id", AGENT_ID);
     document.body.appendChild(tag);
-  } catch (e) {}
-
+  } catch(e){}
   (function loadEmbed(){
-    const s = document.createElement("script");
-    s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
-    s.async = true;
-    s.onerror = function(){
-      const fallback = document.createElement("script");
-      fallback.src = "https://elevenlabs.io/convai-widget/index.js";
-      fallback.async = true;
-      document.body.appendChild(fallback);
+    const s=document.createElement("script");
+    s.src="https://unpkg.com/@elevenlabs/convai-widget-embed";
+    s.async=true;
+    s.onerror=function(){
+      const f=document.createElement("script");
+      f.src="https://elevenlabs.io/convai-widget/index.js";f.async=true;document.body.appendChild(f);
     };
     document.body.appendChild(s);
   })();
 
   createVisitorModal();
-
-  const obs = new MutationObserver(() => { try { if (hookStartButton()) obs.disconnect(); } catch(e){} });
-  obs.observe(document, { childList: true, subtree: true });
-  let tries = 0;
-  const poll = setInterval(() => {
-    const ok = hookStartButton();
-    if (ok || ++tries > 50) clearInterval(poll);
-  }, 300);
-
 })();
     """
     return (js
             .replace("__AGENT_ID__", agent_id)
             .replace("__BRANDING__", branding)
             .replace("__BRAND__", brand))
+
+# def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
+#     js = r"""
+# (function(){
+#   const AGENT_ID = "__AGENT_ID__";
+#   const BRAND = "__BRAND__";
+#   const BRANDING_TEXT = "__BRANDING__";
+#   const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
+
+#   // ===== One-insert per visit guards =====
+#   const SENT_KEY = "convai_sent_visit_id"; // stores the VISIT_ID that already submitted
+#   function hasSentForVisit(visitId){ try { return localStorage.getItem(SENT_KEY) === visitId; } catch(_) { return false; } }
+#   function markSentForVisit(visitId){ try { localStorage.setItem(SENT_KEY, visitId); } catch(_) {} }
+
+#   // ===== Cache (24h) =====
+#   const FORM_KEY = "convai_form_cache";
+#   const TTL_KEY  = "convai_form_submitted";
+#   const FORM_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+#   function saveFormCache(fields){
+#     try {
+#       const rec = { data: fields, ts: Date.now() };
+#       localStorage.setItem(FORM_KEY, JSON.stringify(rec));
+#       localStorage.setItem(TTL_KEY, String(Date.now() + FORM_TTL_MS));
+#     } catch(_) {}
+#   }
+#   function getFormCache(){
+#     try {
+#       const rec = JSON.parse(localStorage.getItem(FORM_KEY) || "null");
+#       if (!rec || !rec.data) return null;
+#       if (Date.now() - (rec.ts || 0) > FORM_TTL_MS) return null;
+#       return rec.data;
+#     } catch(_) { return null; }
+#   }
+#   function ttlActive(){
+#     const ttl = parseInt(localStorage.getItem(TTL_KEY) || "0");
+#     return Date.now() < ttl;
+#   }
+
+#   // ===== Visit & Conv correlation =====
+#   let VISIT_ID = (typeof crypto !== "undefined" && crypto.randomUUID)
+#     ? crypto.randomUUID()
+#     : (Date.now() + "_" + Math.random().toString(36).slice(2));
+#   try { localStorage.setItem("convai_visit_id", VISIT_ID); } catch(_) {}
+
+#   let CONV_ID = null;
+#   let _convIdResolve;
+#   const conversationIdReady = new Promise(res => (_convIdResolve = res));
+
+#   // Will POST cached visitor_log at most once per page load
+#   let __cachedLogSent = false;
+
+#   // Fire-and-forget sender (tries sendBeacon, falls back to fetch; never waits)
+#   function sendAsyncJSON(url, obj){
+#     try {
+#       const payload = JSON.stringify(obj);
+#       // Try beacon (works during navigation, hidden, etc.)
+#       const ok = navigator.sendBeacon && navigator.sendBeacon(url, new Blob([payload], {type:"application/json"}));
+#       if (ok) return;
+#       // Fallback: non-blocking fetch (no await)
+#       fetch(url, {
+#         method: "POST",
+#         headers: { "Content-Type": "application/json" },
+#         body: payload,
+#         keepalive: true
+#       }).catch(()=>{});
+#     } catch(_) {}
+#   }
+
+#   function sendCachedVisitorLog(reason){
+#     if (__cachedLogSent) return;
+#     if (hasSentForVisit(VISIT_ID)) return;  // already sent for this visit
+#     const cached = getFormCache();
+#     if (!cached) return;
+
+#     __cachedLogSent = true;         // per-page guard
+#     markSentForVisit(VISIT_ID);     // per-visit (prevents later duplicates)
+
+#     const payload = {
+#       event: "visitor_log",
+#       visit_id: VISIT_ID,
+#       agent_id: AGENT_ID,
+#       brand: BRAND,
+#       url: location.href,
+#       timestamp: new Date().toISOString(),
+#       name: cached.name || "",
+#       company: cached.company || "",
+#       email: cached.email || "",
+#       phone: cached.phone || "",
+#       conversation_id: CONV_ID || null
+#     };
+#     sendAsyncJSON(LOG_ENDPOINT, payload);
+#     console.log("[ConvAI] auto-logged cached form → sheet (", reason, ")");
+#   }
+
+#   function setConvIdOnce(cid){
+#     if (!cid || CONV_ID) return;
+#     CONV_ID = cid;
+#     try { _convIdResolve(CONV_ID); } catch(_) {}
+
+#     // 1) Update sheet with conversation_id (won't create extra visitor rows)
+#     sendAsyncJSON(LOG_ENDPOINT, {
+#       event: "conversation_id",
+#       visit_id: VISIT_ID,
+#       conversation_id: CONV_ID,
+#       agent_id: AGENT_ID,
+#       brand: BRAND,
+#       url: location.href,
+#       timestamp: new Date().toISOString()
+#     });
+
+#     // 2) If TTL path (skipped modal), log cached data once (unless we already did this visit)
+#     if (ttlActive() && !hasSentForVisit(VISIT_ID)) {
+#       sendCachedVisitorLog("conv_id_arrived");
+#     }
+
+#     // 3) End hooks + unload beacons
+#     setupCallEndHooks && setupCallEndHooks();
+#     setupUnloadBeacons && setupUnloadBeacons();
+#   }
+
+#   // Listen to messages that carry conversation_id
+#   window.addEventListener("message", (evt) => {
+#     try {
+#       const d = evt?.data;
+#       const cid =
+#         d?.conversation_initiation_metadata_event?.conversation_id ||
+#         d?.conversation_id;
+#       setConvIdOnce(cid);
+#     } catch(_) {}
+#   }, false);
+
+#   // Also sniff inbound WebSocket frames
+#   (function patchWebSocket(){
+#     const OriginalWS = window.WebSocket;
+#     if (!OriginalWS) return;
+#     function WrappedWS(url, protocols){
+#       const ws = protocols ? new OriginalWS(url, protocols) : new OriginalWS(url);
+#       ws.addEventListener("message", (ev) => {
+#         try {
+#           if (typeof ev.data !== "string") return;
+#           const d = JSON.parse(ev.data);
+#           const cid = d?.conversation_initiation_metadata_event?.conversation_id || d?.conversation_id;
+#           if (cid) setConvIdOnce(cid);
+#         } catch(_) {}
+#       });
+#       return ws;
+#     }
+#     WrappedWS.prototype = OriginalWS.prototype;
+#     Object.getOwnPropertyNames(OriginalWS).forEach(k => { try { WrappedWS[k] = OriginalWS[k]; } catch(_){} });
+#     window.WebSocket = WrappedWS;
+#   })();
+
+#   // ===== UI helpers =====
+#   function removeExtras(sr){
+#     if (!sr) return;
+#     try { ['span.opacity-30','a[href*="elevenlabs.io/conversational-ai"]'].forEach(sel => {
+#       sr.querySelectorAll(sel).forEach(el => el.remove());
+#     }); } catch(e){}
+#   }
+
+#   // ===== START button (modal gate) =====
+#   function hookStartButton(){
+#     const widget = document.querySelector("elevenlabs-convai");
+#     if (!widget) return false;
+#     const sr = widget.shadowRoot;
+#     if (!sr) return false;
+
+#     removeExtras(sr);
+
+#     const sels = [
+#       'button[title="Start a call"]',
+#       'button[aria-label="Start a call"]',
+#       'button[title*="Start"]',
+#       'button[aria-label*="Start"]'
+#     ];
+#     for (const sel of sels) {
+#       const btn = sr.querySelector(sel);
+#       if (btn && !btn._hooked) {
+#         btn._hooked = true;
+#         interceptStartClick(btn);
+#         return true;
+#       }
+#     }
+#     return false;
+#   }
+
+#   function interceptStartClick(btn){
+#     window.__last_call_btn = btn;
+#     btn.addEventListener("click", (e) => {
+#       // TTL path → auto-log once, no modal
+#       if (ttlActive() && getFormCache() && !hasSentForVisit(VISIT_ID)) {
+#         sendCachedVisitorLog("start_btn_ttl_active");
+#         return; // allow normal call start
+#       }
+#       if (btn._allowCall) { btn._allowCall = false; return; }
+#       e.preventDefault();
+#       e.stopImmediatePropagation();
+#       const modal = document.getElementById("convai-visitor-modal");
+#       if (modal) modal.style.display = "flex";
+#     }, true);
+#   }
+
+#   // ===== END button → optional client-side transcript trigger later =====
+#   function hookEndButton(){
+#     const widget = document.querySelector("elevenlabs-convai");
+#     if (!widget) return false;
+#     const sr = widget.shadowRoot;
+#     if (!sr) return false;
+
+#     let btn = sr.querySelector('button[aria-label="End"], button[title="End"], button[aria-label="End call"], button[title="End call"]');
+#     if (!btn) {
+#       const icon = sr.querySelector('slot[name="icon-phone-off"]');
+#       if (icon) btn = icon.closest('button');
+#     }
+#     if (!btn) {
+#       const allButtons = Array.from(sr.querySelectorAll('button'));
+#       btn = allButtons.find(b => (b.textContent || "").trim().toLowerCase() === "end");
+#     }
+#     if (!btn) return false;
+
+#     if (!btn.__endHooked) {
+#       btn.__endHooked = true;
+#       btn.addEventListener("click", () => {
+#         setTimeout(() => {
+#           if (!CONV_ID) return;
+#           sendAsyncJSON("https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated", {
+#             visit_id: VISIT_ID,
+#             conversation_id: CONV_ID,
+#             agent_id: AGENT_ID,
+#             brand: BRAND,
+#             url: location.href
+#           });
+#           console.log("[ConvAI] requested transcript (T+30s) for", CONV_ID);
+#         }, 30000);
+#       }, { capture: true });
+#     }
+#     return true;
+#   }
+
+#   function setupCallEndHooks(){
+#     hookEndButton();
+#     const widget = document.querySelector("elevenlabs-convai");
+#     const sr = widget && widget.shadowRoot;
+#     if (!sr) return;
+#     if (!window.__endBtnObserver){
+#       window.__endBtnObserver = new MutationObserver(() => { hookEndButton(); });
+#       window.__endBtnObserver.observe(sr, { childList: true, subtree: true });
+#     }
+#   }
+
+#   // ===== Unload beacons for transcript =====
+#   function setupUnloadBeacons(){
+#     function beacon(){
+#       if (!CONV_ID) return;
+#       sendAsyncJSON("https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated-beacon", {
+#         visit_id: VISIT_ID,
+#         conversation_id: CONV_ID,
+#         agent_id: AGENT_ID,
+#         brand: BRAND,
+#         url: location.href
+#       });
+#     }
+#     window.addEventListener("pagehide", beacon);
+#     document.addEventListener("visibilitychange", () => {
+#       if (document.visibilityState === "hidden") beacon();
+#     });
+#   }
+
+#   // ===== Visitor Modal =====
+#   function createVisitorModal(){
+#     if (document.getElementById("convai-visitor-modal")) return;
+
+#     const modal = document.createElement("div");
+#     modal.id = "convai-visitor-modal";
+#     modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;align-items:center;justify-content:center;";
+#     modal.innerHTML = `
+#       <div style="background:white;border-radius:8px;padding:20px;max-width:400px;width:90%;font-family:sans-serif;">
+#         <div style="text-align:right;"><button id="convai-close" style="font-size:18px;background:none;border:none;">×</button></div>
+#         <h3 style="margin-top:0;">Tell us about you</h3>
+#         <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
+#           <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+#           <input name="company" placeholder="Company name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+#           <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+#           <input name="phone" placeholder="Phone" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+#           <div style="display:flex;gap:10px;">
+#             <button type="submit" id="convai-submit" style="flex:1;padding:10px;background:#007bff;color:white;border:none;border-radius:4px;">Submit</button>
+#             <button type="button" id="convai-cancel" style="padding:10px;background:#eee;border:none;border-radius:4px;">Cancel</button>
+#           </div>
+#         </form>
+#       </div>
+#     `;
+#     document.body.appendChild(modal);
+
+#     try {
+#       const cached = getFormCache();
+#       if (cached) {
+#         modal.querySelector('input[name="name"]').value    = cached.name || "";
+#         modal.querySelector('input[name="company"]').value = cached.company || "";
+#         modal.querySelector('input[name="email"]').value   = cached.email || "";
+#         modal.querySelector('input[name="phone"]').value   = cached.phone || "";
+#       }
+#     } catch(_) {}
+
+#     modal.querySelector("#convai-close").onclick = () => modal.style.display = "none";
+#     modal.querySelector("#convai-cancel").onclick = () => modal.style.display = "none";
+
+#     const form = modal.querySelector("#convai-form");
+#     form.onsubmit = function(ev){
+#       ev.preventDefault();
+#       if (form.__submitting) return; // guard
+
+#       form.__submitting = true;
+#       const submitBtn = modal.querySelector("#convai-submit");
+#       const cancelBtn = modal.querySelector("#convai-cancel");
+#       const disable = (el, on)=>{ if(!el) return; el.disabled=on; el.style.opacity=on?"0.6":""; el.style.pointerEvents=on?"none":""; };
+
+#       disable(submitBtn, true);
+#       disable(cancelBtn, true);
+
+#       const fd = new FormData(form);
+#       const fields = Object.fromEntries(fd.entries()); // name, company, email, phone
+#       saveFormCache(fields);
+
+#       // Build payload and mark "sent for this visit" BEFORE sending to avoid any duplicate paths
+#       const payload = {
+#         event: "visitor_log",
+#         visit_id: VISIT_ID,
+#         agent_id: AGENT_ID,
+#         brand: BRAND,
+#         url: location.href,
+#         timestamp: new Date().toISOString(),
+#         conversation_id: CONV_ID || null,
+#         ...fields
+#       };
+#       markSentForVisit(VISIT_ID); // ensures no other pathway re-sends this visit
+#       __cachedLogSent = true;     // also mute the cached auto-logger for this page
+
+#       // Fire-and-forget send (don’t wait)
+#       sendAsyncJSON(LOG_ENDPOINT, payload);
+
+#       // Close UI immediately and start the call
+#       try { modal.style.display = "none"; } catch(_) {}
+#       try {
+#         if (window.__last_call_btn) {
+#           window.__last_call_btn._allowCall = true;
+#           window.__last_call_btn.click();
+#         }
+#       } catch(_) {}
+
+#       // Keep controls disabled; we’re done
+#     };
+#   }
+
+#   // ===== Inject widget & boot =====
+#   try {
+#     const tag = document.createElement("elevenlabs-convai");
+#     tag.setAttribute("agent-id", AGENT_ID);
+#     document.body.appendChild(tag);
+#   } catch (e) {}
+
+#   (function loadEmbed(){
+#     const s = document.createElement("script");
+#     s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
+#     s.async = true;
+#     s.onerror = function(){
+#       const fallback = document.createElement("script");
+#       fallback.src = "https://elevenlabs.io/convai-widget/index.js";
+#       fallback.async = true;
+#       document.body.appendChild(fallback);
+#     };
+#     document.body.appendChild(s);
+#   })();
+
+#   createVisitorModal();
+
+#   const obs = new MutationObserver(() => { try { if (hookStartButton()) obs.disconnect(); } catch(e){} });
+#   obs.observe(document, { childList: true, subtree: true });
+#   let tries = 0;
+#   const poll = setInterval(() => {
+#     const ok = hookStartButton();
+#     if (ok || ++tries > 50) clearInterval(poll);
+#   }, 300);
+
+# })();
+#     """
+#     return (js
+#             .replace("__AGENT_ID__", agent_id)
+#             .replace("__BRANDING__", branding)
+#             .replace("__BRAND__", brand))
 
 
 def serve_widget_js_nofrom(agent_id, branding="Powered by Voizee", brand=""):
