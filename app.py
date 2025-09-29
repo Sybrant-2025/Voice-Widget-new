@@ -1751,8 +1751,7 @@ def demo_dhilaktest():
         
         <h2>Test For Voizee Assistant Demo</h2>
         
-            /* <script src="https://voizee.sybrant.com/dhilaktest?agent=agent_01jx28rjk1ftfvf5c6enxm70te"></script> */
-			<script src="https://voizee.sybrant.com/dhilaktest?agent=agent_6201k6a6p685epw9d9jrx8atqb4a"></script>
+            <script src="https://voizee.sybrant.com/dhilaktest?agent=agent_6201k6a6p685epw9d9jrx8atqb4a"></script>
 			
 			
         
