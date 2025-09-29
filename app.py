@@ -34,7 +34,8 @@ BRAND_TO_WEBHOOK = {
     "cfobridge":   "https://script.google.com/macros/s/AKfycbxltOr9C6T7Nw2DOKanBjiKVYrma9-EODtoReLUCNTp-3dANl2s0mS3oQACIp_P--Bb/exec",
     "voiceassistant": "https://script.google.com/macros/s/AKfycbyde5ank1ylpdAM3Kn28ZAULySme300V__VjOy7ESLHd0NX-gtoQAvMkmbt0bv7QJ01LQ/exec",
 	"sybrant": "https://script.google.com/macros/s/AKfycbzW-OSCQ1bJA17bqac6WlsdXs3pVrUvPlFhhbIud_uZwuQugD8HoHRxG3NWp-J6e0wP/exec",
-    "dhilaktest": "https://script.google.com/macros/s/AKfycby0hb5wDlSqtDwLiTWKULqkuZzVmtpJXRgof9ncF5adfIV_y3hL7QmDw7tliYtvF_fRGw/exec",
+    "dhilaktest_old": "https://script.google.com/macros/s/AKfycby0hb5wDlSqtDwLiTWKULqkuZzVmtpJXRgof9ncF5adfIV_y3hL7QmDw7tliYtvF_fRGw/exec",
+	"dhilaktest": "https://script.google.com/macros/s/AKfycbxE47mprrwg_3ewmlz3vYoyDf4GFAsfCYZE0T0_b3gVhqtcYOKRZ60_ee8_8-7o8AhewA/exec",
 	"kopiko": "https://script.google.com/macros/s/AKfycbzip7wk995Q8BfktpVNZp6uJREQ8CqydyTVtxlTG0NucPugFOECa6XBpqo3Xv6pAkgM/exec",
 	"demo": "https://script.google.com/macros/s/AKfycbx5P0eiH1v7SE1Uoy1R_V4u-ab7dOqJJO7CpLFxgjkH7C8gMXwICzsaGTl3AWG2KU_Y0g/exec",
 }
@@ -641,6 +642,8 @@ def serve_widget_js_updated(agent_id, branding="Powered by Voizee", brand=""):
 
 
 # test version  new
+
+# test version  new
 def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""): 
     js = r"""
 (function(){
@@ -783,6 +786,53 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     window.WebSocket = WrappedWS;
   })();
 
+  function removeExtras(sr){
+    if (!sr) return;
+    try { ['span.opacity-30','a[href*="elevenlabs.io/conversational-ai"]'].forEach(sel => {
+      sr.querySelectorAll(sel).forEach(el => el.remove());
+    }); } catch(e){}
+  }
+
+  function hookStartButton(){
+    const widget = document.querySelector("elevenlabs-convai");
+    if (!widget) return false;
+    const sr = widget.shadowRoot;
+    if (!sr) return false;
+
+    removeExtras(sr);
+
+    const sels = [
+      'button[title="Start a call"]',
+      'button[aria-label="Start a call"]',
+      'button[title*="Start"]',
+      'button[aria-label*="Start"]'
+    ];
+    for (const sel of sels) {
+      const btn = sr.querySelector(sel);
+      if (btn && !btn._hooked) {
+        btn._hooked = true;
+        interceptStartClick(btn);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function interceptStartClick(btn){
+    window.__last_call_btn = btn;
+    btn.addEventListener("click", (e) => {
+      if (ttlActive() && getFormCache()) {
+        sendCachedVisitorLog("start_btn_ttl_active");
+        return;
+      }
+      if (btn._allowCall) { btn._allowCall = false; return; }
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const modal = document.getElementById("convai-visitor-modal");
+      if (modal) modal.style.display = "flex";
+    }, true);
+  }
+
   function hookEndButton(){
     const widget = document.querySelector("elevenlabs-convai");
     if (!widget) return false;
@@ -853,6 +903,127 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") beacon();
     });
+  }
+
+  function createVisitorModal(){
+    if (document.getElementById("convai-visitor-modal")) return;
+
+    const modal = document.createElement("div");
+    modal.id = "convai-visitor-modal";
+    modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;align-items:center;justify-content:center;";
+    modal.innerHTML = `
+      <div style="background:white;border-radius:8px;padding:20px;max-width:400px;width:90%;font-family:sans-serif;">
+        <div style="text-align:right;"><button id="convai-close" style="font-size:18px;background:none;border:none;">×</button></div>
+        <h3 style="margin-top:0;">Tell us about you</h3>
+        <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
+          <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <input name="company" placeholder="Company name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <input name="phone" placeholder="Phone" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <div style="display:flex;gap:10px;">
+            <button type="submit" style="flex:1;padding:10px;background:#007bff;color:white;border:none;border-radius:4px;">Submit</button>
+            <button type="button" id="convai-cancel" style="padding:10px;background:#eee;border:none;border-radius:4px;">Cancel</button>
+          </div>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    try {
+      const cached = getFormCache();
+      if (cached) {
+        modal.querySelector('input[name="name"]').value    = cached.name || "";
+        modal.querySelector('input[name="company"]').value = cached.company || "";
+        modal.querySelector('input[name="email"]').value   = cached.email || "";
+        modal.querySelector('input[name="phone"]').value   = cached.phone || "";
+      }
+    } catch(_) {}
+
+    modal.querySelector("#convai-close").onclick = () => modal.style.display = "none";
+    modal.querySelector("#convai-cancel").onclick = () => modal.style.display = "none";
+
+    const form = modal.querySelector("#convai-form");
+    form.onsubmit = async function(ev){
+      ev.preventDefault();
+      if (form.__submitting) return; // double-click guard
+      form.__submitting = true;
+
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const cancelBtn = modal.querySelector("#convai-cancel");
+      const originalText = submitBtn.innerText;
+
+      const setDisabled = (el, on) => {
+        if (!el) return;
+        el.disabled = on;
+        if (on) {
+          el.style.opacity = "0.6";
+          el.style.cursor = "not-allowed";
+          el.style.pointerEvents = "none";
+        } else {
+          el.style.opacity = "";
+          el.style.cursor = "";
+          el.style.pointerEvents = "";
+        }
+      };
+
+      setDisabled(submitBtn, true);
+      setDisabled(cancelBtn, true);
+      submitBtn.innerText = "Submitting…";
+
+      const fd = new FormData(form);
+      const fields = Object.fromEntries(fd.entries());
+
+      saveFormCache(fields);
+
+      const data = {
+        event: "visitor_log",
+        visit_id: VISIT_ID,
+        agent_id: AGENT_ID,
+        brand: BRAND,
+        url: location.href,
+        timestamp: new Date().toISOString(),
+        conversation_id: CONV_ID || null,
+        ...fields
+      };
+
+      try {
+        await fetchWithRetry(
+          LOG_ENDPOINT,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+          },
+          2,    // retries
+          800,  // backoff
+          10000 // timeout per try
+        );
+
+        // success
+        submitBtn.innerText = "Submitted ✓";
+        modal.style.display = "none";
+        try {
+          if (window.__last_call_btn) {
+            window.__last_call_btn._allowCall = true;
+            window.__last_call_btn.click();
+          }
+        } catch(_) {}
+
+        // keep submit disabled on success
+      } catch(err){
+        // failure after retries
+        console.warn("Logging failed:", err);
+        submitBtn.innerText = "Retry submit";
+        setDisabled(submitBtn, false);
+        setDisabled(cancelBtn, false);
+        form.__submitting = false;
+        return; // keep modal open for retry
+      }
+
+      form.__submitting = false;
+      // leave submit disabled after success; re-enable cancel (optional)
+      setDisabled(cancelBtn, false);
+    }
   }
 
   // ✅ MISSING IN YOUR v2: add the widget & embed loader
