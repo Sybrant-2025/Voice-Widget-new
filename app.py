@@ -644,7 +644,7 @@ def serve_widget_js_updated(agent_id, branding="Powered by Voizee", brand=""):
 # test version  new
 
 # test version  new
-def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""): 
+def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     js = r"""
 (function(){
   const AGENT_ID = "__AGENT_ID__";
@@ -652,7 +652,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   const BRANDING_TEXT = "__BRANDING__";
   const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
 
-  // --- fetch with retries (for submit) ---
+  // --- fetch with retries ---
   async function fetchWithRetry(url, opts, retries = 2, backoffMs = 800, timeoutMs = 10000) {
     const attempt = (n) =>
       new Promise((resolve, reject) => {
@@ -674,10 +674,10 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     return attempt(0);
   }
 
-  // ===== Cache (24h) =====
+  // ===== Cache (5m for testing) =====
   const FORM_KEY = "convai_form_cache";
   const TTL_KEY  = "convai_form_submitted";
-  const FORM_TTL_MS = 5 * 60 * 1000; // 24 hours
+  const FORM_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
   function saveFormCache(fields){
     try {
@@ -709,7 +709,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   let _convIdResolve;
   const conversationIdReady = new Promise(res => (_convIdResolve = res));
 
-  // Will POST cached visitor_log once per page load
+  // ---- Cached log
   let __cachedLogSent = false;
   function sendCachedVisitorLog(reason){
     if (__cachedLogSent) return;
@@ -798,9 +798,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     if (!widget) return false;
     const sr = widget.shadowRoot;
     if (!sr) return false;
-
     removeExtras(sr);
-
     const sels = [
       'button[title="Start a call"]',
       'button[aria-label="Start a call"]',
@@ -862,7 +860,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
               agent_id: AGENT_ID,
               brand: BRAND,
               url: location.href,
-              include_duration: true
+              include_duration: true   // ✅ ensure duration is logged
             }),
             keepalive: true
           }).catch(()=>{});
@@ -905,9 +903,9 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     });
   }
 
+  // ✅ Create visitor modal
   function createVisitorModal(){
     if (document.getElementById("convai-visitor-modal")) return;
-
     const modal = document.createElement("div");
     modal.id = "convai-visitor-modal";
     modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;align-items:center;justify-content:center;";
@@ -928,7 +926,6 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       </div>
     `;
     document.body.appendChild(modal);
-
     try {
       const cached = getFormCache();
       if (cached) {
@@ -938,43 +935,29 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
         modal.querySelector('input[name="phone"]').value   = cached.phone || "";
       }
     } catch(_) {}
-
     modal.querySelector("#convai-close").onclick = () => modal.style.display = "none";
     modal.querySelector("#convai-cancel").onclick = () => modal.style.display = "none";
 
     const form = modal.querySelector("#convai-form");
     form.onsubmit = async function(ev){
       ev.preventDefault();
-      if (form.__submitting) return; // double-click guard
+      if (form.__submitting) return;
       form.__submitting = true;
-
       const submitBtn = form.querySelector('button[type="submit"]');
       const cancelBtn = modal.querySelector("#convai-cancel");
-      const originalText = submitBtn.innerText;
-
       const setDisabled = (el, on) => {
         if (!el) return;
         el.disabled = on;
-        if (on) {
-          el.style.opacity = "0.6";
-          el.style.cursor = "not-allowed";
-          el.style.pointerEvents = "none";
-        } else {
-          el.style.opacity = "";
-          el.style.cursor = "";
-          el.style.pointerEvents = "";
-        }
+        el.style.opacity = on ? "0.6" : "";
+        el.style.cursor = on ? "not-allowed" : "";
+        el.style.pointerEvents = on ? "none" : "";
       };
-
       setDisabled(submitBtn, true);
       setDisabled(cancelBtn, true);
       submitBtn.innerText = "Submitting…";
-
       const fd = new FormData(form);
       const fields = Object.fromEntries(fd.entries());
-
       saveFormCache(fields);
-
       const data = {
         event: "visitor_log",
         visit_id: VISIT_ID,
@@ -985,21 +968,12 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
         conversation_id: CONV_ID || null,
         ...fields
       };
-
       try {
-        await fetchWithRetry(
-          LOG_ENDPOINT,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data)
-          },
-          2,    // retries
-          800,  // backoff
-          10000 // timeout per try
-        );
-
-        // success
+        await fetchWithRetry(LOG_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
         submitBtn.innerText = "Submitted ✓";
         modal.style.display = "none";
         try {
@@ -1008,30 +982,25 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
             window.__last_call_btn.click();
           }
         } catch(_) {}
-
-        // keep submit disabled on success
       } catch(err){
-        // failure after retries
         console.warn("Logging failed:", err);
         submitBtn.innerText = "Retry submit";
         setDisabled(submitBtn, false);
         setDisabled(cancelBtn, false);
         form.__submitting = false;
-        return; // keep modal open for retry
+        return;
       }
-
       form.__submitting = false;
-      // leave submit disabled after success; re-enable cancel (optional)
       setDisabled(cancelBtn, false);
-    }
+    };
   }
 
-  // ✅ MISSING IN YOUR v2: add the widget & embed loader
+  // ✅ Ensure widget loads
   try {
     const tag = document.createElement("elevenlabs-convai");
     tag.setAttribute("agent-id", AGENT_ID);
     document.body.appendChild(tag);
-  } catch (e) {}
+  } catch(e) {}
 
   (function loadEmbed(){
     const s = document.createElement("script");
@@ -1046,13 +1015,23 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     document.body.appendChild(s);
   })();
 
+  createVisitorModal();
+
+  // ✅ Polling + observer for Start button
+  const obs = new MutationObserver(() => { try { if (hookStartButton()) obs.disconnect(); } catch(e){} });
+  obs.observe(document, { childList: true, subtree: true });
+  let tries = 0;
+  const poll = setInterval(() => {
+    const ok = hookStartButton();
+    if (ok || ++tries > 50) clearInterval(poll);
+  }, 300);
+
 })();
     """
     return (js
             .replace("__AGENT_ID__", agent_id)
             .replace("__BRANDING__", branding)
             .replace("__BRAND__", brand))
-
 
 
 # def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
