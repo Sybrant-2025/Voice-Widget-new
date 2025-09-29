@@ -639,7 +639,7 @@ def serve_widget_js_updated(agent_id, branding="Powered by Voizee", brand=""):
             .replace("__BRANDING__", branding)
             .replace("__BRAND__", brand))
 
-def serve_widget_js_updated(agent_id, branding="Powered by Voizee", brand=""):
+def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     js = r"""
 (function(){
   const AGENT_ID = "__AGENT_ID__";
