@@ -516,6 +516,7 @@ def serve_widget_js_updated(agent_id, branding="Powered by Voizee", brand=""):
 
       const submitBtn = form.querySelector('button[type="submit"]');
       const cancelBtn = modal.querySelector("#convai-cancel");
+      const originalText = submitBtn.innerText;
 
       const setDisabled = (el, on) => {
         if (!el) return;
@@ -531,8 +532,8 @@ def serve_widget_js_updated(agent_id, branding="Powered by Voizee", brand=""):
         }
       };
 
-      setDisabled(submitBtn, True)
-      setDisabled(cancelBtn, True)
+      setDisabled(submitBtn, true);
+      setDisabled(cancelBtn, true);
       submitBtn.innerText = "Submitting…";
 
       const fd = new FormData(form);
@@ -626,6 +627,7 @@ def serve_widget_js_updated(agent_id, branding="Powered by Voizee", brand=""):
             .replace("__AGENT_ID__", agent_id)
             .replace("__BRANDING__", branding)
             .replace("__BRAND__", brand))
+
 
 # test version  new
 def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
