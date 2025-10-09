@@ -54,7 +54,7 @@ BRAND_DISPLAY_NAMES = {
     "kopiko": "Kopiko",
     "demo": "Demo",
 	"leaserush": "Lease Rush",
-	"newgen": "Newgen Digital"
+	"newgendigital": "Newgen Digital"
 }
 
 DRY_RUN_SHEETS = os.getenv("DRY_RUN_SHEETS", "0") == "1"
