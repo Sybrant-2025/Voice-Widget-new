@@ -3645,7 +3645,7 @@ def demo_newgendigital():
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Newgen Digital Voizee Assistant Demo</title>
+  <title>Newgen Digitalworks Voizee Assistant Demo</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="https://newgendigital.com/img/home/ndw-logo.svg">
@@ -3841,7 +3841,7 @@ def demo_newgendigital():
     </header>
 
     <div class="title-section">
-      <h1>Newgen Digital Voizee Assistant Demo</h1>
+      <h1>Newgen Digitalworks Voizee Assistant Demo</h1>
       <p>Click <b>"Start a call"</b> and ask your questions.</p>
       <p>We will customize this for your products / services.</p>
     </div>
