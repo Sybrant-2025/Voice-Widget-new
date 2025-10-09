@@ -37,6 +37,7 @@ BRAND_TO_WEBHOOK = {
     "kopiko": "https://script.google.com/macros/s/AKfycbzip7wk995Q8BfktpVNZp6uJREQ8CqydyTVtxlTG0NucPugFOECa6XBpqo3Xv6pAkgM/exec",
     "leaserush" :"https://script.google.com/a/macros/sybrantdata.com/s/AKfycbxt20fVA71fAuePCWGzoRB-KRhjmpoogQF62Yr_qmFlqAP0wUQBkeNLJzlr9CrosIo9/exec",
 	"demo": "https://script.google.com/macros/s/AKfycbx5P0eiH1v7SE1Uoy1R_V4u-ab7dOqJJO7CpLFxgjkH7C8gMXwICzsaGTl3AWG2KU_Y0g/exec",
+	"newgendigital": "https://script.google.com/macros/s/AKfycbyKHdnaO1IFWQSkpJiV-_dIZ6PU9GC-oRNwb8JjW6RM-DVVCcwScy3qTrG0ltRyH5Dc/exec",
 }
 
 # pretty labels for sheet display
@@ -52,7 +53,8 @@ BRAND_DISPLAY_NAMES = {
     "dhilaktest": "Dhilak Test",
     "kopiko": "Kopiko",
     "demo": "Demo",
-	"leaserush": "Lease Rush"
+	"leaserush": "Lease Rush",
+	"newgen": "Newgen Digital"
 }
 
 DRY_RUN_SHEETS = os.getenv("DRY_RUN_SHEETS", "0") == "1"
@@ -1107,6 +1109,13 @@ def serve_ctobridge_widget():
 def serve_demo_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
     js = serve_widget_js_updated(agent_id, branding="Powered by Sybrant", brand="demo")
+    return Response(js, mimetype='application/javascript')
+
+@app.route('/newgendigital')
+def serve_newgendigital_widget():
+    agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
+    # fixed: use existing function
+    js = serve_widget_js_updated(agent_id, branding="Powered by Newgen", brand="newgendigital")
     return Response(js, mimetype='application/javascript')
 
 ########updated method
@@ -3615,6 +3624,233 @@ def demo_kopiko():
         <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
       </div>
       <script src="https://voizee.sybrant.com/kopiko?agent=agent_8601k4mej4mpesm895yv6zhey96y"></script>
+    </div>
+
+    <footer>
+      © 2025 Sybrant Technologies · Powered by <a href="https://sybrant.com">Sybrant</a>
+    </footer>
+  </div>
+
+</body>
+</html>
+    """
+    return render_template_string(html)
+
+
+@app.route('/demo/newgendigital')
+def demo_newgendigital():
+    html = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Newgen Digital Voizee Assistant Demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="https://newgendigital.com/img/home/ndw-logo.svg">
+
+  <style>
+    :root {
+      --primary: linear-gradient(135deg, #3b82f6, #6366f1);
+      --bg-dark: #0f172a;
+      --glass-bg: rgba(255, 255, 255, 0.1);
+      --glass-border: rgba(255, 255, 255, 0.2);
+      --text-light: #e2e8f0;
+      --text-muted: #94a3b8;
+    }
+
+    body {
+      font-family: "Inter", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg-dark);
+      color: var(--text-light);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Animated background orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.6;
+      animation: float 20s infinite alternate ease-in-out;
+      z-index: 0;
+    }
+    .orb.blue { background: #3b82f6; width: 400px; height: 400px; top: 10%; left: -150px; }
+    .orb.indigo { background: #6366f1; width: 500px; height: 500px; bottom: -100px; right: -200px; }
+
+    @keyframes float {
+      from { transform: translateY(0) translateX(0); }
+      to { transform: translateY(-40px) translateX(30px); }
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      text-align: center;
+      z-index: 1;
+      max-width: 900px;
+      width: 100%;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
+
+    .logo-box {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 16px 30px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .logo-box::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(120deg, transparent, rgba(255,255,255,0.3), transparent);
+      transform: rotate(25deg);
+      animation: shine 4s infinite;
+    }
+    @keyframes shine {
+      from { transform: rotate(25deg) translateX(-100%); }
+      to { transform: rotate(25deg) translateX(100%); }
+    }
+    .logo-box img {
+      height: 60px;
+      display: block;
+      position: relative;
+      z-index: 1;
+    }
+
+    .title-section {
+      margin: 20px 0 30px;
+    }
+    .title-section h1 {
+      font-size: 40px;
+      font-weight: 700;
+      background: var(--primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin: 0;
+    }
+    .title-section h2 {
+      font-size: 20px;
+      font-weight: 500;
+      margin: 10px 0;
+      color: var(--text-muted);
+    }
+    .title-section p {
+      font-size: 15px;
+      margin: 6px 0;
+      color: #cbd5e1;
+    }
+
+    /* Assistant Container */
+    .assistant-container {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      padding: 30px;
+      max-width: 720px;
+      width: 95%;
+      text-align: center;
+      margin-bottom: 40px;
+      transition: transform 0.4s ease, box-shadow 0.4s ease;
+    }
+    .assistant-container:hover {
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.4);
+    }
+
+    .robot-image {
+      margin: 20px 0 40px;
+    }
+    .robot-image img {
+      max-width: 280px;
+      width: 100%;
+      animation: pulse 6s infinite ease-in-out;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.9; }
+    }
+
+    /* Footer */
+    footer {
+      margin-top: auto;
+      padding: 20px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+      z-index: 1;
+    }
+    footer a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Hide widget branding */
+    [class*="_status_"] {
+      display: none !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .title-section h1 { font-size: 28px; }
+      .logo-box img { height: 50px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Orbs -->
+  <div class="orb blue"></div>
+  <div class="orb indigo"></div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header>
+      <div class="logo-box">
+        <img src="https://newgendigital.com/img/home/ndw-logo.svg" alt="Logo" />
+      </div>
+    </header>
+
+    <div class="title-section">
+      <h1>Newgen Digital Voizee Assistant Demo</h1>
+      <p>Click <b>"Start a call"</b> and ask your questions.</p>
+      <p>We will customize this for your products / services.</p>
+    </div>
+
+    <div class="assistant-container">
+      <div class="robot-image">
+        <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
+      </div>
+      <script src="https://voizee.sybrant.com/newgendigital?agent=agent_0901k71z2tc9fmwszw361tewbwtn"></script>
     </div>
 
     <footer>
