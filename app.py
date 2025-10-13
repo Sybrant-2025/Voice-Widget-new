@@ -4273,7 +4273,7 @@ def demo_newgendigital():
     return render_template_string(html)
 
 @app.route('/demo/newcfobridge')
-def demo_cfobridge():
+def demo_newcfobridge():
     return render_template('cfobridge.html')
 
 # --- Health Check & Root ---
