@@ -631,7 +631,327 @@ def serve_widget_js_updated(agent_id, branding="Powered by Voizee", brand=""):
             .replace("__BRAND__", brand))
 
 
-# test version  new
+# test version  widget
+
+def serve_widget_js_update_new(agent_id, branding="Powered by Voizee", brand=""):
+    js = r"""
+(function(){
+  const AGENT_ID = "__AGENT_ID__";
+  const BRAND = "__BRAND__";
+  const BRANDING_TEXT = "__BRANDING__";
+  const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
+
+  // --- fetch with retries (for submit) ---
+  async function fetchWithRetry(url, opts, retries = 2, backoffMs = 800, timeoutMs = 10000) {
+    const attempt = (n) =>
+      new Promise((resolve, reject) => {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), timeoutMs);
+        fetch(url, { ...opts, signal: ctrl.signal })
+          .then((r) => {
+            clearTimeout(t);
+            if (r.ok) return resolve(r);
+            if (n < retries) return setTimeout(() => resolve(attempt(n + 1)), backoffMs * (n + 1));
+            reject(new Error(`HTTP ${r.status}`));
+          })
+          .catch((e) => {
+            clearTimeout(t);
+            if (n < retries) return setTimeout(() => resolve(attempt(n + 1)), backoffMs * (n + 1));
+            reject(e);
+          });
+      });
+    return attempt(0);
+  }
+
+  // ===== Cache (24h) =====
+  const FORM_KEY = "convai_form_cache";
+  const TTL_KEY  = "convai_form_submitted";
+  const FORM_TTL_MS = 24 * 60 * 60 * 1000;
+
+  function saveFormCache(fields){
+    try {
+      const rec = { data: fields, ts: Date.now() };
+      localStorage.setItem(FORM_KEY, JSON.stringify(rec));
+      localStorage.setItem(TTL_KEY, String(Date.now() + FORM_TTL_MS));
+    } catch(_) {}
+  }
+  function getFormCache(){
+    try {
+      const rec = JSON.parse(localStorage.getItem(FORM_KEY) || "null");
+      if (!rec || !rec.data) return null;
+      if (Date.now() - (rec.ts || 0) > FORM_TTL_MS) return null;
+      return rec.data;
+    } catch(_) { return null; }
+  }
+  function ttlActive(){
+    const ttl = parseInt(localStorage.getItem(TTL_KEY) || "0");
+    return Date.now() < ttl;
+  }
+
+  // ===== Visit & Conv correlation =====
+  let VISIT_ID = (typeof crypto !== "undefined" && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : (Date.now() + "_" + Math.random().toString(36).slice(2));
+  try { localStorage.setItem("convai_visit_id", VISIT_ID); } catch(_) {}
+
+  let CONV_ID = null;
+  let _convIdResolve;
+  const conversationIdReady = new Promise(res => (_convIdResolve = res));
+
+  let __cachedLogSent = false;
+  function sendCachedVisitorLog(reason){
+    if (__cachedLogSent) return;
+    const cached = getFormCache();
+    if (!cached) return;
+    __cachedLogSent = true;
+    const payload = {
+      event: "visitor_log",
+      visit_id: VISIT_ID,
+      agent_id: AGENT_ID,
+      brand: BRAND,
+      url: location.href,
+      timestamp: new Date().toISOString(),
+      name: cached.name || "",
+      company: cached.company || "",
+      email: cached.email || "",
+      phone: cached.phone || "",
+      conversation_id: CONV_ID || null
+    };
+    fetch(LOG_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).catch(()=>{});
+    console.log("[ConvAI] auto-logged cached form → sheet (", reason, ")");
+  }
+
+  function setConvIdOnce(cid){
+    if (!cid || CONV_ID) return;
+    CONV_ID = cid;
+    try { _convIdResolve(CONV_ID); } catch(_) {}
+    fetch(LOG_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "conversation_id",
+        visit_id: VISIT_ID,
+        conversation_id: CONV_ID,
+        agent_id: AGENT_ID,
+        brand: BRAND,
+        url: location.href,
+        timestamp: new Date().toISOString()
+      })
+    }).catch(()=>{});
+    if (ttlActive()) sendCachedVisitorLog("conv_id_arrived");
+    setupCallEndHooks && setupCallEndHooks();
+    setupUnloadBeacons && setupUnloadBeacons();
+  }
+
+  window.addEventListener("message", (evt) => {
+    try {
+      const d = evt?.data;
+      const cid =
+        d?.conversation_initiation_metadata_event?.conversation_id ||
+        d?.conversation_id;
+      setConvIdOnce(cid);
+    } catch(_) {}
+  }, false);
+
+  (function patchWebSocket(){
+    const OriginalWS = window.WebSocket;
+    if (!OriginalWS) return;
+    function WrappedWS(url, protocols){
+      const ws = protocols ? new OriginalWS(url, protocols) : new OriginalWS(url);
+      ws.addEventListener("message", (ev) => {
+        try {
+          if (typeof ev.data !== "string") return;
+          const d = JSON.parse(ev.data);
+          const cid = d?.conversation_initiation_metadata_event?.conversation_id || d?.conversation_id;
+          if (cid) setConvIdOnce(cid);
+        } catch(_) {}
+      });
+      return ws;
+    }
+    WrappedWS.prototype = OriginalWS.prototype;
+    Object.getOwnPropertyNames(OriginalWS).forEach(k => { try { WrappedWS[k] = OriginalWS[k]; } catch(_){} });
+    window.WebSocket = WrappedWS;
+  })();
+
+  // --- Replace default widget layout ---
+  function replaceWidgetUI(){
+    const widget = document.querySelector("elevenlabs-convai");
+    if (!widget) return false;
+    const sr = widget.shadowRoot;
+    if (!sr) return false;
+    const oldCard = sr.querySelector('div.flex.flex-col.p-2.rounded-sheet');
+    if (oldCard && !oldCard.__customized) {
+      oldCard.__customized = true;
+      oldCard.outerHTML = `
+        <div class="voizee-card" 
+             style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+                    background:white;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,0.15);
+                    overflow:hidden;width:220px;font-family:sans-serif;">
+          <div class="voizee-avatar" 
+               style="width:220px;height:240px;
+                      background-image:url('https://sybrant.com/wp-content/uploads/2025/10/png-d-cartoon-customer-service-agent-support-help-tech-virtual-assistant-against-transparent-background-384928869-removebg-preview.png');
+                      background-size:cover;background-position:center;">
+          </div>
+          <button type="button" aria-label="Start a call"
+                  style="width:90%;margin:10px 0 15px 0;padding:10px 0;background:#000;
+                         color:white;font-size:14px;border:none;border-radius:8px;cursor:pointer;
+                         display:flex;align-items:center;justify-content:center;gap:8px;">
+            <svg height="1em" width="1em" viewBox="0 0 18 18" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3.7489 2.25C2.93286 2.25 2.21942 2.92142 2.27338 3.7963C2.6686 10.2041 7.79483 15.3303 14.2026 15.7255C15.0775 15.7795 15.7489 15.066 15.7489 14.25V11.958C15.7489 11.2956 15.3144 10.7116 14.6799 10.5213L12.6435 9.91035C12.1149 9.75179 11.542 9.89623 11.1518 10.2864L10.5901 10.8482C9.15291 10.0389 7.95998 8.84599 7.15074 7.40881L7.71246 6.84709C8.10266 6.45689 8.24711 5.88396 8.08854 5.35541L7.47761 3.31898C7.28727 2.6845 6.70329 2.25 6.04087 2.25H3.7489Z"></path>
+            </svg>
+            <span>Start a call</span>
+          </button>
+        </div>`;
+      return true;
+    }
+    return false;
+  }
+
+  // Observe DOM until ElevenLabs widget appears
+  const observer = new MutationObserver(() => {
+    try { if (replaceWidgetUI()) observer.disconnect(); } catch(_) {}
+  });
+  observer.observe(document, { childList: true, subtree: true });
+
+  // Fallback polling
+  let tries = 0;
+  const poll = setInterval(() => {
+    const ok = replaceWidgetUI();
+    if (ok || ++tries > 50) clearInterval(poll);
+  }, 400);
+
+  // --- Core visitor modal logic ---
+  function createVisitorModal(){
+    if (document.getElementById("convai-visitor-modal")) return;
+    const modal = document.createElement("div");
+    modal.id = "convai-visitor-modal";
+    modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;align-items:center;justify-content:center;";
+    modal.innerHTML = `
+      <div style="background:white;border-radius:8px;padding:20px;max-width:400px;width:90%;font-family:sans-serif;">
+        <div style="text-align:right;"><button id="convai-close" style="font-size:18px;background:none;border:none;">×</button></div>
+        <h3 style="margin-top:0;">Tell us about you</h3>
+        <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
+          <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <input name="company" placeholder="Company name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <input name="phone" placeholder="Phone" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <div style="display:flex;gap:10px;">
+            <button type="submit" style="flex:1;padding:10px;background:#007bff;color:white;border:none;border-radius:4px;">Submit</button>
+            <button type="button" id="convai-cancel" style="padding:10px;background:#eee;border:none;border-radius:4px;">Cancel</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(modal);
+
+    try {
+      const cached = getFormCache();
+      if (cached) {
+        modal.querySelector('input[name="name"]').value = cached.name || "";
+        modal.querySelector('input[name="company"]').value = cached.company || "";
+        modal.querySelector('input[name="email"]').value = cached.email || "";
+        modal.querySelector('input[name="phone"]').value = cached.phone || "";
+      }
+    } catch(_) {}
+
+    modal.querySelector("#convai-close").onclick = () => modal.style.display = "none";
+    modal.querySelector("#convai-cancel").onclick = () => modal.style.display = "none";
+
+    const form = modal.querySelector("#convai-form");
+    form.onsubmit = async function(ev){
+      ev.preventDefault();
+      if (form.__submitting) return;
+      form.__submitting = true;
+
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const cancelBtn = modal.querySelector("#convai-cancel");
+
+      const setDisabled = (el, on) => {
+        if (!el) return;
+        el.disabled = on;
+        el.style.opacity = on ? "0.6" : "";
+        el.style.cursor = on ? "not-allowed" : "";
+        el.style.pointerEvents = on ? "none" : "";
+      };
+
+      setDisabled(submitBtn, true);
+      setDisabled(cancelBtn, true);
+      submitBtn.innerText = "Submitting…";
+
+      const fd = new FormData(form);
+      const fields = Object.fromEntries(fd.entries());
+      saveFormCache(fields);
+
+      const data = {
+        event: "visitor_log",
+        visit_id: VISIT_ID,
+        agent_id: AGENT_ID,
+        brand: BRAND,
+        url: location.href,
+        timestamp: new Date().toISOString(),
+        conversation_id: CONV_ID || null,
+        ...fields
+      };
+
+      try {
+        await fetchWithRetry(LOG_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+        submitBtn.innerText = "Submitted ✓";
+        modal.style.display = "none";
+        try {
+          if (window.__last_call_btn) {
+            window.__last_call_btn._allowCall = true;
+            window.__last_call_btn.click();
+          }
+        } catch(_) {}
+      } catch(err){
+        console.warn("Logging failed:", err);
+        submitBtn.innerText = "Retry submit";
+        setDisabled(submitBtn, false);
+        setDisabled(cancelBtn, false);
+        form.__submitting = false;
+        return;
+      }
+      form.__submitting = false;
+      setDisabled(cancelBtn, false);
+    };
+  }
+
+  try {
+    const tag = document.createElement("elevenlabs-convai");
+    tag.setAttribute("agent-id", AGENT_ID);
+    document.body.appendChild(tag);
+  } catch(e){}
+
+  (function loadEmbed(){
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
+    s.async = true;
+    s.onerror = function(){
+      const fallback = document.createElement("script");
+      fallback.src = "https://elevenlabs.io/convai-widget/index.js";
+      fallback.async = true;
+      document.body.appendChild(fallback);
+    };
+    document.body.appendChild(s);
+  })();
+
+  createVisitorModal();
+
+})();
+    """
+    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
+
+
+
+
+#test version 
 def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     js = r"""
 (function(){
@@ -1089,7 +1409,7 @@ def serve_voiceassistant_widget():
 @app.route('/dhilaktest')
 def serve_dhilaktest_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated(agent_id, branding="Powered by dhilaktest", brand="dhilaktest")
+    js = serve_widget_js_updated_new(agent_id, branding="Powered by dhilaktest", brand="dhilaktest")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/kopiko')
