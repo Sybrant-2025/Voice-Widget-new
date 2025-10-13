@@ -1486,7 +1486,7 @@ def serve_cfobridge_widget():
 @app.route('/newcfobridge')
 def serve_newcfobridge_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated2(agent_id, branding="Powered by cfobridge", brand="cfobridge")
+    js = serve_widget_js_update_new(agent_id, branding="Powered by cfobridge", brand="cfobridge")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/voiceassistant')
