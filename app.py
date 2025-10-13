@@ -787,25 +787,29 @@ def serve_widget_js_update_new(agent_id, branding="Powered by Voizee", brand="")
     if (oldCard && !oldCard.__customized) {
       oldCard.__customized = true;
       oldCard.outerHTML = `
-        <div class="voizee-card" 
-             style="display:flex;flex-direction:column;align-items:center;justify-content:center;
-                    background:white;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,0.15);
-                    overflow:hidden;width:220px;font-family:sans-serif;">
-          <div class="voizee-avatar" 
-               style="width:220px;height:320px;
-                      background-image:url('https://sybrant.com/wp-content/uploads/2025/10/images-removebg-preview.png');
-                      background-size:cover;background-position:center;">
-          </div>
-          <button type="button" aria-label="Start a call"
-                  style="width:90%;margin:10px 0 15px 0;padding:10px 0;background:#000;
-                         color:white;font-size:14px;border:none;border-radius:8px;cursor:pointer;
-                         display:flex;align-items:center;justify-content:center;gap:8px;">
-            <svg height="1em" width="1em" viewBox="0 0 18 18" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3.7489 2.25C2.93286 2.25 2.21942 2.92142 2.27338 3.7963C2.6686 10.2041 7.79483 15.3303 14.2026 15.7255C15.0775 15.7795 15.7489 15.066 15.7489 14.25V11.958C15.7489 11.2956 15.3144 10.7116 14.6799 10.5213L12.6435 9.91035C12.1149 9.75179 11.542 9.89623 11.1518 10.2864L10.5901 10.8482C9.15291 10.0389 7.95998 8.84599 7.15074 7.40881L7.71246 6.84709C8.10266 6.45689 8.24711 5.88396 8.08854 5.35541L7.47761 3.31898C7.28727 2.6845 6.70329 2.25 6.04087 2.25H3.7489Z"></path>
-            </svg>
-            <span>Start a call</span>
-          </button>
-        </div>`;
+		<div class="voizee-card" 
+			 style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+			 		background:transparent;border-radius:16px;
+			 		box-shadow:none;overflow:visible;width:240px;
+			 		font-family:sans-serif;">
+		  <div class="voizee-avatar" 
+		  	style="width:240px;height:360px;
+		  			background-image:url('https://sybrant.com/wp-content/uploads/2025/10/images-removebg-preview.png');
+		  			background-size:contain;background-repeat:no-repeat;
+		  			background-position:center;">
+		  </div>
+		  <button type="button" aria-label="Start a call"
+		  		style="width:90%;margin-top:-10px;margin-bottom:10px;padding:10px 0;
+		  			background:#000;color:white;font-size:14px;border:none;
+		  			border-radius:8px;cursor:pointer;display:flex;
+		  			align-items:center;justify-content:center;gap:8px;
+		  			box-shadow:0 3px 6px rgba(0,0,0,0.2);">
+		  <svg height="1em" width="1em" viewBox="0 0 18 18" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+		  	<path d="M3.7489 2.25C2.93286 2.25 2.21942 2.92142 2.27338 3.7963C2.6686 10.2041 7.79483 15.3303 14.2026 15.7255C15.0775 15.7795 15.7489 15.066 15.7489 14.25V11.958C15.7489 11.2956 15.3144 10.7116 14.6799 10.5213L12.6435 9.91035C12.1149 9.75179 11.542 9.89623 11.1518 10.2864L10.5901 10.8482C9.15291 10.0389 7.95998 8.84599 7.15074 7.40881L7.71246 6.84709C8.10266 6.45689 8.24711 5.88396 8.08854 5.35541L7.47761 3.31898C7.28727 2.6845 6.70329 2.25 6.04087 2.25H3.7489Z"></path>
+		  </svg>
+		  <span>Start a call</span>
+		  </button>
+		</div>`;
       return true;
     }
     return false;
