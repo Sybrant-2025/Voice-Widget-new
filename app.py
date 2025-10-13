@@ -792,7 +792,7 @@ def serve_widget_js_update_new(agent_id, branding="Powered by Voizee", brand="")
                     background:white;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,0.15);
                     overflow:hidden;width:220px;font-family:sans-serif;">
           <div class="voizee-avatar" 
-               style="width:220px;height:240px;
+               style="width:220px;height:320px;
                       background-image:url('https://sybrant.com/wp-content/uploads/2025/10/images-removebg-preview.png');
                       background-size:cover;background-position:center;">
           </div>
