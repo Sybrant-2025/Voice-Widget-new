@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Virtual CFO & Fractional CFO — Ditto (Clean Single‑File)</title>
+  <style>
+    :root{
+      --primary:#0b64c0; --dark:#0d0d0d; --text:#1f2a37; --muted:#6b7280;
+      --bg:#ffffff; --card:#f6f8fb; --radius:16px; --shadow:0 8px 24px rgba(0,0,0,.08);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Helvetica,Arial,sans-serif}
+    img{max-width:100%;display:block}
+    a{color:inherit;text-decoration:none}
+    .container{width:min(1200px,92vw);margin:0 auto}
+
+    /* Top country switcher */
+    .topbar{display:flex;justify-content:flex-end;gap:18px;padding:8px 0;font-size:14px;color:var(--muted)}
+    .flag{display:inline-flex;align-items:center;gap:8px;opacity:.9}
+    .flag img{width:18px;height:18px}
+
+    /* Nav */
+    .nav{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid #eef2f7}
+    .nav .wrap{display:flex;align-items:center;justify-content:space-between;padding:14px 0}
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand img{height:36px}
+    .menu{display:flex;gap:24px;align-items:center}
+    .menu a{opacity:.9}
+    .menu .cta{background:#111;color:#fff;padding:10px 14px;border-radius:12px;font-weight:600}
+    .burger{display:none;border:0;background:transparent;font-size:28px}
+    @media (max-width:960px){.menu{display:none}.burger{display:block}}
+
+    /* Drawer */
+    .drawer{position:fixed;inset:0 0 0 auto;width:min(320px,85vw);background:#fff;box-shadow:-10px 0 30px rgba(0,0,0,.08);transform:translateX(100%);transition:.3s ease;display:flex;flex-direction:column}
+    .drawer.open{transform:translateX(0)}
+    .drawer header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #eef2f7}
+    .drawer nav{display:flex;flex-direction:column;padding:6px 18px}
+    .drawer a{padding:12px 0;border-bottom:1px dashed #f1f1f1}
+
+    /* Hero slider (custom Swiper-like) */
+    .hero{position:relative;overflow:hidden}
+    .slides{position:relative;height:70vh;min-height:520px}
+    .slide{position:absolute;inset:0;background:#000;color:#fff;display:grid;place-items:center;opacity:0;transition:opacity .7s ease}
+    .slide.active{opacity:1}
+    .slide .bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:brightness(.65)}
+    .slide .con{position:relative;z-index:2;text-align:center;padding:0 16px}
+    .slide h1,.slide h2{font-size:clamp(26px,4.6vw,48px);margin:0 0 12px}
+    .slide p{max-width:800px;margin:0 auto 22px;color:#e8f2ff}
+    .btn{display:inline-flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;font-weight:700;border:1px solid #fff;background:#fff;color:#0a0a0a}
+    .btn.secondary{background:transparent;color:#fff}
+    .dots{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);display:flex;gap:10px;z-index:3}
+    .dot{width:10px;height:10px;border-radius:999px;background:rgba(255,255,255,.55)}
+    .dot.active{background:#fff}
+
+    /* Client marquee */
+    .lg-sec{padding:56px 0}
+    .sec-head{margin-bottom:26px}
+    .sec-head.center{text-align:center}
+    .logo-track{display:flex;gap:46px;align-items:center;white-space:nowrap;animation:scroll 25s linear infinite}
+    .logo-track img{height:46px;filter:grayscale(1);opacity:.8;transition:.2s}
+    .logo-track img:hover{filter:none;opacity:1}
+    @keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+    /* Split (video + copy) */
+    .split{display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center;padding:70px 0}
+    .lead{color:var(--muted);line-height:1.7}
+    .card{background:var(--card);padding:10px;border-radius:var(--radius)}
+    @media (max-width:960px){.split{grid-template-columns:1fr}}
+
+    /* Team grid */
+    .blue-gr{background:linear-gradient(135deg,#0b64c0,#003b82);color:#fff;padding:60px 0}
+    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+    .member{background:#ffffff12;border:1px solid #ffffff30;border-radius:var(--radius);overflow:hidden}
+    .member img{aspect-ratio:4/4.6;object-fit:cover;width:100%}
+    .member .info{padding:14px}
+    .member .name{font-weight:700}
+    .member .role{opacity:.85}
+    @media (max-width:960px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width:520px){.grid{grid-template-columns:1fr}}
+
+    /* CTA strip */
+    .cta-strip{margin:60px 0;border-radius:var(--radius);background:linear-gradient(135deg,#0b64c0,#003b82);color:#fff;padding:26px}
+    .cta-row{display:flex;align-items:center;gap:18px;justify-content:space-between;flex-wrap:wrap}
+    .cta-row p{margin:0;color:#d7e9ff}
+    .cta-row a{background:#fff;color:#0a0a0a}
+
+    footer{padding:40px 0;color:#7b8aa0;font-size:14px;border-top:1px solid #eef2f7}
+  </style>
+</head>
+<body>
+  <!-- Topbar country options (visual only) -->
+  <div class="topbar container" aria-label="Country Switcher">
+    <span class="flag"><img alt="India" src="https://cfobridge.com/assets/images/india-flag-icon.svg">India</span>
+    <a class="flag" href="#"><img alt="USA" src="https://cfobridge.com/assets/images/united-states-flag-icon.svg">USA</a>
+    <a class="flag" href="#"><img alt="UAE" src="https://cfobridge.com/assets/images/united-arab-emirates-flag-icon.svg">UAE</a>
+  </div>
+
+  <!-- Nav -->
+  <div class="nav">
+    <div class="container wrap">
+      <a class="brand" href="#"><img alt="CFO Bridge" src="https://cfobridge.com/assets/images/logo.webp"><strong>CFO Bridge</strong></a>
+      <nav class="menu" aria-label="Primary">
+        <a href="#services">CFO Services</a>
+        <a href="#about">About</a>
+        <a href="#team">Team</a>
+        <a href="#clients">Clients</a>
+        <a href="#resources">Resources</a>
+        <a class="cta" href="#contact">Contact Us</a>
+      </nav>
+      <button class="burger" aria-label="Open menu" onclick="drawer(true)">☰</button>
+    </div>
+  </div>
+
+  <!-- Drawer -->
+  <aside id="drawer" class="drawer" aria-hidden="true">
+    <header>
+      <strong>Menu</strong>
+      <button aria-label="Close menu" onclick="drawer(false)">✕</button>
+    </header>
+    <nav>
+      <a href="#services" onclick="drawer(false)">CFO Services</a>
+      <a href="#about" onclick="drawer(false)">About</a>
+      <a href="#team" onclick="drawer(false)">Team</a>
+      <a href="#clients" onclick="drawer(false)">Clients</a>
+      <a href="#resources" onclick="drawer(false)">Resources</a>
+      <a href="#contact" onclick="drawer(false)">Contact</a>
+    </nav>
+  </aside>
+
+  <!-- HERO: 4 slides (ditto text/images) -->
+  <header class="hero">
+    <div class="slides" id="slides">
+      <!-- Slide 1 -->
+      <section class="slide active">
+        <div class="bg" style="background-image:url('https://cfobridge.com/uploads/images/banner01.jpg.webp')"></div>
+        <div class="con container">
+          <h1 class="white">Your On‑Demand CFO Solution</h1>
+          <p>Leverage the strategic brainpower of India’s top CFOs and get full‑time‑level expertise at a cost‑effective price.</p>
+          <div>
+            <a class="btn" href="#contact">Book Your Free Consultation</a>
+          </div>
+        </div>
+      </section>
+      <!-- Slide 2 -->
+      <section class="slide">
+        <div class="bg" style="background-image:url('https://cfobridge.com/uploads/images/website-banner-3-3.webp')"></div>
+        <div class="con container">
+          <h2>Is Profit Slipping Through the Cracks?</h2>
+          <p>Our vCFOs uncover hidden blockages, restore healthy cash flow, and stop margin erosion.</p>
+          <div><a class="btn" href="#contact">Let’s Fix It</a></div>
+        </div>
+      </section>
+      <!-- Slide 3 -->
+      <section class="slide">
+        <div class="bg" style="background-image:url('https://cfobridge.com/uploads/images/bannercfob.webp')"></div>
+        <div class="con container">
+          <h2 class="white">Blueprint Your Financial Future</h2>
+          <p>Turn critical pain points into a scalable growth engine.</p>
+          <div><a class="btn" href="#contact">Reach out today!</a></div>
+        </div>
+      </section>
+      <!-- Slide 4 -->
+      <section class="slide">
+        <div class="bg" style="background-image:url('https://cfobridge.com/uploads/images/websitebanner4.png.webp')"></div>
+        <div class="con container">
+          <h2 class="white">Growth Partner to 500+ Ambitious Businesses</h2>
+          <p>For 13+ years, India’s largest network of CFO consultants has powered startups and mid‑market champions.</p>
+          <div><a class="btn" href="#contact">Talk to Us Today</a></div>
+        </div>
+      </section>
+      <div class="dots" id="dots"></div>
+    </div>
+  </header>
+
+  <!-- CLIENTS -->
+  <section id="clients" class="lg-sec">
+    <div class="container">
+      <div class="sec-head center">
+        <h2>We have empowered 500+ SMEs & Startups<br> to grow with tailored fractional CFO services</h2>
+      </div>
+      <div style="overflow:hidden">
+        <div class="logo-track">
+          <img src="https://cfobridge.com/uploads/images/110.png.webp" alt="client">
+          <img src="https://cfobridge.com/uploads/images/27.jpg.webp" alt="client">
+          <img src="https://cfobridge.com/uploads/images/38.png.webp" alt="client">
+          <img src="https://cfobridge.com/uploads/images/57.jpeg.webp" alt="client">
+          <img src="https://cfobridge.com/uploads/images/106.png.webp" alt="client">
+          <img src="https://cfobridge.com/uploads/images/175.png.webp" alt="client">
+          <img src="https://cfobridge.com/uploads/images/226.png.webp" alt="client">
+          <img src="https://cfobridge.com/uploads/images/710.png.webp" alt="client">
+          <!-- repeat to loop feel -->
+          <img src="https://cfobridge.com/uploads/images/110.png.webp" alt="client">
+          <img src="https://cfobridge.com/uploads/images/27.jpg.webp" alt="client">
+          <img src="https://cfobridge.com/uploads/images/38.png.webp" alt="client">
+          <img src="https://cfobridge.com/uploads/images/57.jpeg.webp" alt="client">
+          <img src="https://cfobridge.com/uploads/images/106.png.webp" alt="client">
+          <img src="https://cfobridge.com/uploads/images/175.png.webp" alt="client">
+          <img src="https://cfobridge.com/uploads/images/226.png.webp" alt="client">
+          <img src="https://cfobridge.com/uploads/images/710.png.webp" alt="client">
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:20px"><a class="btn" href="https://cfobridge.com/clients" target="_blank" rel="noopener">View All</a></div>
+    </div>
+  </section>
+
+  <!-- ABOUT/video split -->
+  <section id="about" class="split container">
+    <div>
+      <div class="card">
+        <a href="https://www.youtube.com/embed/t6gVl949muo" target="_blank" rel="noopener noreferrer">
+          <img alt="Intro video" src="https://img.youtube.com/vi/t6gVl949muo/hqdefault.jpg">
+        </a>
+      </div>
+    </div>
+    <div>
+      <h2>Empowering your financial future</h2>
+      <p class="lead"><strong>Are you facing financial challenges in your growing business and seeking a professional partner to improve your finance department's efficiency and reliability in decision‑making?</strong></p>
+      <p class="lead">CFO Bridge provides access to top‑tier CFO talent in India, delivering on‑demand consulting across accounting, taxation, fundraising strategy, FP&A, decision support, M&A, and process automation.</p>
+      <p><a class="btn" href="#contact">Know More</a></p>
+    </div>
+  </section>
+
+  <!-- TEAM (4 cards shown for brevity but looks ditto) -->
+  <section id="team" class="blue-gr">
+    <div class="container">
+      <div class="sec-head center white">
+        <h2>Pillars of CFO Bridge</h2>
+        <p>Bridge has an experienced team of Top CFOs in India</p>
+      </div>
+      <div class="grid">
+        <article class="member">
+          <img alt="Srinivasan V" src="https://cfobridge.com/uploads/images/srini.webp.webp">
+          <div class="info"><div class="name">Srinivasan V</div><div class="role">Founder and CFO Partner</div></div>
+        </article>
+        <article class="member">
+          <img alt="Sundar Sampath" src="https://cfobridge.com/uploads/images/pi7imagesundar1.png.webp">
+          <div class="info"><div class="name">Sundar Sampath</div><div class="role">CFO Partner</div></div>
+        </article>
+        <article class="member">
+          <img alt="Hitesh Kothari" src="https://cfobridge.com/uploads/images/untitled-design-17.png.webp">
+          <div class="info"><div class="name">Hitesh Kothari</div><div class="role">CFO Partner</div></div>
+        </article>
+        <article class="member">
+          <img alt="Sachin Gokhale" src="https://cfobridge.com/uploads/images/pi7imageuntitled-design-33.png.webp">
+          <div class="info"><div class="name">Sachin Gokhale</div><div class="role">CFO Partner</div></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA strip -->
+  <div class="container">
+    <div class="cta-strip" id="contact">
+      <div class="cta-row">
+        <div>
+          <h3 style="margin:0 0 6px">Ready to unlock profitable growth?</h3>
+          <p>India’s largest network of CFO consultants — trusted by 500+ ambitious businesses.</p>
+        </div>
+        <a class="btn" href="mailto:hello@cfobridge.com">Book Your Free Consultation</a>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="container">© <span id="year"></span> CFO Bridge. All rights reserved.</div>
+  </footer>
+
+  <script>
+    // Mobile drawer
+    function drawer(open){
+      const el=document.getElementById('drawer');
+      el.classList.toggle('open', !!open);
+      el.setAttribute('aria-hidden', open? 'false':'true');
+    }
+
+    // Simple slider logic (autoplay + dots)
+    const slides=[...document.querySelectorAll('.slide')];
+    const dotsWrap=document.getElementById('dots');
+    slides.forEach((_,i)=>{
+      const d=document.createElement('span');
+      d.className='dot'+(i===0?' active':'');
+      d.addEventListener('click',()=>go(i));
+      dotsWrap.appendChild(d);
+    });
+    const dots=[...dotsWrap.children];
+    let idx=0, timer=null;
+    function go(i){
+      slides[idx].classList.remove('active');
+      dots[idx].classList.remove('active');
+      idx=(i+slides.length)%slides.length;
+      slides[idx].classList.add('active');
+      dots[idx].classList.add('active');
+      restart();
+    }
+    function next(){ go(idx+1) }
+    function restart(){ clearInterval(timer); timer=setInterval(next, 4200) }
+    restart();
+
+    // Year
+    document.getElementById('year').textContent=new Date().getFullYear();
+  </script>
+</body>
+</html>
