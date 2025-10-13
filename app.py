@@ -793,7 +793,7 @@ def serve_widget_js_update_new(agent_id, branding="Powered by Voizee", brand="")
                     overflow:hidden;width:220px;font-family:sans-serif;">
           <div class="voizee-avatar" 
                style="width:220px;height:240px;
-                      background-image:url('https://sybrant.com/wp-content/uploads/2025/10/png-d-cartoon-customer-service-agent-support-help-tech-virtual-assistant-against-transparent-background-384928869-removebg-preview.png');
+                      background-image:url('https://sybrant.com/wp-content/uploads/2025/10/images-removebg-preview.png');
                       background-size:cover;background-position:center;">
           </div>
           <button type="button" aria-label="Start a call"
