@@ -1057,7 +1057,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
                     font-family:sans-serif;">
           <div class="voizee-avatar" 
                style="width:240px;height:360px;
-                      background-image:url('https://sybrant.com/wp-content/uploads/2025/10/vidhya_voizee.png');
+                      background-image:url('https://sybrant.com/wp-content/uploads/2025/10/vidya_voizee_conversation.png');
                       background-size:contain;background-repeat:no-repeat;
                       background-position:center;">
           </div>
