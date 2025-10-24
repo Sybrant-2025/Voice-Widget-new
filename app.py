@@ -963,8 +963,9 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   const BRAND = "__BRAND__";
   const BRANDING_TEXT = "__BRANDING__";
   const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
+  const AVATAR_URL = "https://sybrant.com/wp-content/uploads/2025/10/voizee_girl_vidhya_bg.png";
 
-  // --- fetch with retries (for submit) ---
+  // ---------- utils ----------
   async function fetchWithRetry(url, opts, retries = 2, backoffMs = 800, timeoutMs = 10000) {
     const attempt = (n) =>
       new Promise((resolve, reject) => {
@@ -986,7 +987,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     return attempt(0);
   }
 
-  // ===== Cache (24h) =====
+  // ---------- cache (24h) ----------
   const FORM_KEY = "convai_form_cache";
   const TTL_KEY  = "convai_form_submitted";
   const FORM_TTL_MS = 24 * 60 * 60 * 1000;
@@ -1011,145 +1012,247 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     return Date.now() < ttl;
   }
 
-  // ===== Visit & Conv correlation =====
+  // ---------- visit correlation ----------
   let VISIT_ID = (typeof crypto !== "undefined" && crypto.randomUUID)
     ? crypto.randomUUID()
     : (Date.now() + "_" + Math.random().toString(36).slice(2));
   try { localStorage.setItem("convai_visit_id", VISIT_ID); } catch(_) {}
 
-  let CONV_ID = null;
-  let _convIdResolve;
-  const conversationIdReady = new Promise(res => (_convIdResolve = res));
+  // ---------- embed ElevenLabs widget ----------
+  function ensureWidget(){
+    return new Promise((resolve) => {
+      let tag = document.querySelector("elevenlabs-convai");
+      if (!tag) {
+        tag = document.createElement("elevenlabs-convai");
+        tag.setAttribute("agent-id", AGENT_ID);
+        document.body.appendChild(tag);
+      }
 
-  // --- Remove ElevenLabs Branding ---
-  function removeExtras(sr){
-    if (!sr) return;
-    try {
-      [
-        'span.opacity-30',
-        'a[href*="elevenlabs.io/conversational-ai"]',
-        'a[href*="elevenlabs.io"]',
-        'div:has(> span.opacity-30)',
-        '[title*="Powered by"]'
-      ].forEach(sel => {
-        sr.querySelectorAll(sel).forEach(el => el.remove());
+      function removeExtras(sr){
+        if (!sr) return;
+        try {
+          [
+            'span.opacity-30',
+            'a[href*="elevenlabs.io/conversational-ai"]',
+            'a[href*="elevenlabs.io"]',
+            'div:has(> span.opacity-30)',
+            '[title*="Powered by"]'
+          ].forEach(sel => sr.querySelectorAll(sel).forEach(el => el.remove()));
+        } catch(e){}
+      }
+
+      const obs = new MutationObserver(() => {
+        if (tag && tag.shadowRoot) removeExtras(tag.shadowRoot);
       });
-    } catch(e){}
+      obs.observe(document, { childList:true, subtree:true });
+
+      // load script if needed
+      if (!window.__convai_script_loaded__) {
+        window.__convai_script_loaded__ = true;
+        const s = document.createElement("script");
+        s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
+        s.async = true;
+        s.onerror = function(){
+          const fallback = document.createElement("script");
+          fallback.src = "https://elevenlabs.io/convai-widget/index.js";
+          fallback.async = true;
+          document.body.appendChild(fallback);
+        };
+        document.body.appendChild(s);
+      }
+
+      // wait until shadowRoot appears
+      let tries = 0;
+      const timer = setInterval(() => {
+        if (tag.shadowRoot) {
+          clearInterval(timer);
+          resolve(tag);
+        } else if (++tries > 100) {
+          clearInterval(timer);
+          resolve(tag); // resolve anyway; we’ll try clicking later
+        }
+      }, 120);
+    });
   }
 
-  // --- Replace default widget layout ---
-  function replaceWidgetUI(){
-    const widget = document.querySelector("elevenlabs-convai");
-    if (!widget) return false;
-    const sr = widget.shadowRoot;
-    if (!sr) return false;
-
-    removeExtras(sr);
-
-    const oldCard = sr.querySelector('div.flex.flex-col.p-2.rounded-sheet');
-    if (oldCard && !oldCard.__customized) {
-      oldCard.__customized = true;
-      oldCard.outerHTML = `
-        <div class="voizee-card" 
-             style="display:flex;flex-direction:column;align-items:center;justify-content:center;
-                    background:transparent;border-radius:16px;
-                    box-shadow:none;overflow:visible;width:240px;
-                    font-family:sans-serif;">
-          <div class="voizee-avatar" 
-               style="width:240px;height:360px;
-                      background-image:url('https://sybrant.com/wp-content/uploads/2025/10/vidya_voizee_conversation.png');
-                      background-size:contain;background-repeat:no-repeat;
-                      background-position:center;">
-          </div>
-          <button type="button" aria-label="Start a call"
-                  style="width:90%;margin-top:-10px;margin-bottom:10px;padding:10px 0;
-                         background:#000;color:white;font-size:14px;border:none;
-                         border-radius:8px;cursor:pointer;display:flex;
-                         align-items:center;justify-content:center;gap:8px;
-                         box-shadow:0 3px 6px rgba(0,0,0,0.2);">
-            <svg height="1em" width="1em" viewBox="0 0 18 18" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-              <path d="M3.7489 2.25C2.93286 2.25 2.21942 2.92142 2.27338 3.7963C2.6686 10.2041 7.79483 15.3303 14.2026 15.7255C15.0775 15.7795 15.7489 15.066 15.7489 14.25V11.958C15.7489 11.2956 15.3144 10.7116 14.6799 10.5213L12.6435 9.91035C12.1149 9.75179 11.542 9.89623 11.1518 10.2864L10.5901 10.8482C9.15291 10.0389 7.95998 8.84599 7.15074 7.40881L7.71246 6.84709C8.10266 6.45689 8.24711 5.88396 8.08854 5.35541L7.47761 3.31898C7.28727 2.6845 6.70329 2.25 6.04087 2.25H3.7489Z"></path>
-            </svg>
-            <span>Start a call</span>
-          </button>
-        </div>`;
-      return true;
-    }
+  // try to trigger the built-in call start in the widget
+  async function startCall(){
+    const widget = await ensureWidget();
+    // Small delay to allow internal UI to mount
+    await new Promise(r => setTimeout(r, 300));
+    try {
+      const sr = widget.shadowRoot;
+      if (!sr) throw new Error("no shadowRoot");
+      // Common button selectors used by the Convai widget
+      const startBtn =
+        sr.querySelector('button[aria-label*="Start" i]') ||
+        sr.querySelector('button:has(svg)') ||
+        sr.querySelector('button');
+      if (startBtn) {
+        startBtn.click();
+        return true;
+      }
+    } catch(e){}
+    // Fallback: toggle a focus/keypress
+    try {
+      widget.focus();
+      widget.dispatchEvent(new KeyboardEvent("keydown",{key:"Enter"}));
+    } catch(_){}
     return false;
   }
 
-  // --- Mutation Observer for branding cleanup + custom UI ---
-  const observer = new MutationObserver(() => {
-    try {
-      const widget = document.querySelector("elevenlabs-convai");
-      if (widget && widget.shadowRoot) removeExtras(widget.shadowRoot);
-      if (replaceWidgetUI()) observer.disconnect();
-    } catch(_) {}
-  });
-  observer.observe(document, { childList: true, subtree: true });
+  // ---------- corner launcher + tray ----------
+  function injectStyles(){
+    if (document.getElementById("voizee-corner-styles")) return;
+    const css = `
+      .voizee-launcher {
+        position: fixed; right: 20px; bottom: 20px; z-index: 999999;
+        width: 64px; height: 64px; border-radius: 999px; cursor: pointer;
+        background: #fff; box-shadow: 0 10px 24px rgba(0,0,0,.24);
+        display: flex; align-items: center; justify-content: center;
+        overflow: hidden;
+      }
+      .voizee-launcher .avatar {
+        width: 100%; height: 100%;
+        background-image: url('${AVATAR_URL}');
+        background-size: cover; background-position: center; background-repeat: no-repeat;
+      }
+      .voizee-tray {
+        position: fixed; right: 20px; bottom: 96px; z-index: 999999;
+        width: 360px; max-width: calc(100vw - 40px);
+        transform: translateY(20px); opacity: 0; pointer-events: none;
+        transition: transform .25s ease, opacity .25s ease;
+      }
+      .voizee-tray.open { transform: translateY(0); opacity: 1; pointer-events: auto; }
+      .voizee-card {
+        background: #ffffff; border-radius: 16px; overflow: hidden;
+        box-shadow: 0 16px 48px rgba(0,0,0,.28); font-family: system-ui, sans-serif;
+      }
+      .voizee-header {
+        display:flex; align-items:center; gap:10px; padding:12px 14px; background: #111; color: #fff;
+      }
+      .voizee-header .h-avatar {
+        width: 36px; height: 36px; border-radius: 999px; background-image:url('${AVATAR_URL}');
+        background-size: cover; background-position:center;
+        border: 2px solid rgba(255,255,255,.4);
+      }
+      .voizee-body { padding: 14px; }
+      .voizee-row { display:flex; gap: 10px; }
+      .voizee-input {
+        width: 100%; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; outline: none;
+        font-size: 14px;
+      }
+      .voizee-actions { display:flex; gap:10px; margin-top:10px; }
+      .voizee-btn {
+        flex: 1; padding: 10px 12px; border: none; border-radius: 8px; cursor:pointer; font-weight: 600;
+      }
+      .voizee-btn.primary { background:#111; color:#fff; }
+      .voizee-btn.ghost { background:#f2f3f5; color:#111; }
+      .voizee-footer {
+        padding:10px 14px; font-size:12px; color:#6b7280; display:flex; align-items:center; gap:8px;
+      }
+      .voizee-footer .brand { opacity:.7; }
+      @media (max-width:480px){
+        .voizee-tray { right: 12px; left: 12px; width: auto; }
+      }
+    `;
+    const style = document.createElement("style");
+    style.id = "voizee-corner-styles";
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
 
-  // --- Fallback polling ---
-  let tries = 0;
-  const poll = setInterval(() => {
-    const ok = replaceWidgetUI();
-    if (ok || ++tries > 50) clearInterval(poll);
-  }, 400);
+  function buildTray(){
+    if (document.getElementById("voizee-launcher")) return;
 
-  // --- Create Visitor Modal (unchanged) ---
-  function createVisitorModal(){
-    if (document.getElementById("convai-visitor-modal")) return;
-    const modal = document.createElement("div");
-    modal.id = "convai-visitor-modal";
-    modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;align-items:center;justify-content:center;";
-    modal.innerHTML = `
-      <div style="background:white;border-radius:8px;padding:20px;max-width:400px;width:90%;font-family:sans-serif;">
-        <div style="text-align:right;"><button id="convai-close" style="font-size:18px;background:none;border:none;">×</button></div>
-        <h3 style="margin-top:0;">Tell us about you</h3>
-        <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
-          <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <input name="company" placeholder="Company name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <input name="phone" placeholder="Phone" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <div style="display:flex;gap:10px;">
-            <button type="submit" style="flex:1;padding:10px;background:#007bff;color:white;border:none;border-radius:4px;">Submit</button>
-            <button type="button" id="convai-cancel" style="padding:10px;background:#eee;border:none;border-radius:4px;">Cancel</button>
+    injectStyles();
+
+    // launcher
+    const launcher = document.createElement("div");
+    launcher.id = "voizee-launcher";
+    launcher.className = "voizee-launcher";
+    launcher.innerHTML = `<div class="avatar" role="button" aria-label="Open Voizee"></div>`;
+    document.body.appendChild(launcher);
+
+    // tray
+    const tray = document.createElement("div");
+    tray.id = "voizee-tray";
+    tray.className = "voizee-tray";
+    tray.innerHTML = `
+      <div class="voizee-card">
+        <div class="voizee-header">
+          <div class="h-avatar"></div>
+          <div>
+            <div style="font-weight:700; line-height:1;">Voizee Assistant</div>
+            <div style="font-size:12px; opacity:.75;">Let’s get you connected</div>
           </div>
-        </form>
-      </div>`;
-    document.body.appendChild(modal);
+          <button id="voizee-close" style="margin-left:auto;background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">×</button>
+        </div>
+        <div class="voizee-body">
+          <form id="voizee-form">
+            <div class="voizee-row" style="margin-bottom:10px;">
+              <input class="voizee-input" name="name" placeholder="Full name" required>
+            </div>
+            <div class="voizee-row" style="margin-bottom:10px;">
+              <input class="voizee-input" name="company" placeholder="Company name" required>
+            </div>
+            <div class="voizee-row" style="margin-bottom:10px;">
+              <input class="voizee-input" type="email" name="email" placeholder="Work email" required>
+            </div>
+            <div class="voizee-row">
+              <input class="voizee-input" name="phone" placeholder="Phone number" required>
+            </div>
+            <div class="voizee-actions">
+              <button type="submit" class="voizee-btn primary" id="voizee-submit">Start Call</button>
+              <button type="button" class="voizee-btn ghost" id="voizee-cancel">Cancel</button>
+            </div>
+          </form>
+        </div>
+        <div class="voizee-footer">
+          <span class="brand">${BRANDING_TEXT}</span>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(tray);
 
+    // prefill cache
     try {
       const cached = getFormCache();
       if (cached) {
-        modal.querySelector('input[name="name"]').value = cached.name || "";
-        modal.querySelector('input[name="company"]').value = cached.company || "";
-        modal.querySelector('input[name="email"]').value = cached.email || "";
-        modal.querySelector('input[name="phone"]').value = cached.phone || "";
+        tray.querySelector('input[name="name"]').value = cached.name || "";
+        tray.querySelector('input[name="company"]').value = cached.company || "";
+        tray.querySelector('input[name="email"]').value = cached.email || "";
+        tray.querySelector('input[name="phone"]').value = cached.phone || "";
       }
     } catch(_) {}
 
-    modal.querySelector("#convai-close").onclick = () => modal.style.display = "none";
-    modal.querySelector("#convai-cancel").onclick = () => modal.style.display = "none";
+    // listeners
+    const openTray = () => tray.classList.add("open");
+    const closeTray = () => tray.classList.remove("open");
 
-    const form = modal.querySelector("#convai-form");
-    form.onsubmit = async function(ev){
+    launcher.addEventListener("click", openTray);
+    tray.querySelector("#voizee-close").addEventListener("click", closeTray);
+    tray.querySelector("#voizee-cancel").addEventListener("click", closeTray);
+
+    // form submit → log → start call
+    const form = tray.querySelector("#voizee-form");
+    form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
+      const submitBtn = tray.querySelector("#voizee-submit");
+      const cancelBtn = tray.querySelector("#voizee-cancel");
+
       if (form.__submitting) return;
       form.__submitting = true;
 
-      const submitBtn = form.querySelector('button[type="submit"]');
-      const cancelBtn = modal.querySelector("#convai-cancel");
-      const setDisabled = (el, on) => {
+      const lock = (el, on) => {
         if (!el) return;
         el.disabled = on;
         el.style.opacity = on ? "0.6" : "";
-        el.style.cursor = on ? "not-allowed" : "";
         el.style.pointerEvents = on ? "none" : "";
       };
 
-      setDisabled(submitBtn, true);
-      setDisabled(cancelBtn, true);
-      submitBtn.innerText = "Submitting…";
+      lock(submitBtn, true); lock(cancelBtn, true);
+      submitBtn.textContent = "Connecting…";
 
       const fd = new FormData(form);
       const fields = Object.fromEntries(fd.entries());
@@ -1162,7 +1265,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
         brand: BRAND,
         url: location.href,
         timestamp: new Date().toISOString(),
-        conversation_id: CONV_ID || null,
+        conversation_id: null,
         ...fields
       };
 
@@ -1172,52 +1275,36 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data)
         });
-        submitBtn.innerText = "Submitted ✓";
-        modal.style.display = "none";
-        try {
-          if (window.__last_call_btn) {
-            window.__last_call_btn._allowCall = true;
-            window.__last_call_btn.click();
-          }
-        } catch(_) {}
-      } catch(err){
-        console.warn("Logging failed:", err);
-        submitBtn.innerText = "Retry submit";
-        setDisabled(submitBtn, false);
-        setDisabled(cancelBtn, false);
+      } catch (e) {
+        console.warn("Logging failed:", e);
+        submitBtn.textContent = "Retry Start";
+        lock(submitBtn, false); lock(cancelBtn, false);
         form.__submitting = false;
         return;
       }
+
+      // close the tray and start the call
+      closeTray();
+      await startCall();
+
+      submitBtn.textContent = "Starting…";
       form.__submitting = false;
-      setDisabled(cancelBtn, false);
-    };
+      lock(submitBtn, false); lock(cancelBtn, false);
+    });
   }
 
-  // --- Inject Widget + Load Script ---
-  try {
-    const tag = document.createElement("elevenlabs-convai");
-    tag.setAttribute("agent-id", AGENT_ID);
-    document.body.appendChild(tag);
-  } catch(e){}
+  // build UI immediately
+  buildTray();
 
-  (function loadEmbed(){
-    const s = document.createElement("script");
-    s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
-    s.async = true;
-    s.onerror = function(){
-      const fallback = document.createElement("script");
-      fallback.src = "https://elevenlabs.io/convai-widget/index.js";
-      fallback.async = true;
-      document.body.appendChild(fallback);
-    };
-    document.body.appendChild(s);
-  })();
-
-  createVisitorModal();
+  // create widget early (hidden) so it’s ready when user submits
+  ensureWidget();
 
 })();
     """
-    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
+    return (js
+            .replace("__AGENT_ID__", agent_id)
+            .replace("__BRANDING__", branding)
+            .replace("__BRAND__", brand))
 
 
 ##########updated end##########
