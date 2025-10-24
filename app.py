@@ -965,7 +965,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
   const AVATAR_URL = "https://sybrant.com/wp-content/uploads/2025/10/voizee_girl_vidhya_bg.png";
 
-  // ========== Utilities ==========
+  // ========= helpers =========
   async function fetchWithRetry(url, opts, retries = 2, backoffMs = 800, timeoutMs = 10000) {
     const attempt = (n) =>
       new Promise((resolve, reject) => {
@@ -987,7 +987,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     return attempt(0);
   }
 
-  // ========== Cache ==========
+  // ========= cache =========
   const FORM_KEY = "convai_form_cache";
   const TTL_KEY  = "convai_form_submitted";
   const FORM_TTL_MS = 24 * 60 * 60 * 1000;
@@ -1008,13 +1008,13 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     } catch(_) { return null; }
   }
 
-  // ========== Visit ID ==========
+  // ========= visit id =========
   let VISIT_ID = (typeof crypto !== "undefined" && crypto.randomUUID)
     ? crypto.randomUUID()
     : (Date.now() + "_" + Math.random().toString(36).slice(2));
   try { localStorage.setItem("convai_visit_id", VISIT_ID); } catch(_) {}
 
-  // ========== Hide ElevenLabs native button ==========
+  // ========= hide native bubble + preload widget =========
   function ensureWidget(){
     return new Promise((resolve) => {
       let tag = document.querySelector("elevenlabs-convai");
@@ -1072,22 +1072,49 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     });
   }
 
-  // ========== Trigger ElevenLabs call ==========
+  // ========= trigger call =========
   async function startCall(){
     const widget = await ensureWidget();
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 800)); // wait to mount
+
     try {
       const sr = widget.shadowRoot;
       if (!sr) throw new Error("no shadowRoot");
-      const btn =
-        sr.querySelector('button[aria-label*="Start" i]') ||
-        sr.querySelector('button:has(svg)') ||
-        sr.querySelector('button');
-      if (btn) btn.click();
-    } catch(e){ console.warn("startCall fallback", e); }
+
+      // Step 1: find and click "Start a call"
+      let startBtn =
+        [...sr.querySelectorAll("button, div, span")]
+          .find(el => /start a call/i.test(el.textContent || ""));
+      if (startBtn) {
+        startBtn.click();
+        console.log("Clicked Start a call");
+        await new Promise(r => setTimeout(r, 1000));
+      }
+
+      // Step 2: auto-click "Accept"
+      let tries = 0;
+      const tryAccept = setInterval(() => {
+        tries++;
+        const acceptBtn =
+          [...sr.querySelectorAll("button, div, span")]
+            .find(el => /accept/i.test(el.textContent || ""));
+        if (acceptBtn) {
+          acceptBtn.click();
+          console.log("Clicked Accept");
+          clearInterval(tryAccept);
+        }
+        if (tries > 15) clearInterval(tryAccept);
+      }, 400);
+    } catch(e){
+      console.warn("startCall fallback", e);
+      try {
+        widget.focus();
+        widget.dispatchEvent(new KeyboardEvent("keydown",{key:"Enter"}));
+      } catch(_){}
+    }
   }
 
-  // ========== Styles ==========
+  // ========= styles =========
   function injectStyles(){
     if (document.getElementById("voizee-corner-styles")) return;
     const css = `
@@ -1128,6 +1155,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       .voizee-input {
         width:100%; padding:10px 12px; border:1px solid #e5e7eb;
         border-radius:8px; font-size:14px; margin-bottom:10px;
+        background:#f8fafc;
       }
       .voizee-actions { display:flex; gap:10px; margin-top:10px; }
       .voizee-btn {
@@ -1144,7 +1172,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     document.head.appendChild(style);
   }
 
-  // ========== Tray + Logic ==========
+  // ========= tray logic =========
   function buildTray(){
     if (document.getElementById("voizee-launcher")) return;
     injectStyles();
@@ -1190,7 +1218,6 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     tray.querySelector("#voizee-close").addEventListener("click", closeTray);
     tray.querySelector("#voizee-cancel").addEventListener("click", closeTray);
 
-    // Prefill from cache
     try {
       const c = getFormCache();
       if (c) {
@@ -1201,7 +1228,6 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       }
     } catch(_) {}
 
-    // Submit
     const form = tray.querySelector("#voizee-form");
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
@@ -1252,6 +1278,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
 })();
     """
     return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
+
 
 
 
