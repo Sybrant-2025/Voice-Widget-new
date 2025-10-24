@@ -965,7 +965,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
   const AVATAR_URL = "https://sybrant.com/wp-content/uploads/2025/10/voizee_girl_vidhya_bg.png";
 
-  // ---------- utils ----------
+  // ========== Utilities ==========
   async function fetchWithRetry(url, opts, retries = 2, backoffMs = 800, timeoutMs = 10000) {
     const attempt = (n) =>
       new Promise((resolve, reject) => {
@@ -987,7 +987,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     return attempt(0);
   }
 
-  // ---------- cache (24h) ----------
+  // ========== Cache ==========
   const FORM_KEY = "convai_form_cache";
   const TTL_KEY  = "convai_form_submitted";
   const FORM_TTL_MS = 24 * 60 * 60 * 1000;
@@ -1007,115 +1007,101 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       return rec.data;
     } catch(_) { return null; }
   }
-  function ttlActive(){
-    const ttl = parseInt(localStorage.getItem(TTL_KEY) || "0");
-    return Date.now() < ttl;
-  }
 
-  // ---------- visit correlation ----------
+  // ========== Visit ID ==========
   let VISIT_ID = (typeof crypto !== "undefined" && crypto.randomUUID)
     ? crypto.randomUUID()
     : (Date.now() + "_" + Math.random().toString(36).slice(2));
   try { localStorage.setItem("convai_visit_id", VISIT_ID); } catch(_) {}
 
-  // ---------- embed ElevenLabs widget ----------
+  // ========== Hide ElevenLabs native button ==========
   function ensureWidget(){
     return new Promise((resolve) => {
       let tag = document.querySelector("elevenlabs-convai");
       if (!tag) {
         tag = document.createElement("elevenlabs-convai");
         tag.setAttribute("agent-id", AGENT_ID);
+        tag.style.position = "fixed";
+        tag.style.bottom = "0";
+        tag.style.right = "0";
+        tag.style.opacity = "0";
+        tag.style.pointerEvents = "none";
+        tag.style.zIndex = "0";
         document.body.appendChild(tag);
       }
 
-      function removeExtras(sr){
-        if (!sr) return;
-        try {
-          [
-            'span.opacity-30',
-            'a[href*="elevenlabs.io/conversational-ai"]',
-            'a[href*="elevenlabs.io"]',
-            'div:has(> span.opacity-30)',
-            '[title*="Powered by"]'
-          ].forEach(sel => sr.querySelectorAll(sel).forEach(el => el.remove()));
-        } catch(e){}
-      }
+      const removeDefaultBubbles = () => {
+        document.querySelectorAll('div[class*="convai"], div[class*="elevenlabs"]').forEach(el => {
+          if (el.shadowRoot || el.tagName === "ELEVENLABS-CONVAI") return;
+          el.remove();
+        });
+      };
+      const observer = new MutationObserver(removeDefaultBubbles);
+      observer.observe(document.body, { childList: true, subtree: true });
+      removeDefaultBubbles();
 
-      const obs = new MutationObserver(() => {
-        if (tag && tag.shadowRoot) removeExtras(tag.shadowRoot);
-      });
-      obs.observe(document, { childList:true, subtree:true });
-
-      // load script if needed
       if (!window.__convai_script_loaded__) {
         window.__convai_script_loaded__ = true;
         const s = document.createElement("script");
         s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
         s.async = true;
         s.onerror = function(){
-          const fallback = document.createElement("script");
-          fallback.src = "https://elevenlabs.io/convai-widget/index.js";
-          fallback.async = true;
-          document.body.appendChild(fallback);
+          const fb = document.createElement("script");
+          fb.src = "https://elevenlabs.io/convai-widget/index.js";
+          fb.async = true;
+          document.body.appendChild(fb);
         };
         document.body.appendChild(s);
       }
 
-      // wait until shadowRoot appears
       let tries = 0;
       const timer = setInterval(() => {
         if (tag.shadowRoot) {
           clearInterval(timer);
+          const sr = tag.shadowRoot;
+          const btns = sr.querySelectorAll("button, div, img");
+          btns.forEach(b => {
+            if (b.offsetWidth < 80 && b.offsetHeight < 80) b.style.display = "none";
+          });
           resolve(tag);
         } else if (++tries > 100) {
           clearInterval(timer);
-          resolve(tag); // resolve anyway; we’ll try clicking later
+          resolve(tag);
         }
       }, 120);
     });
   }
 
-  // try to trigger the built-in call start in the widget
+  // ========== Trigger ElevenLabs call ==========
   async function startCall(){
     const widget = await ensureWidget();
-    // Small delay to allow internal UI to mount
-    await new Promise(r => setTimeout(r, 300));
+    await new Promise(r => setTimeout(r, 400));
     try {
       const sr = widget.shadowRoot;
       if (!sr) throw new Error("no shadowRoot");
-      // Common button selectors used by the Convai widget
-      const startBtn =
+      const btn =
         sr.querySelector('button[aria-label*="Start" i]') ||
         sr.querySelector('button:has(svg)') ||
         sr.querySelector('button');
-      if (startBtn) {
-        startBtn.click();
-        return true;
-      }
-    } catch(e){}
-    // Fallback: toggle a focus/keypress
-    try {
-      widget.focus();
-      widget.dispatchEvent(new KeyboardEvent("keydown",{key:"Enter"}));
-    } catch(_){}
-    return false;
+      if (btn) btn.click();
+    } catch(e){ console.warn("startCall fallback", e); }
   }
 
-  // ---------- corner launcher + tray ----------
+  // ========== Styles ==========
   function injectStyles(){
     if (document.getElementById("voizee-corner-styles")) return;
     const css = `
       .voizee-launcher {
         position: fixed; right: 20px; bottom: 20px; z-index: 999999;
         width: 64px; height: 64px; border-radius: 999px; cursor: pointer;
-        background: #fff; box-shadow: 0 10px 24px rgba(0,0,0,.24);
+        background: #fff; box-shadow: 0 8px 20px rgba(0,0,0,.25);
         display: flex; align-items: center; justify-content: center;
         overflow: hidden;
       }
       .voizee-launcher .avatar {
         width: 100%; height: 100%;
         background-image: url('${AVATAR_URL}');
-        background-size: cover; background-position: center; background-repeat: no-repeat;
+        background-size: cover; background-position: center;
       }
       .voizee-tray {
         position: fixed; right: 20px; bottom: 96px; z-index: 999999;
@@ -1125,36 +1111,32 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       }
       .voizee-tray.open { transform: translateY(0); opacity: 1; pointer-events: auto; }
       .voizee-card {
-        background: #ffffff; border-radius: 16px; overflow: hidden;
-        box-shadow: 0 16px 48px rgba(0,0,0,.28); font-family: system-ui, sans-serif;
+        background: #fff; border-radius: 16px; overflow: hidden;
+        box-shadow: 0 16px 48px rgba(0,0,0,.28);
+        font-family: system-ui, sans-serif;
       }
       .voizee-header {
-        display:flex; align-items:center; gap:10px; padding:12px 14px; background: #111; color: #fff;
+        display:flex; align-items:center; gap:10px; padding:12px 14px; background:#000; color:#fff;
       }
       .voizee-header .h-avatar {
-        width: 36px; height: 36px; border-radius: 999px; background-image:url('${AVATAR_URL}');
+        width: 36px; height: 36px; border-radius: 999px;
+        background-image:url('${AVATAR_URL}');
         background-size: cover; background-position:center;
-        border: 2px solid rgba(255,255,255,.4);
+        border:2px solid rgba(255,255,255,.4);
       }
-      .voizee-body { padding: 14px; }
-      .voizee-row { display:flex; gap: 10px; }
+      .voizee-body { padding:14px; }
       .voizee-input {
-        width: 100%; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; outline: none;
-        font-size: 14px;
+        width:100%; padding:10px 12px; border:1px solid #e5e7eb;
+        border-radius:8px; font-size:14px; margin-bottom:10px;
       }
       .voizee-actions { display:flex; gap:10px; margin-top:10px; }
       .voizee-btn {
-        flex: 1; padding: 10px 12px; border: none; border-radius: 8px; cursor:pointer; font-weight: 600;
+        flex:1; padding:10px 12px; border:none; border-radius:8px; cursor:pointer; font-weight:600;
       }
-      .voizee-btn.primary { background:#111; color:#fff; }
-      .voizee-btn.ghost { background:#f2f3f5; color:#111; }
-      .voizee-footer {
-        padding:10px 14px; font-size:12px; color:#6b7280; display:flex; align-items:center; gap:8px;
-      }
-      .voizee-footer .brand { opacity:.7; }
-      @media (max-width:480px){
-        .voizee-tray { right: 12px; left: 12px; width: auto; }
-      }
+      .voizee-btn.primary { background:#000; color:#fff; }
+      .voizee-btn.ghost { background:#f3f4f6; color:#111; }
+      .voizee-footer { padding:10px 14px; font-size:12px; color:#6b7280; text-align:center; }
+      @media (max-width:480px){ .voizee-tray{ right:12px; left:12px; width:auto; } }
     `;
     const style = document.createElement("style");
     style.id = "voizee-corner-styles";
@@ -1162,19 +1144,17 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     document.head.appendChild(style);
   }
 
+  // ========== Tray + Logic ==========
   function buildTray(){
     if (document.getElementById("voizee-launcher")) return;
-
     injectStyles();
 
-    // launcher
     const launcher = document.createElement("div");
     launcher.id = "voizee-launcher";
     launcher.className = "voizee-launcher";
-    launcher.innerHTML = `<div class="avatar" role="button" aria-label="Open Voizee"></div>`;
+    launcher.innerHTML = `<div class="avatar" title="Need help?"></div>`;
     document.body.appendChild(launcher);
 
-    // tray
     const tray = document.createElement("div");
     tray.id = "voizee-tray";
     tray.className = "voizee-tray";
@@ -1183,80 +1163,60 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
         <div class="voizee-header">
           <div class="h-avatar"></div>
           <div>
-            <div style="font-weight:700; line-height:1;">Voizee Assistant</div>
-            <div style="font-size:12px; opacity:.75;">Let’s get you connected</div>
+            <div style="font-weight:700;">Voizee Assistant</div>
+            <div style="font-size:12px;opacity:.75;">Let’s get you connected</div>
           </div>
           <button id="voizee-close" style="margin-left:auto;background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">×</button>
         </div>
         <div class="voizee-body">
           <form id="voizee-form">
-            <div class="voizee-row" style="margin-bottom:10px;">
-              <input class="voizee-input" name="name" placeholder="Full name" required>
-            </div>
-            <div class="voizee-row" style="margin-bottom:10px;">
-              <input class="voizee-input" name="company" placeholder="Company name" required>
-            </div>
-            <div class="voizee-row" style="margin-bottom:10px;">
-              <input class="voizee-input" type="email" name="email" placeholder="Work email" required>
-            </div>
-            <div class="voizee-row">
-              <input class="voizee-input" name="phone" placeholder="Phone number" required>
-            </div>
+            <input class="voizee-input" name="name" placeholder="Full name" required>
+            <input class="voizee-input" name="company" placeholder="Company name" required>
+            <input class="voizee-input" type="email" name="email" placeholder="Email" required>
+            <input class="voizee-input" name="phone" placeholder="Phone number" required>
             <div class="voizee-actions">
               <button type="submit" class="voizee-btn primary" id="voizee-submit">Start Call</button>
               <button type="button" class="voizee-btn ghost" id="voizee-cancel">Cancel</button>
             </div>
           </form>
         </div>
-        <div class="voizee-footer">
-          <span class="brand">${BRANDING_TEXT}</span>
-        </div>
-      </div>
-    `;
+        <div class="voizee-footer">${BRANDING_TEXT}</div>
+      </div>`;
     document.body.appendChild(tray);
 
-    // prefill cache
-    try {
-      const cached = getFormCache();
-      if (cached) {
-        tray.querySelector('input[name="name"]').value = cached.name || "";
-        tray.querySelector('input[name="company"]').value = cached.company || "";
-        tray.querySelector('input[name="email"]').value = cached.email || "";
-        tray.querySelector('input[name="phone"]').value = cached.phone || "";
-      }
-    } catch(_) {}
-
-    // listeners
     const openTray = () => tray.classList.add("open");
     const closeTray = () => tray.classList.remove("open");
-
     launcher.addEventListener("click", openTray);
     tray.querySelector("#voizee-close").addEventListener("click", closeTray);
     tray.querySelector("#voizee-cancel").addEventListener("click", closeTray);
 
-    // form submit → log → start call
+    // Prefill from cache
+    try {
+      const c = getFormCache();
+      if (c) {
+        tray.querySelector('input[name="name"]').value = c.name || "";
+        tray.querySelector('input[name="company"]').value = c.company || "";
+        tray.querySelector('input[name="email"]').value = c.email || "";
+        tray.querySelector('input[name="phone"]').value = c.phone || "";
+      }
+    } catch(_) {}
+
+    // Submit
     const form = tray.querySelector("#voizee-form");
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       const submitBtn = tray.querySelector("#voizee-submit");
       const cancelBtn = tray.querySelector("#voizee-cancel");
-
       if (form.__submitting) return;
       form.__submitting = true;
-
-      const lock = (el, on) => {
-        if (!el) return;
-        el.disabled = on;
-        el.style.opacity = on ? "0.6" : "";
-        el.style.pointerEvents = on ? "none" : "";
-      };
-
-      lock(submitBtn, true); lock(cancelBtn, true);
-      submitBtn.textContent = "Connecting…";
 
       const fd = new FormData(form);
       const fields = Object.fromEntries(fd.entries());
       saveFormCache(fields);
+
+      submitBtn.textContent = "Starting...";
+      submitBtn.disabled = true;
+      cancelBtn.disabled = true;
 
       const data = {
         event: "visitor_log",
@@ -1275,36 +1235,24 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data)
         });
-      } catch (e) {
-        console.warn("Logging failed:", e);
-        submitBtn.textContent = "Retry Start";
-        lock(submitBtn, false); lock(cancelBtn, false);
-        form.__submitting = false;
-        return;
-      }
+      } catch(e){ console.warn("log fail", e); }
 
-      // close the tray and start the call
       closeTray();
       await startCall();
-
-      submitBtn.textContent = "Starting…";
       form.__submitting = false;
-      lock(submitBtn, false); lock(cancelBtn, false);
+      submitBtn.textContent = "Start Call";
+      submitBtn.disabled = false;
+      cancelBtn.disabled = false;
     });
   }
 
-  // build UI immediately
   buildTray();
-
-  // create widget early (hidden) so it’s ready when user submits
   ensureWidget();
 
 })();
     """
-    return (js
-            .replace("__AGENT_ID__", agent_id)
-            .replace("__BRANDING__", branding)
-            .replace("__BRAND__", brand))
+    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
+
 
 
 ##########updated end##########
