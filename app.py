@@ -1191,8 +1191,8 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
         <div class="voizee-header">
           <div class="h-avatar"></div>
           <div>
-            <div style="font-weight:700;">Voizee Assistant</div>
-            <div style="font-size:12px;opacity:.75;">Let’s get you connected</div>
+            <div style="font-weight:700;">Hi, I am Vidhya</div>
+            <div style="font-size:12px;opacity:.75;">Your Al CFO Partner</div>
           </div>
           <button id="voizee-close" style="margin-left:auto;background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">×</button>
         </div>
