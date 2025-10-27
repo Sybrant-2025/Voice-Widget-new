@@ -956,47 +956,48 @@ def serve_widget_js_update_new(agent_id, branding="Powered by Voizee", brand="")
 
 
 #test version 
-def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
+def serve_widget_js_updated_2(agent_id, branding="Powered by Voizee", brand=""):
     js = r"""
 (function(){
-  const AGENT_ID = "__AGENT_ID__";
-  const BRAND = "__BRAND__";
-  const BRANDING_TEXT = "__BRANDING__";
-  const AVATAR_URL = "https://sybrant.com/wp-content/uploads/2025/10/divya_cfo-1-e1761563595921.png";
-  const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
+  const AGENT_ID="__AGENT_ID__";
+  const BRAND="__BRAND__";
+  const BRANDING_TEXT="__BRANDING__";
+  const AVATAR_URL="https://sybrant.com/wp-content/uploads/2025/10/divya_cfo-1-e1761563595921.png";
+  const LOG_ENDPOINT="https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
 
-  // ========= helpers =========
-  async function fetchWithRetry(url, opts, retries = 2, backoffMs = 800, timeoutMs = 10000) {
-    const attempt = (n) =>
-      new Promise((resolve, reject) => {
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), timeoutMs);
-        fetch(url, { ...opts, signal: ctrl.signal })
-          .then(r => { clearTimeout(t); if (r.ok) return resolve(r);
-            if (n < retries) return setTimeout(()=>resolve(attempt(n+1)), backoffMs*(n+1));
-            reject(new Error(`HTTP ${r.status}`));
-          })
-          .catch(e => { clearTimeout(t);
-            if (n < retries) return setTimeout(()=>resolve(attempt(n+1)), backoffMs*(n+1));
-            reject(e);
-          });
+  // =================== helpers ===================
+  async function fetchWithRetry(url,opts,retries=2,backoffMs=800,timeoutMs=10000){
+    const attempt=n=>new Promise((resolve,reject)=>{
+      const ctrl=new AbortController();
+      const t=setTimeout(()=>ctrl.abort(),timeoutMs);
+      fetch(url,{...opts,signal:ctrl.signal}).then(r=>{
+        clearTimeout(t);
+        if(r.ok)return resolve(r);
+        if(n<retries)return setTimeout(()=>resolve(attempt(n+1)),backoffMs*(n+1));
+        reject(new Error("HTTP "+r.status));
+      }).catch(e=>{
+        clearTimeout(t);
+        if(n<retries)return setTimeout(()=>resolve(attempt(n+1)),backoffMs*(n+1));
+        reject(e);
       });
+    });
     return attempt(0);
   }
 
-  // ========= cache =========
   const FORM_KEY="convai_form_cache",TTL_KEY="convai_form_submitted",FORM_TTL_MS=24*60*60*1000;
-  function saveFormCache(fields){try{const rec={data:fields,ts:Date.now()};
+  function saveFormCache(fields){try{
+    const rec={data:fields,ts:Date.now()};
     localStorage.setItem(FORM_KEY,JSON.stringify(rec));
-    localStorage.setItem(TTL_KEY,String(Date.now()+FORM_TTL_MS));}catch(_){}} 
-  function getFormCache(){try{const rec=JSON.parse(localStorage.getItem(FORM_KEY)||"null");
+    localStorage.setItem(TTL_KEY,String(Date.now()+FORM_TTL_MS));
+  }catch(_){}} 
+  function getFormCache(){try{
+    const rec=JSON.parse(localStorage.getItem(FORM_KEY)||"null");
     if(!rec||!rec.data)return null;
     if(Date.now()-(rec.ts||0)>FORM_TTL_MS)return null;
-    return rec.data;}catch(_){return null;}} 
-  function ttlActive(){const ttl=parseInt(localStorage.getItem(TTL_KEY)||"0");
-    return Date.now()<ttl;}
+    return rec.data;
+  }catch(_){return null;}} 
+  function ttlActive(){const ttl=parseInt(localStorage.getItem(TTL_KEY)||"0");return Date.now()<ttl;}
 
-  // ========= visit + conv =========
   let VISIT_ID=(crypto?.randomUUID)?crypto.randomUUID():Date.now()+"_"+Math.random().toString(36).slice(2);
   try{localStorage.setItem("convai_visit_id",VISIT_ID);}catch(_){}
   let CONV_ID=null;
@@ -1005,14 +1006,15 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
 
   function setConvIdOnce(cid){
     if(!cid||CONV_ID)return;
-    CONV_ID=cid; try{_convIdResolve(CONV_ID);}catch(_){}
+    CONV_ID=cid;
+    try{_convIdResolve(CONV_ID);}catch(_){}
     fetch(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({event:"conversation_id",visit_id:VISIT_ID,conversation_id:CONV_ID,
       agent_id:AGENT_ID,brand:BRAND,url:location.href,timestamp:new Date().toISOString()})});
-    setupCallEndHooks(); setupUnloadBeacons();
+    setupCallEndHooks();setupUnloadBeacons();
   }
 
-  window.addEventListener("message",(evt)=>{
+  window.addEventListener("message",evt=>{
     try{
       const d=evt?.data;
       const cid=d?.conversation_initiation_metadata_event?.conversation_id||d?.conversation_id;
@@ -1029,12 +1031,13 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
         const cid=d?.conversation_initiation_metadata_event?.conversation_id||d?.conversation_id;
         if(cid)setConvIdOnce(cid);
       }catch(_){}});return ws;}
-    W.prototype=OWS.prototype;Object.getOwnPropertyNames(OWS).forEach(k=>{try{W[k]=OWS[k];}catch(_){}});window.WebSocket=W;
+    W.prototype=OWS.prototype;
+    Object.getOwnPropertyNames(OWS).forEach(k=>{try{W[k]=OWS[k];}catch(_){}});window.WebSocket=W;
   })();
 
-  // ========= ensure widget =========
+  // ============= widget creation =============
   function ensureWidget(){
-    return new Promise((resolve)=>{
+    return new Promise(resolve=>{
       let tag=document.querySelector("elevenlabs-convai");
       if(!tag){
         tag=document.createElement("elevenlabs-convai");
@@ -1047,9 +1050,11 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
         const s=document.createElement("script");
         s.src="https://unpkg.com/@elevenlabs/convai-widget-embed";
         s.async=true;
-        s.onerror=function(){const f=document.createElement("script");
+        s.onerror=function(){
+          const f=document.createElement("script");
           f.src="https://elevenlabs.io/convai-widget/index.js";
-          f.async=true;document.body.appendChild(f);};
+          f.async=true;document.body.appendChild(f);
+        };
         document.body.appendChild(s);
       }
       let tries=0;const timer=setInterval(()=>{
@@ -1059,25 +1064,34 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     });
   }
 
-  // ========= start + accept =========
+  // ============= startCall fix for Accept modal =============
   async function startCall(){
-    const widget=await ensureWidget();await new Promise(r=>setTimeout(r,800));
+    const widget=await ensureWidget();
+    await new Promise(r=>setTimeout(r,800));
     try{
       const sr=widget.shadowRoot;if(!sr)throw new Error("no shadow");
       const startBtn=[...sr.querySelectorAll("button,div,span")]
         .find(el=>/start a call/i.test(el.textContent||""));
-      if(startBtn){startBtn.click();await new Promise(r=>setTimeout(r,1000));}
+      if(startBtn)startBtn.click();
       let tries=0;
       const timer=setInterval(()=>{
         tries++;
-        const acceptBtn=[...sr.querySelectorAll("button,div,span")]
-          .find(el=>/accept/i.test(el.textContent||""));
-        if(acceptBtn){acceptBtn.click();clearInterval(timer);}
-        if(tries>15)clearInterval(timer);
-      },400);
+        const overlays=sr.querySelectorAll("div.overlay");
+        overlays.forEach(overlay=>{
+          const acceptBtn=[...overlay.querySelectorAll("button,span")]
+            .find(el=>/accept/i.test(el.textContent||""));
+          if(acceptBtn&&overlay.style.display!=="none"){
+            acceptBtn.click();
+            console.log("✅ Clicked new Terms Accept");
+            clearInterval(timer);
+          }
+        });
+        if(tries>20)clearInterval(timer);
+      },500);
     }catch(e){console.warn("startCall fail",e);}
   }
 
+  // ============= transcript on end =============
   function hookEndButton(){
     const widget=document.querySelector("elevenlabs-convai");if(!widget)return false;
     const sr=widget.shadowRoot;if(!sr)return false;
@@ -1086,14 +1100,16 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       btn=all.find(b=>(b.textContent||"").trim().toLowerCase()==="end");}
     if(!btn)return false;
     if(!btn.__endHooked){btn.__endHooked=true;
-      btn.addEventListener("click",()=>{setTimeout(()=>{
-        if(!CONV_ID)return;
-        fetch("https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated",
-          {method:"POST",headers:{"Content-Type":"application/json"},
-           body:JSON.stringify({visit_id:VISIT_ID,conversation_id:CONV_ID,
-             agent_id:AGENT_ID,brand:BRAND,url:location.href}),
-           keepalive:true}).catch(()=>{});
-      },30000);},{capture:true});}
+      btn.addEventListener("click",()=>{
+        setTimeout(()=>{
+          if(!CONV_ID)return;
+          fetch("https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated",
+            {method:"POST",headers:{"Content-Type":"application/json"},
+             body:JSON.stringify({visit_id:VISIT_ID,conversation_id:CONV_ID,
+               agent_id:AGENT_ID,brand:BRAND,url:location.href}),keepalive:true}).catch(()=>{});
+        },30000);
+      },{capture:true});
+    }
     return true;
   }
 
@@ -1121,7 +1137,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")beacon();});
   }
 
-  // ========= styles + tray =========
+  // ============= Avatar tray UI =============
   function injectStyles(){
     if(document.getElementById("voizee-corner-styles"))return;
     const css=`
@@ -1226,10 +1242,10 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   }
 
   buildTray(); ensureWidget();
-
 })();
     """
     return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
+
 
 
 
