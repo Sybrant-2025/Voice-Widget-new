@@ -962,8 +962,8 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   const AGENT_ID = "__AGENT_ID__";
   const BRAND = "__BRAND__";
   const BRANDING_TEXT = "__BRANDING__";
-  const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
   const AVATAR_URL = "https://sybrant.com/wp-content/uploads/2025/10/divya_cfo-1-e1761563595921.png";
+  const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
 
   // ========= helpers =========
   async function fetchWithRetry(url, opts, retries = 2, backoffMs = 800, timeoutMs = 10000) {
@@ -972,15 +972,12 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), timeoutMs);
         fetch(url, { ...opts, signal: ctrl.signal })
-          .then((r) => {
-            clearTimeout(t);
-            if (r.ok) return resolve(r);
-            if (n < retries) return setTimeout(() => resolve(attempt(n + 1)), backoffMs * (n + 1));
+          .then(r => { clearTimeout(t); if (r.ok) return resolve(r);
+            if (n < retries) return setTimeout(()=>resolve(attempt(n+1)), backoffMs*(n+1));
             reject(new Error(`HTTP ${r.status}`));
           })
-          .catch((e) => {
-            clearTimeout(t);
-            if (n < retries) return setTimeout(() => resolve(attempt(n + 1)), backoffMs * (n + 1));
+          .catch(e => { clearTimeout(t);
+            if (n < retries) return setTimeout(()=>resolve(attempt(n+1)), backoffMs*(n+1));
             reject(e);
           });
       });
@@ -988,212 +985,198 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   }
 
   // ========= cache =========
-  const FORM_KEY = "convai_form_cache";
-  const TTL_KEY  = "convai_form_submitted";
-  const FORM_TTL_MS = 24 * 60 * 60 * 1000;
+  const FORM_KEY="convai_form_cache",TTL_KEY="convai_form_submitted",FORM_TTL_MS=24*60*60*1000;
+  function saveFormCache(fields){try{const rec={data:fields,ts:Date.now()};
+    localStorage.setItem(FORM_KEY,JSON.stringify(rec));
+    localStorage.setItem(TTL_KEY,String(Date.now()+FORM_TTL_MS));}catch(_){}} 
+  function getFormCache(){try{const rec=JSON.parse(localStorage.getItem(FORM_KEY)||"null");
+    if(!rec||!rec.data)return null;
+    if(Date.now()-(rec.ts||0)>FORM_TTL_MS)return null;
+    return rec.data;}catch(_){return null;}} 
+  function ttlActive(){const ttl=parseInt(localStorage.getItem(TTL_KEY)||"0");
+    return Date.now()<ttl;}
 
-  function saveFormCache(fields){
-    try {
-      const rec = { data: fields, ts: Date.now() };
-      localStorage.setItem(FORM_KEY, JSON.stringify(rec));
-      localStorage.setItem(TTL_KEY, String(Date.now() + FORM_TTL_MS));
-    } catch(_) {}
+  // ========= visit + conv =========
+  let VISIT_ID=(crypto?.randomUUID)?crypto.randomUUID():Date.now()+"_"+Math.random().toString(36).slice(2);
+  try{localStorage.setItem("convai_visit_id",VISIT_ID);}catch(_){}
+  let CONV_ID=null;
+  let _convIdResolve;
+  const conversationIdReady=new Promise(res=>(_convIdResolve=res));
+
+  function setConvIdOnce(cid){
+    if(!cid||CONV_ID)return;
+    CONV_ID=cid; try{_convIdResolve(CONV_ID);}catch(_){}
+    fetch(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({event:"conversation_id",visit_id:VISIT_ID,conversation_id:CONV_ID,
+      agent_id:AGENT_ID,brand:BRAND,url:location.href,timestamp:new Date().toISOString()})});
+    setupCallEndHooks(); setupUnloadBeacons();
   }
-  function getFormCache(){
-    try {
-      const rec = JSON.parse(localStorage.getItem(FORM_KEY) || "null");
-      if (!rec || !rec.data) return null;
-      if (Date.now() - (rec.ts || 0) > FORM_TTL_MS) return null;
-      return rec.data;
-    } catch(_) { return null; }
-  }
 
-  // ========= visit id =========
-  let VISIT_ID = (typeof crypto !== "undefined" && crypto.randomUUID)
-    ? crypto.randomUUID()
-    : (Date.now() + "_" + Math.random().toString(36).slice(2));
-  try { localStorage.setItem("convai_visit_id", VISIT_ID); } catch(_) {}
+  window.addEventListener("message",(evt)=>{
+    try{
+      const d=evt?.data;
+      const cid=d?.conversation_initiation_metadata_event?.conversation_id||d?.conversation_id;
+      setConvIdOnce(cid);
+    }catch(_){}
+  },false);
 
-  // ========= hide native bubble + preload widget =========
+  (function patchWebSocket(){
+    const OWS=window.WebSocket;if(!OWS)return;
+    function W(url,p){const ws=p?new OWS(url,p):new OWS(url);
+      ws.addEventListener("message",(ev)=>{try{
+        if(typeof ev.data!=="string")return;
+        const d=JSON.parse(ev.data);
+        const cid=d?.conversation_initiation_metadata_event?.conversation_id||d?.conversation_id;
+        if(cid)setConvIdOnce(cid);
+      }catch(_){}});return ws;}
+    W.prototype=OWS.prototype;Object.getOwnPropertyNames(OWS).forEach(k=>{try{W[k]=OWS[k];}catch(_){}});window.WebSocket=W;
+  })();
+
+  // ========= ensure widget =========
   function ensureWidget(){
-    return new Promise((resolve) => {
-      let tag = document.querySelector("elevenlabs-convai");
-      if (!tag) {
-        tag = document.createElement("elevenlabs-convai");
-        tag.setAttribute("agent-id", AGENT_ID);
-        tag.style.position = "fixed";
-        tag.style.bottom = "0";
-        tag.style.right = "0";
-        tag.style.opacity = "0";
-        tag.style.pointerEvents = "none";
-        tag.style.zIndex = "0";
+    return new Promise((resolve)=>{
+      let tag=document.querySelector("elevenlabs-convai");
+      if(!tag){
+        tag=document.createElement("elevenlabs-convai");
+        tag.setAttribute("agent-id",AGENT_ID);
+        tag.style.cssText="position:fixed;bottom:0;right:0;opacity:0;pointer-events:none;z-index:0;";
         document.body.appendChild(tag);
       }
-
-      const removeDefaultBubbles = () => {
-        document.querySelectorAll('div[class*="convai"], div[class*="elevenlabs"]').forEach(el => {
-          if (el.shadowRoot || el.tagName === "ELEVENLABS-CONVAI") return;
-          el.remove();
-        });
-      };
-      const observer = new MutationObserver(removeDefaultBubbles);
-      observer.observe(document.body, { childList: true, subtree: true });
-      removeDefaultBubbles();
-
-      if (!window.__convai_script_loaded__) {
-        window.__convai_script_loaded__ = true;
-        const s = document.createElement("script");
-        s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
-        s.async = true;
-        s.onerror = function(){
-          const fb = document.createElement("script");
-          fb.src = "https://elevenlabs.io/convai-widget/index.js";
-          fb.async = true;
-          document.body.appendChild(fb);
-        };
+      if(!window.__convai_script_loaded__){
+        window.__convai_script_loaded__=true;
+        const s=document.createElement("script");
+        s.src="https://unpkg.com/@elevenlabs/convai-widget-embed";
+        s.async=true;
+        s.onerror=function(){const f=document.createElement("script");
+          f.src="https://elevenlabs.io/convai-widget/index.js";
+          f.async=true;document.body.appendChild(f);};
         document.body.appendChild(s);
       }
-
-      let tries = 0;
-      const timer = setInterval(() => {
-        if (tag.shadowRoot) {
-          clearInterval(timer);
-          const sr = tag.shadowRoot;
-          const btns = sr.querySelectorAll("button, div, img");
-          btns.forEach(b => {
-            if (b.offsetWidth < 80 && b.offsetHeight < 80) b.style.display = "none";
-          });
-          resolve(tag);
-        } else if (++tries > 100) {
-          clearInterval(timer);
-          resolve(tag);
-        }
-      }, 120);
+      let tries=0;const timer=setInterval(()=>{
+        if(tag.shadowRoot){clearInterval(timer);resolve(tag);}
+        else if(++tries>100){clearInterval(timer);resolve(tag);}
+      },120);
     });
   }
 
-  // ========= trigger call =========
+  // ========= start + accept =========
   async function startCall(){
-    const widget = await ensureWidget();
-    await new Promise(r => setTimeout(r, 800)); // wait to mount
-
-    try {
-      const sr = widget.shadowRoot;
-      if (!sr) throw new Error("no shadowRoot");
-
-      // Step 1: find and click "Start a call"
-      let startBtn =
-        [...sr.querySelectorAll("button, div, span")]
-          .find(el => /start a call/i.test(el.textContent || ""));
-      if (startBtn) {
-        startBtn.click();
-        console.log("Clicked Start a call");
-        await new Promise(r => setTimeout(r, 1000));
-      }
-
-      // Step 2: auto-click "Accept"
-      let tries = 0;
-      const tryAccept = setInterval(() => {
+    const widget=await ensureWidget();await new Promise(r=>setTimeout(r,800));
+    try{
+      const sr=widget.shadowRoot;if(!sr)throw new Error("no shadow");
+      const startBtn=[...sr.querySelectorAll("button,div,span")]
+        .find(el=>/start a call/i.test(el.textContent||""));
+      if(startBtn){startBtn.click();await new Promise(r=>setTimeout(r,1000));}
+      let tries=0;
+      const timer=setInterval(()=>{
         tries++;
-        const acceptBtn =
-          [...sr.querySelectorAll("button, div, span")]
-            .find(el => /accept/i.test(el.textContent || ""));
-        if (acceptBtn) {
-          acceptBtn.click();
-          console.log("Clicked Accept");
-          clearInterval(tryAccept);
-        }
-        if (tries > 15) clearInterval(tryAccept);
-      }, 400);
-    } catch(e){
-      console.warn("startCall fallback", e);
-      try {
-        widget.focus();
-        widget.dispatchEvent(new KeyboardEvent("keydown",{key:"Enter"}));
-      } catch(_){}
+        const acceptBtn=[...sr.querySelectorAll("button,div,span")]
+          .find(el=>/accept/i.test(el.textContent||""));
+        if(acceptBtn){acceptBtn.click();clearInterval(timer);}
+        if(tries>15)clearInterval(timer);
+      },400);
+    }catch(e){console.warn("startCall fail",e);}
+  }
+
+  function hookEndButton(){
+    const widget=document.querySelector("elevenlabs-convai");if(!widget)return false;
+    const sr=widget.shadowRoot;if(!sr)return false;
+    let btn=sr.querySelector('button[aria-label*="End"],button[title*="End"]');
+    if(!btn){const all=[...sr.querySelectorAll("button")];
+      btn=all.find(b=>(b.textContent||"").trim().toLowerCase()==="end");}
+    if(!btn)return false;
+    if(!btn.__endHooked){btn.__endHooked=true;
+      btn.addEventListener("click",()=>{setTimeout(()=>{
+        if(!CONV_ID)return;
+        fetch("https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated",
+          {method:"POST",headers:{"Content-Type":"application/json"},
+           body:JSON.stringify({visit_id:VISIT_ID,conversation_id:CONV_ID,
+             agent_id:AGENT_ID,brand:BRAND,url:location.href}),
+           keepalive:true}).catch(()=>{});
+      },30000);},{capture:true});}
+    return true;
+  }
+
+  function setupCallEndHooks(){
+    hookEndButton();
+    const widget=document.querySelector("elevenlabs-convai");
+    const sr=widget&&widget.shadowRoot;if(!sr)return;
+    if(!window.__endBtnObserver){
+      window.__endBtnObserver=new MutationObserver(()=>{hookEndButton();});
+      window.__endBtnObserver.observe(sr,{childList:true,subtree:true});
     }
   }
 
-  // ========= styles =========
-  function injectStyles(){
-    if (document.getElementById("voizee-corner-styles")) return;
-    const css = `
-      .voizee-launcher {
-        position: fixed; right: 20px; bottom: 20px; z-index: 999999;
-        width: 64px; height: 64px; border-radius: 999px; cursor: pointer;
-        background: #fff; box-shadow: 0 8px 20px rgba(0,0,0,.25);
-        display: flex; align-items: center; justify-content: center;
-        overflow: hidden;
-      }
-      .voizee-launcher .avatar {
-        width: 100%; height: 100%;
-        background-image: url('${AVATAR_URL}');
-        background-size: cover; background-position: center;
-      }
-      .voizee-tray {
-        position: fixed; right: 20px; bottom: 96px; z-index: 999999;
-        width: 360px; max-width: calc(100vw - 40px);
-        transform: translateY(20px); opacity: 0; pointer-events: none;
-        transition: transform .25s ease, opacity .25s ease;
-      }
-      .voizee-tray.open { transform: translateY(0); opacity: 1; pointer-events: auto; }
-      .voizee-card {
-        background: #fff; border-radius: 16px; overflow: hidden;
-        box-shadow: 0 16px 48px rgba(0,0,0,.28);
-        font-family: system-ui, sans-serif;
-      }
-      .voizee-header {
-        display:flex; align-items:center; gap:10px; padding:12px 14px; background:#000; color:#fff;
-      }
-      .voizee-header .h-avatar {
-        width: 36px; height: 36px; border-radius: 999px;
-        background-image:url('${AVATAR_URL}');
-        background-size: cover; background-position:center;
-        border:2px solid rgba(255,255,255,.4);
-      }
-      .voizee-body { padding:14px; }
-      .voizee-input {
-        width:100%; padding:10px 12px; border:1px solid #e5e7eb;
-        border-radius:8px; font-size:14px; margin-bottom:10px;
-        background:#f8fafc;
-      }
-      .voizee-actions { display:flex; gap:10px; margin-top:10px; }
-      .voizee-btn {
-        flex:1; padding:10px 12px; border:none; border-radius:8px; cursor:pointer; font-weight:600;
-      }
-      .voizee-btn.primary { background:#000; color:#fff; }
-      .voizee-btn.ghost { background:#f3f4f6; color:#111; }
-      .voizee-footer { padding:10px 14px; font-size:12px; color:#6b7280; text-align:center; }
-      @media (max-width:480px){ .voizee-tray{ right:12px; left:12px; width:auto; } }
-    `;
-    const style = document.createElement("style");
-    style.id = "voizee-corner-styles";
-    style.textContent = css;
-    document.head.appendChild(style);
+  function setupUnloadBeacons(){
+    function beacon(){
+      if(!CONV_ID)return;
+      try{
+        const payload=JSON.stringify({visit_id:VISIT_ID,conversation_id:CONV_ID,
+          agent_id:AGENT_ID,brand:BRAND,url:location.href});
+        const blob=new Blob([payload],{type:"application/json"});
+        navigator.sendBeacon("https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated-beacon",blob);
+      }catch(_){}
+    }
+    window.addEventListener("pagehide",beacon);
+    document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")beacon();});
   }
 
-  // ========= tray logic =========
-  function buildTray(){
-    if (document.getElementById("voizee-launcher")) return;
-    injectStyles();
+  // ========= styles + tray =========
+  function injectStyles(){
+    if(document.getElementById("voizee-corner-styles"))return;
+    const css=`
+      .voizee-launcher{position:fixed;right:20px;bottom:20px;z-index:999999;
+        width:64px;height:64px;border-radius:999px;cursor:pointer;
+        background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.25);
+        display:flex;align-items:center;justify-content:center;overflow:hidden;}
+      .voizee-launcher .avatar{width:100%;height:100%;
+        background-image:url('${AVATAR_URL}');
+        background-size:cover;background-position:center;}
+      .voizee-tray{position:fixed;right:20px;bottom:96px;z-index:999999;
+        width:360px;max-width:calc(100vw - 40px);
+        transform:translateY(20px);opacity:0;pointer-events:none;
+        transition:transform .25s ease,opacity .25s ease;}
+      .voizee-tray.open{transform:translateY(0);opacity:1;pointer-events:auto;}
+      .voizee-card{background:#fff;border-radius:16px;overflow:hidden;
+        box-shadow:0 16px 48px rgba(0,0,0,.28);font-family:sans-serif;}
+      .voizee-header{display:flex;align-items:center;gap:10px;
+        padding:12px 14px;background:#000;color:#fff;}
+      .voizee-header .h-avatar{width:36px;height:36px;border-radius:999px;
+        background-image:url('${AVATAR_URL}');
+        background-size:cover;background-position:center;
+        border:2px solid rgba(255,255,255,.4);}
+      .voizee-body{padding:14px;}
+      .voizee-input{width:100%;padding:10px 12px;border:1px solid #e5e7eb;
+        border-radius:8px;font-size:14px;margin-bottom:10px;background:#f8fafc;}
+      .voizee-actions{display:flex;gap:10px;margin-top:10px;}
+      .voizee-btn{flex:1;padding:10px 12px;border:none;border-radius:8px;
+        cursor:pointer;font-weight:600;}
+      .voizee-btn.primary{background:#000;color:#fff;}
+      .voizee-btn.ghost{background:#f3f4f6;color:#111;}
+      .voizee-footer{padding:10px 14px;font-size:12px;color:#6b7280;text-align:center;}
+      @media(max-width:480px){.voizee-tray{right:12px;left:12px;width:auto;}}
+    `;
+    const style=document.createElement("style");
+    style.id="voizee-corner-styles";style.textContent=css;document.head.appendChild(style);
+  }
 
-    const launcher = document.createElement("div");
-    launcher.id = "voizee-launcher";
-    launcher.className = "voizee-launcher";
-    launcher.innerHTML = `<div class="avatar" title="Need help?"></div>`;
+  function buildTray(){
+    if(document.getElementById("voizee-launcher"))return;
+    injectStyles();
+    const launcher=document.createElement("div");
+    launcher.id="voizee-launcher";
+    launcher.className="voizee-launcher";
+    launcher.innerHTML=`<div class="avatar" title="Need help?"></div>`;
     document.body.appendChild(launcher);
 
-    const tray = document.createElement("div");
-    tray.id = "voizee-tray";
-    tray.className = "voizee-tray";
-    tray.innerHTML = `
+    const tray=document.createElement("div");
+    tray.id="voizee-tray";tray.className="voizee-tray";
+    tray.innerHTML=`
       <div class="voizee-card">
         <div class="voizee-header">
           <div class="h-avatar"></div>
-          <div>
-            <div style="font-weight:700;">Hi, I am Vidhya</div>
-            <div style="font-size:12px;opacity:.75;">Your Al CFO Partner</div>
-          </div>
+          <div><div style="font-weight:700;">Hi, I am Vidhya</div>
+               <div style="font-size:12px;opacity:.75;">Your AI CFO Partner</div></div>
           <button id="voizee-close" style="margin-left:auto;background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">×</button>
         </div>
         <div class="voizee-body">
@@ -1212,68 +1195,37 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       </div>`;
     document.body.appendChild(tray);
 
-    const openTray = () => tray.classList.add("open");
-    const closeTray = () => tray.classList.remove("open");
-    launcher.addEventListener("click", openTray);
-    tray.querySelector("#voizee-close").addEventListener("click", closeTray);
-    tray.querySelector("#voizee-cancel").addEventListener("click", closeTray);
+    const openTray=()=>tray.classList.add("open");
+    const closeTray=()=>tray.classList.remove("open");
+    launcher.addEventListener("click",openTray);
+    tray.querySelector("#voizee-close").addEventListener("click",closeTray);
+    tray.querySelector("#voizee-cancel").addEventListener("click",closeTray);
 
-    try {
-      const c = getFormCache();
-      if (c) {
-        tray.querySelector('input[name="name"]').value = c.name || "";
-        tray.querySelector('input[name="company"]').value = c.company || "";
-        tray.querySelector('input[name="email"]').value = c.email || "";
-        tray.querySelector('input[name="phone"]').value = c.phone || "";
-      }
-    } catch(_) {}
+    const cached=getFormCache();
+    if(cached){for(const k in cached){
+      const el=tray.querySelector(`[name="${k}"]`);if(el)el.value=cached[k];}}
 
-    const form = tray.querySelector("#voizee-form");
-    form.addEventListener("submit", async (ev) => {
+    const form=tray.querySelector("#voizee-form");
+    form.addEventListener("submit",async(ev)=>{
       ev.preventDefault();
-      const submitBtn = tray.querySelector("#voizee-submit");
-      const cancelBtn = tray.querySelector("#voizee-cancel");
-      if (form.__submitting) return;
-      form.__submitting = true;
-
-      const fd = new FormData(form);
-      const fields = Object.fromEntries(fd.entries());
+      const submitBtn=tray.querySelector("#voizee-submit");
+      const cancelBtn=tray.querySelector("#voizee-cancel");
+      if(form.__submitting)return;form.__submitting=true;
+      const fd=new FormData(form);
+      const fields=Object.fromEntries(fd.entries());
       saveFormCache(fields);
-
-      submitBtn.textContent = "Starting...";
-      submitBtn.disabled = true;
-      cancelBtn.disabled = true;
-
-      const data = {
-        event: "visitor_log",
-        visit_id: VISIT_ID,
-        agent_id: AGENT_ID,
-        brand: BRAND,
-        url: location.href,
-        timestamp: new Date().toISOString(),
-        conversation_id: null,
-        ...fields
-      };
-
-      try {
-        await fetchWithRetry(LOG_ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
-        });
-      } catch(e){ console.warn("log fail", e); }
-
-      closeTray();
-      await startCall();
-      form.__submitting = false;
-      submitBtn.textContent = "Start Call";
-      submitBtn.disabled = false;
-      cancelBtn.disabled = false;
+      submitBtn.textContent="Starting...";submitBtn.disabled=true;cancelBtn.disabled=true;
+      const data={event:"visitor_log",visit_id:VISIT_ID,agent_id:AGENT_ID,brand:BRAND,
+        url:location.href,timestamp:new Date().toISOString(),conversation_id:null,...fields};
+      try{await fetchWithRetry(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});}
+      catch(e){console.warn("log fail",e);}
+      closeTray();await startCall();
+      form.__submitting=false;submitBtn.textContent="Start Call";
+      submitBtn.disabled=false;cancelBtn.disabled=false;
     });
   }
 
-  buildTray();
-  ensureWidget();
+  buildTray(); ensureWidget();
 
 })();
     """
