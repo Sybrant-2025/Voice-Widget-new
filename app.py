@@ -956,7 +956,7 @@ def serve_widget_js_update_new(agent_id, branding="Powered by Voizee", brand="")
 
 
 #test version 
-def serve_widget_js_updated_2(agent_id, branding="Powered by Voizee", brand=""):
+def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     js = r"""
 (function(){
   const AGENT_ID="__AGENT_ID__";
