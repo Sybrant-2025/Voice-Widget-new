@@ -963,7 +963,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   const BRAND = "__BRAND__";
   const BRANDING_TEXT = "__BRANDING__";
   const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
-  const AVATAR_URL = "https://sybrant.com/wp-content/uploads/2025/10/vidhyacircle-e1761290742273.png";
+  const AVATAR_URL = "https://sybrant.com/wp-content/uploads/2025/10/divya_cfo-1-e1761563595921.png";
 
   // ========= helpers =========
   async function fetchWithRetry(url, opts, retries = 2, backoffMs = 800, timeoutMs = 10000) {
