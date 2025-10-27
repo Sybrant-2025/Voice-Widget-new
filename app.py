@@ -959,185 +959,119 @@ def serve_widget_js_update_new(agent_id, branding="Powered by Voizee", brand="")
 def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     js = r"""
 (function(){
-  const AGENT_ID="__AGENT_ID__";
-  const BRAND="__BRAND__";
-  const BRANDING_TEXT="__BRANDING__";
-  const AVATAR_URL="https://sybrant.com/wp-content/uploads/2025/10/divya_cfo-1-e1761563595921.png";
-  const LOG_ENDPOINT="https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
+  const AGENT_ID = "__AGENT_ID__";
+  const BRAND = "__BRAND__";
+  const BRANDING_TEXT = "__BRANDING__";
+  const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
+  const AVATAR_URL = "https://sybrant.com/wp-content/uploads/2025/10/divya_cfo-1-e1761563595921.png";
 
-  // =================== helpers ===================
-  async function fetchWithRetry(url,opts,retries=2,backoffMs=800,timeoutMs=10000){
-    const attempt=n=>new Promise((resolve,reject)=>{
-      const ctrl=new AbortController();
-      const t=setTimeout(()=>ctrl.abort(),timeoutMs);
-      fetch(url,{...opts,signal:ctrl.signal}).then(r=>{
-        clearTimeout(t);
-        if(r.ok)return resolve(r);
-        if(n<retries)return setTimeout(()=>resolve(attempt(n+1)),backoffMs*(n+1));
-        reject(new Error("HTTP "+r.status));
-      }).catch(e=>{
-        clearTimeout(t);
-        if(n<retries)return setTimeout(()=>resolve(attempt(n+1)),backoffMs*(n+1));
-        reject(e);
+  // ------------------- Utility: fetch with retry -------------------
+  async function fetchWithRetry(url, opts, retries = 2, backoffMs = 800, timeoutMs = 10000) {
+    const attempt = (n) =>
+      new Promise((resolve, reject) => {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), timeoutMs);
+        fetch(url, { ...opts, signal: ctrl.signal })
+          .then((r) => {
+            clearTimeout(t);
+            if (r.ok) return resolve(r);
+            if (n < retries)
+              return setTimeout(() => resolve(attempt(n + 1)), backoffMs * (n + 1));
+            reject(new Error(`HTTP ${r.status}`));
+          })
+          .catch((e) => {
+            clearTimeout(t);
+            if (n < retries)
+              return setTimeout(() => resolve(attempt(n + 1)), backoffMs * (n + 1));
+            reject(e);
+          });
       });
-    });
     return attempt(0);
   }
 
-  const FORM_KEY="convai_form_cache",TTL_KEY="convai_form_submitted",FORM_TTL_MS=24*60*60*1000;
-  function saveFormCache(fields){try{
-    const rec={data:fields,ts:Date.now()};
-    localStorage.setItem(FORM_KEY,JSON.stringify(rec));
-    localStorage.setItem(TTL_KEY,String(Date.now()+FORM_TTL_MS));
-  }catch(_){}} 
-  function getFormCache(){try{
-    const rec=JSON.parse(localStorage.getItem(FORM_KEY)||"null");
-    if(!rec||!rec.data)return null;
-    if(Date.now()-(rec.ts||0)>FORM_TTL_MS)return null;
-    return rec.data;
-  }catch(_){return null;}} 
-  function ttlActive(){const ttl=parseInt(localStorage.getItem(TTL_KEY)||"0");return Date.now()<ttl;}
+  // ------------------- Cache (24h) -------------------
+  const FORM_KEY = "convai_form_cache";
+  const TTL_KEY  = "convai_form_submitted";
+  const FORM_TTL_MS = 24 * 60 * 60 * 1000;
 
-  let VISIT_ID=(crypto?.randomUUID)?crypto.randomUUID():Date.now()+"_"+Math.random().toString(36).slice(2);
-  try{localStorage.setItem("convai_visit_id",VISIT_ID);}catch(_){}
-  let CONV_ID=null;
-  let _convIdResolve;
-  const conversationIdReady=new Promise(res=>(_convIdResolve=res));
-
-  function setConvIdOnce(cid){
-    if(!cid||CONV_ID)return;
-    CONV_ID=cid;
-    try{_convIdResolve(CONV_ID);}catch(_){}
-    fetch(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({event:"conversation_id",visit_id:VISIT_ID,conversation_id:CONV_ID,
-      agent_id:AGENT_ID,brand:BRAND,url:location.href,timestamp:new Date().toISOString()})});
-    setupCallEndHooks();setupUnloadBeacons();
+  function saveFormCache(fields){
+    try {
+      const rec = { data: fields, ts: Date.now() };
+      localStorage.setItem(FORM_KEY, JSON.stringify(rec));
+      localStorage.setItem(TTL_KEY, String(Date.now() + FORM_TTL_MS));
+    } catch(_) {}
+  }
+  function getFormCache(){
+    try {
+      const rec = JSON.parse(localStorage.getItem(FORM_KEY) || "null");
+      if (!rec || !rec.data) return null;
+      if (Date.now() - (rec.ts || 0) > FORM_TTL_MS) return null;
+      return rec.data;
+    } catch(_) { return null; }
+  }
+  function ttlActive(){
+    const ttl = parseInt(localStorage.getItem(TTL_KEY) || "0");
+    return Date.now() < ttl;
   }
 
-  window.addEventListener("message",evt=>{
+  // ------------------- Visit & Conversation -------------------
+  let VISIT_ID = crypto.randomUUID ? crypto.randomUUID() : (Date.now()+"_"+Math.random().toString(36).slice(2));
+  try { localStorage.setItem("convai_visit_id", VISIT_ID); } catch(_) {}
+
+  let CONV_ID = null;
+  let _convIdResolve;
+  const conversationIdReady = new Promise(res => (_convIdResolve = res));
+
+  function setConvIdOnce(cid){
+    if (!cid || CONV_ID) return;
+    CONV_ID = cid;
+    try { _convIdResolve(CONV_ID); } catch(_) {}
+    fetch(LOG_ENDPOINT,{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        event:"conversation_id",visit_id:VISIT_ID,conversation_id:CONV_ID,
+        agent_id:AGENT_ID,brand:BRAND,url:location.href,timestamp:new Date().toISOString()
+      })
+    }).catch(()=>{});
+  }
+
+  window.addEventListener("message",(evt)=>{
     try{
       const d=evt?.data;
       const cid=d?.conversation_initiation_metadata_event?.conversation_id||d?.conversation_id;
       setConvIdOnce(cid);
     }catch(_){}
-  },false);
+  });
 
-  (function patchWebSocket(){
-    const OWS=window.WebSocket;if(!OWS)return;
-    function W(url,p){const ws=p?new OWS(url,p):new OWS(url);
-      ws.addEventListener("message",(ev)=>{try{
-        if(typeof ev.data!=="string")return;
-        const d=JSON.parse(ev.data);
-        const cid=d?.conversation_initiation_metadata_event?.conversation_id||d?.conversation_id;
-        if(cid)setConvIdOnce(cid);
-      }catch(_){}});return ws;}
-    W.prototype=OWS.prototype;
-    Object.getOwnPropertyNames(OWS).forEach(k=>{try{W[k]=OWS[k];}catch(_){}});window.WebSocket=W;
-  })();
-
-  // ============= widget creation =============
-  function ensureWidget(){
-    return new Promise(resolve=>{
-      let tag=document.querySelector("elevenlabs-convai");
-      if(!tag){
-        tag=document.createElement("elevenlabs-convai");
-        tag.setAttribute("agent-id",AGENT_ID);
-        tag.style.cssText="position:fixed;bottom:0;right:0;opacity:0;pointer-events:none;z-index:0;";
-        document.body.appendChild(tag);
-      }
-      if(!window.__convai_script_loaded__){
-        window.__convai_script_loaded__=true;
-        const s=document.createElement("script");
-        s.src="https://unpkg.com/@elevenlabs/convai-widget-embed";
-        s.async=true;
-        s.onerror=function(){
-          const f=document.createElement("script");
-          f.src="https://elevenlabs.io/convai-widget/index.js";
-          f.async=true;document.body.appendChild(f);
-        };
-        document.body.appendChild(s);
-      }
-      let tries=0;const timer=setInterval(()=>{
-        if(tag.shadowRoot){clearInterval(timer);resolve(tag);}
-        else if(++tries>100){clearInterval(timer);resolve(tag);}
-      },120);
-    });
-  }
-
-  // ============= startCall fix for Accept modal =============
+  // ------------------- Reliable Start Call -------------------
   async function startCall(){
-    const widget=await ensureWidget();
-    await new Promise(r=>setTimeout(r,800));
-    try{
-      const sr=widget.shadowRoot;if(!sr)throw new Error("no shadow");
-      const startBtn=[...sr.querySelectorAll("button,div,span")]
-        .find(el=>/start a call/i.test(el.textContent||""));
-      if(startBtn)startBtn.click();
-      let tries=0;
-      const timer=setInterval(()=>{
-        tries++;
-        const overlays=sr.querySelectorAll("div.overlay");
-        overlays.forEach(overlay=>{
-          const acceptBtn=[...overlay.querySelectorAll("button,span")]
-            .find(el=>/accept/i.test(el.textContent||""));
-          if(acceptBtn&&overlay.style.display!=="none"){
-            acceptBtn.click();
-            console.log("✅ Clicked new Terms Accept");
-            clearInterval(timer);
-          }
-        });
-        if(tries>20)clearInterval(timer);
-      },500);
-    }catch(e){console.warn("startCall fail",e);}
-  }
-
-  // ============= transcript on end =============
-  function hookEndButton(){
-    const widget=document.querySelector("elevenlabs-convai");if(!widget)return false;
-    const sr=widget.shadowRoot;if(!sr)return false;
-    let btn=sr.querySelector('button[aria-label*="End"],button[title*="End"]');
-    if(!btn){const all=[...sr.querySelectorAll("button")];
-      btn=all.find(b=>(b.textContent||"").trim().toLowerCase()==="end");}
-    if(!btn)return false;
-    if(!btn.__endHooked){btn.__endHooked=true;
-      btn.addEventListener("click",()=>{
-        setTimeout(()=>{
-          if(!CONV_ID)return;
-          fetch("https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated",
-            {method:"POST",headers:{"Content-Type":"application/json"},
-             body:JSON.stringify({visit_id:VISIT_ID,conversation_id:CONV_ID,
-               agent_id:AGENT_ID,brand:BRAND,url:location.href}),keepalive:true}).catch(()=>{});
-        },30000);
-      },{capture:true});
-    }
-    return true;
-  }
-
-  function setupCallEndHooks(){
-    hookEndButton();
+    console.log("[Voizee] startCall triggered...");
     const widget=document.querySelector("elevenlabs-convai");
-    const sr=widget&&widget.shadowRoot;if(!sr)return;
-    if(!window.__endBtnObserver){
-      window.__endBtnObserver=new MutationObserver(()=>{hookEndButton();});
-      window.__endBtnObserver.observe(sr,{childList:true,subtree:true});
-    }
+    if(!widget){setTimeout(startCall,800);return;}
+    let sr=widget.shadowRoot;
+    for(let i=0;i<20&&!sr;i++){await new Promise(r=>setTimeout(r,300));sr=widget.shadowRoot;}
+    if(!sr){console.warn("[Voizee] shadow root missing");return;}
+    const findByText=(root,txt)=>{
+      const re=new RegExp(txt,"i");
+      return Array.from(root.querySelectorAll("*")).find(el=>el.textContent&&re.test(el.textContent.trim()));
+    };
+    let startBtn=findByText(sr,"start a call|begin call|start");
+    if(startBtn){console.log("[Voizee] ✅ Start button found");startBtn.click();}
+    else{console.warn("[Voizee] ❌ Start button not found");setTimeout(startCall,1000);return;}
+    let attempts=0;
+    const overlayTimer=setInterval(()=>{
+      attempts++;
+      const overlays=sr.querySelectorAll("div.overlay, .overlay");
+      overlays.forEach(overlay=>{
+        if(overlay.style.display==="none")return;
+        const acceptBtn=findByText(overlay,"accept|agree");
+        if(acceptBtn){console.log("[Voizee] ✅ Accept clicked");acceptBtn.click();clearInterval(overlayTimer);}
+      });
+      if(attempts>20){clearInterval(overlayTimer);}
+    },500);
   }
 
-  function setupUnloadBeacons(){
-    function beacon(){
-      if(!CONV_ID)return;
-      try{
-        const payload=JSON.stringify({visit_id:VISIT_ID,conversation_id:CONV_ID,
-          agent_id:AGENT_ID,brand:BRAND,url:location.href});
-        const blob=new Blob([payload],{type:"application/json"});
-        navigator.sendBeacon("https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated-beacon",blob);
-      }catch(_){}
-    }
-    window.addEventListener("pagehide",beacon);
-    document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")beacon();});
-  }
-
-  // ============= Avatar tray UI =============
+  // ------------------- Circular Widget & Tray -------------------
   function injectStyles(){
     if(document.getElementById("voizee-corner-styles"))return;
     const css=`
@@ -1173,12 +1107,15 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       @media(max-width:480px){.voizee-tray{right:12px;left:12px;width:auto;}}
     `;
     const style=document.createElement("style");
-    style.id="voizee-corner-styles";style.textContent=css;document.head.appendChild(style);
+    style.id="voizee-corner-styles";
+    style.textContent=css;
+    document.head.appendChild(style);
   }
 
   function buildTray(){
     if(document.getElementById("voizee-launcher"))return;
     injectStyles();
+
     const launcher=document.createElement("div");
     launcher.id="voizee-launcher";
     launcher.className="voizee-launcher";
@@ -1191,8 +1128,10 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       <div class="voizee-card">
         <div class="voizee-header">
           <div class="h-avatar"></div>
-          <div><div style="font-weight:700;">Hi, I am Vidhya</div>
-               <div style="font-size:12px;opacity:.75;">Your AI CFO Partner</div></div>
+          <div>
+            <div style="font-weight:700;">Hi, I am Vidhya</div>
+            <div style="font-size:12px;opacity:.75;">Your AI CFO Partner</div>
+          </div>
           <button id="voizee-close" style="margin-left:auto;background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">×</button>
         </div>
         <div class="voizee-body">
@@ -1219,7 +1158,8 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
 
     const cached=getFormCache();
     if(cached){for(const k in cached){
-      const el=tray.querySelector(`[name="${k}"]`);if(el)el.value=cached[k];}}
+      const el=tray.querySelector(`[name="${k}"]`);if(el)el.value=cached[k];
+    }}
 
     const form=tray.querySelector("#voizee-form");
     form.addEventListener("submit",async(ev)=>{
@@ -1231,22 +1171,47 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       const fields=Object.fromEntries(fd.entries());
       saveFormCache(fields);
       submitBtn.textContent="Starting...";submitBtn.disabled=true;cancelBtn.disabled=true;
+
       const data={event:"visitor_log",visit_id:VISIT_ID,agent_id:AGENT_ID,brand:BRAND,
         url:location.href,timestamp:new Date().toISOString(),conversation_id:null,...fields};
-      try{await fetchWithRetry(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});}
-      catch(e){console.warn("log fail",e);}
-      closeTray();await startCall();
+
+      try{
+        await fetchWithRetry(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
+      }catch(e){console.warn("log fail",e);}
+      closeTray();
+      await startCall();
       form.__submitting=false;submitBtn.textContent="Start Call";
       submitBtn.disabled=false;cancelBtn.disabled=false;
     });
   }
 
-  buildTray(); ensureWidget();
+  buildTray();
+
+  // ------------------- Embed ElevenLabs -------------------
+  try{
+    const tag=document.createElement("elevenlabs-convai");
+    tag.setAttribute("agent-id",AGENT_ID);
+    document.body.appendChild(tag);
+  }catch(e){}
+  (function loadEmbed(){
+    const s=document.createElement("script");
+    s.src="https://unpkg.com/@elevenlabs/convai-widget-embed";
+    s.async=true;
+    s.onerror=function(){
+      const fallback=document.createElement("script");
+      fallback.src="https://elevenlabs.io/convai-widget/index.js";
+      fallback.async=true;
+      document.body.appendChild(fallback);
+    };
+    document.body.appendChild(s);
+  })();
 })();
     """
-    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
-
-
+    return (
+        js.replace("__AGENT_ID__", agent_id)
+          .replace("__BRANDING__", branding)
+          .replace("__BRAND__", brand)
+    )
 
 
 
