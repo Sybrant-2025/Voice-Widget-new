@@ -965,157 +965,55 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
   const AVATAR_URL = "https://sybrant.com/wp-content/uploads/2025/10/divya_cfo-1-e1761563595921.png";
 
-  // ------------------- Utility: fetch with retry -------------------
+  // ========== Base helpers ==========
   async function fetchWithRetry(url, opts, retries = 2, backoffMs = 800, timeoutMs = 10000) {
-    const attempt = (n) =>
-      new Promise((resolve, reject) => {
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), timeoutMs);
-        fetch(url, { ...opts, signal: ctrl.signal })
-          .then((r) => {
-            clearTimeout(t);
-            if (r.ok) return resolve(r);
-            if (n < retries)
-              return setTimeout(() => resolve(attempt(n + 1)), backoffMs * (n + 1));
-            reject(new Error(`HTTP ${r.status}`));
-          })
-          .catch((e) => {
-            clearTimeout(t);
-            if (n < retries)
-              return setTimeout(() => resolve(attempt(n + 1)), backoffMs * (n + 1));
-            reject(e);
-          });
-      });
+    const attempt = (n) => new Promise((resolve, reject) => {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), timeoutMs);
+      fetch(url, { ...opts, signal: ctrl.signal })
+        .then(r => { clearTimeout(t); if (r.ok) return resolve(r); if (n < retries) return setTimeout(()=>resolve(attempt(n+1)), backoffMs*(n+1)); reject(new Error(`HTTP ${r.status}`)); })
+        .catch(e => { clearTimeout(t); if (n < retries) return setTimeout(()=>resolve(attempt(n+1)), backoffMs*(n+1)); reject(e); });
+    });
     return attempt(0);
   }
 
-  // ------------------- Cache (24h) -------------------
   const FORM_KEY = "convai_form_cache";
   const TTL_KEY  = "convai_form_submitted";
-  const FORM_TTL_MS = 24 * 60 * 60 * 1000;
+  const FORM_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+  function saveFormCache(fields){ try { const rec={data:fields,ts:Date.now()}; localStorage.setItem(FORM_KEY,JSON.stringify(rec)); localStorage.setItem(TTL_KEY,String(Date.now()+FORM_TTL_MS)); }catch(_){ }}
+  function getFormCache(){ try{const rec=JSON.parse(localStorage.getItem(FORM_KEY)||"null"); if(!rec||!rec.data)return null; if(Date.now()-(rec.ts||0)>FORM_TTL_MS)return null; return rec.data;}catch(_){return null;}}
+  function ttlActive(){ const ttl=parseInt(localStorage.getItem(TTL_KEY)||"0"); return Date.now()<ttl; }
 
-  function saveFormCache(fields){
-    try {
-      const rec = { data: fields, ts: Date.now() };
-      localStorage.setItem(FORM_KEY, JSON.stringify(rec));
-      localStorage.setItem(TTL_KEY, String(Date.now() + FORM_TTL_MS));
-    } catch(_) {}
-  }
-  function getFormCache(){
-    try {
-      const rec = JSON.parse(localStorage.getItem(FORM_KEY) || "null");
-      if (!rec || !rec.data) return null;
-      if (Date.now() - (rec.ts || 0) > FORM_TTL_MS) return null;
-      return rec.data;
-    } catch(_) { return null; }
-  }
-  function ttlActive(){
-    const ttl = parseInt(localStorage.getItem(TTL_KEY) || "0");
-    return Date.now() < ttl;
-  }
+  let VISIT_ID=(crypto.randomUUID?crypto.randomUUID():(Date.now()+"_"+Math.random().toString(36).slice(2)));
+  localStorage.setItem("convai_visit_id",VISIT_ID);
+  let CONV_ID=null;
 
-  // ------------------- Visit & Conversation -------------------
-  let VISIT_ID = crypto.randomUUID ? crypto.randomUUID() : (Date.now()+"_"+Math.random().toString(36).slice(2));
-  try { localStorage.setItem("convai_visit_id", VISIT_ID); } catch(_) {}
-
-  let CONV_ID = null;
-  let _convIdResolve;
-  const conversationIdReady = new Promise(res => (_convIdResolve = res));
-
-  function setConvIdOnce(cid){
-    if (!cid || CONV_ID) return;
-    CONV_ID = cid;
-    try { _convIdResolve(CONV_ID); } catch(_) {}
-    fetch(LOG_ENDPOINT,{
-      method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        event:"conversation_id",visit_id:VISIT_ID,conversation_id:CONV_ID,
-        agent_id:AGENT_ID,brand:BRAND,url:location.href,timestamp:new Date().toISOString()
-      })
-    }).catch(()=>{});
-  }
-
-  window.addEventListener("message",(evt)=>{
-    try{
-      const d=evt?.data;
-      const cid=d?.conversation_initiation_metadata_event?.conversation_id||d?.conversation_id;
-      setConvIdOnce(cid);
-    }catch(_){}
-  });
-
-  // ------------------- Reliable Start Call -------------------
-  async function startCall(){
-    console.log("[Voizee] startCall triggered...");
-    const widget=document.querySelector("elevenlabs-convai");
-    if(!widget){setTimeout(startCall,800);return;}
-    let sr=widget.shadowRoot;
-    for(let i=0;i<20&&!sr;i++){await new Promise(r=>setTimeout(r,300));sr=widget.shadowRoot;}
-    if(!sr){console.warn("[Voizee] shadow root missing");return;}
-    const findByText=(root,txt)=>{
-      const re=new RegExp(txt,"i");
-      return Array.from(root.querySelectorAll("*")).find(el=>el.textContent&&re.test(el.textContent.trim()));
-    };
-    let startBtn=findByText(sr,"start a call|begin call|start");
-    if(startBtn){console.log("[Voizee] ✅ Start button found");startBtn.click();}
-    else{console.warn("[Voizee] ❌ Start button not found");setTimeout(startCall,1000);return;}
-    let attempts=0;
-    const overlayTimer=setInterval(()=>{
-      attempts++;
-      const overlays=sr.querySelectorAll("div.overlay, .overlay");
-      overlays.forEach(overlay=>{
-        if(overlay.style.display==="none")return;
-        const acceptBtn=findByText(overlay,"accept|agree");
-        if(acceptBtn){console.log("[Voizee] ✅ Accept clicked");acceptBtn.click();clearInterval(overlayTimer);}
-      });
-      if(attempts>20){clearInterval(overlayTimer);}
-    },500);
-  }
-
-  // ------------------- Circular Widget & Tray -------------------
+  // ========== Build Tray (Vidhya Style) ==========
   function injectStyles(){
     if(document.getElementById("voizee-corner-styles"))return;
     const css=`
-      .voizee-launcher{position:fixed;right:20px;bottom:20px;z-index:999999;
-        width:64px;height:64px;border-radius:999px;cursor:pointer;
-        background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.25);
-        display:flex;align-items:center;justify-content:center;overflow:hidden;}
-      .voizee-launcher .avatar{width:100%;height:100%;
-        background-image:url('${AVATAR_URL}');
-        background-size:cover;background-position:center;}
-      .voizee-tray{position:fixed;right:20px;bottom:96px;z-index:999999;
-        width:360px;max-width:calc(100vw - 40px);
-        transform:translateY(20px);opacity:0;pointer-events:none;
-        transition:transform .25s ease,opacity .25s ease;}
+      .voizee-launcher{position:fixed;right:20px;bottom:20px;z-index:999999;width:64px;height:64px;border-radius:999px;cursor:pointer;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+      .voizee-launcher .avatar{width:100%;height:100%;background-image:url('${AVATAR_URL}');background-size:cover;background-position:center;}
+      .voizee-tray{position:fixed;right:20px;bottom:96px;z-index:999999;width:360px;max-width:calc(100vw - 40px);transform:translateY(20px);opacity:0;pointer-events:none;transition:transform .25s ease,opacity .25s ease;}
       .voizee-tray.open{transform:translateY(0);opacity:1;pointer-events:auto;}
-      .voizee-card{background:#fff;border-radius:16px;overflow:hidden;
-        box-shadow:0 16px 48px rgba(0,0,0,.28);font-family:sans-serif;}
-      .voizee-header{display:flex;align-items:center;gap:10px;
-        padding:12px 14px;background:#000;color:#fff;}
-      .voizee-header .h-avatar{width:36px;height:36px;border-radius:999px;
-        background-image:url('${AVATAR_URL}');
-        background-size:cover;background-position:center;
-        border:2px solid rgba(255,255,255,.4);}
+      .voizee-card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.28);font-family:sans-serif;}
+      .voizee-header{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#000;color:#fff;}
+      .voizee-header .h-avatar{width:36px;height:36px;border-radius:999px;background-image:url('${AVATAR_URL}');background-size:cover;background-position:center;border:2px solid rgba(255,255,255,.4);}
       .voizee-body{padding:14px;}
-      .voizee-input{width:100%;padding:10px 12px;border:1px solid #e5e7eb;
-        border-radius:8px;font-size:14px;margin-bottom:10px;background:#f8fafc;}
+      .voizee-input{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;margin-bottom:10px;background:#f8fafc;}
       .voizee-actions{display:flex;gap:10px;margin-top:10px;}
-      .voizee-btn{flex:1;padding:10px 12px;border:none;border-radius:8px;
-        cursor:pointer;font-weight:600;}
+      .voizee-btn{flex:1;padding:10px 12px;border:none;border-radius:8px;cursor:pointer;font-weight:600;}
       .voizee-btn.primary{background:#000;color:#fff;}
       .voizee-btn.ghost{background:#f3f4f6;color:#111;}
       .voizee-footer{padding:10px 14px;font-size:12px;color:#6b7280;text-align:center;}
       @media(max-width:480px){.voizee-tray{right:12px;left:12px;width:auto;}}
     `;
-    const style=document.createElement("style");
-    style.id="voizee-corner-styles";
-    style.textContent=css;
-    document.head.appendChild(style);
+    const style=document.createElement("style");style.id="voizee-corner-styles";style.textContent=css;document.head.appendChild(style);
   }
 
   function buildTray(){
     if(document.getElementById("voizee-launcher"))return;
     injectStyles();
-
     const launcher=document.createElement("div");
     launcher.id="voizee-launcher";
     launcher.className="voizee-launcher";
@@ -1123,15 +1021,14 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     document.body.appendChild(launcher);
 
     const tray=document.createElement("div");
-    tray.id="voizee-tray";tray.className="voizee-tray";
+    tray.id="voizee-tray";
+    tray.className="voizee-tray";
     tray.innerHTML=`
       <div class="voizee-card">
         <div class="voizee-header">
           <div class="h-avatar"></div>
-          <div>
-            <div style="font-weight:700;">Hi, I am Vidhya</div>
-            <div style="font-size:12px;opacity:.75;">Your AI CFO Partner</div>
-          </div>
+          <div><div style="font-weight:700;">Hi, I am Vidhya</div>
+          <div style="font-size:12px;opacity:.75;">Your AI CFO Partner</div></div>
           <button id="voizee-close" style="margin-left:auto;background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">×</button>
         </div>
         <div class="voizee-body">
@@ -1157,9 +1054,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     tray.querySelector("#voizee-cancel").addEventListener("click",closeTray);
 
     const cached=getFormCache();
-    if(cached){for(const k in cached){
-      const el=tray.querySelector(`[name="${k}"]`);if(el)el.value=cached[k];
-    }}
+    if(cached){for(const k in cached){const el=tray.querySelector(`[name="${k}"]`);if(el)el.value=cached[k];}}
 
     const form=tray.querySelector("#voizee-form");
     form.addEventListener("submit",async(ev)=>{
@@ -1170,30 +1065,47 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       const fd=new FormData(form);
       const fields=Object.fromEntries(fd.entries());
       saveFormCache(fields);
-      submitBtn.textContent="Starting...";submitBtn.disabled=true;cancelBtn.disabled=true;
-
-      const data={event:"visitor_log",visit_id:VISIT_ID,agent_id:AGENT_ID,brand:BRAND,
-        url:location.href,timestamp:new Date().toISOString(),conversation_id:null,...fields};
-
-      try{
-        await fetchWithRetry(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
-      }catch(e){console.warn("log fail",e);}
+      submitBtn.textContent="Starting...";
+      submitBtn.disabled=true;cancelBtn.disabled=true;
+      const data={event:"visitor_log",visit_id:VISIT_ID,agent_id:AGENT_ID,brand:BRAND,url:location.href,timestamp:new Date().toISOString(),conversation_id:null,...fields};
+      try{await fetchWithRetry(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});}catch(e){console.warn("log fail",e);}
       closeTray();
-      await startCall();
-      form.__submitting=false;submitBtn.textContent="Start Call";
+
+      // === hide ElevenLabs box + trigger Start Call ===
+      const widgetBox=document.querySelector("elevenlabs-convai");
+      if(widgetBox) widgetBox.style.display="none";
+
+      setTimeout(async ()=>{
+        const widget=document.querySelector("elevenlabs-convai");
+        if(!widget)return console.warn("[Voizee] widget not found");
+        let sr=widget.shadowRoot;
+        for(let i=0;i<25&&!sr;i++){await new Promise(r=>setTimeout(r,200));sr=widget.shadowRoot;}
+        if(!sr)return console.warn("[Voizee] no shadowRoot found");
+        const startBtn=Array.from(sr.querySelectorAll("button,div,span"))
+          .find(el=>el.textContent&&/start a call/i.test(el.textContent.trim()));
+        if(startBtn){console.log("[Voizee] ✅ Clicking hidden widget Start Call");startBtn.click();}
+        else{console.warn("[Voizee] ❌ Start Call button not found, retrying...");setTimeout(()=>{if(window.startCall)window.startCall();},1500);}
+        const observer=new MutationObserver(()=>{
+          const accept=Array.from(sr.querySelectorAll("button,span"))
+            .find(el=>el.textContent&&/accept/i.test(el.textContent.trim()));
+          if(accept){console.log("[Voizee] ✅ Auto Accept clicked");accept.click();observer.disconnect();}
+        });
+        observer.observe(sr,{childList:true,subtree:true});
+      },800);
+
+      form.__submitting=false;
+      submitBtn.textContent="Start Call";
       submitBtn.disabled=false;cancelBtn.disabled=false;
     });
   }
 
-  buildTray();
-
-  // ------------------- Embed ElevenLabs -------------------
-  try{
+  // ========== ElevenLabs Widget Loader ==========
+  function ensureWidget(){
+    if(document.querySelector("elevenlabs-convai")) return;
     const tag=document.createElement("elevenlabs-convai");
     tag.setAttribute("agent-id",AGENT_ID);
+    tag.style.display="none"; // hide it
     document.body.appendChild(tag);
-  }catch(e){}
-  (function loadEmbed(){
     const s=document.createElement("script");
     s.src="https://unpkg.com/@elevenlabs/convai-widget-embed";
     s.async=true;
@@ -1204,7 +1116,12 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       document.body.appendChild(fallback);
     };
     document.body.appendChild(s);
-  })();
+  }
+
+  // ========== Initialize ==========
+  buildTray();
+  ensureWidget();
+
 })();
     """
     return (
