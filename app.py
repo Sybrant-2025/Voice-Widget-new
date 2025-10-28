@@ -1150,29 +1150,42 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
 
   // ===== Intercept and flow logic =====
   function hookStartButton(){
-    const widget = document.querySelector("elevenlabs-convai");
-    if (!widget) return false;
-    const sr = widget.shadowRoot;
-    if (!sr) return false;
-    removeExtras(sr);
+  const widget = document.querySelector("elevenlabs-convai");
+  if (!widget) return false;
+  const sr = widget.shadowRoot;
+  if (!sr) return false;
 
-    const btn = sr.querySelector("#voizee-start-btn");
-    if (btn && !btn._hooked) {
-      btn._hooked = true;
-      btn.addEventListener("click", (e) => {
-        if (ttlActive() && getFormCache()) {
-          sendCachedVisitorLog("start_btn_ttl_active");
-          return;
-        }
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        const modal = document.getElementById("convai-visitor-modal");
-        if (modal) modal.style.display = "flex";
-      }, true);
-      return true;
+  removeExtras(sr);
+
+  // Get our floating circular button
+  const btn = sr.querySelector("#voizee-start-btn");
+  if (!btn || btn._hooked) return false;
+  btn._hooked = true;
+
+  btn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+
+    // Check TTL cache
+    if (ttlActive() && getFormCache()) {
+      sendCachedVisitorLog("start_btn_ttl_active");
+
+      // Find ElevenLabs real start button and trigger click
+      const realBtn = sr.querySelector('button[aria-label="Start a call"], button[title="Start a call"]');
+      if (realBtn) {
+        console.log("[Voizee] triggering original start button");
+        realBtn.click();
+      }
+      return;
     }
-    return false;
-  }
+
+    // If TTL not active, show visitor modal first
+    const modal = document.getElementById("convai-visitor-modal");
+    if (modal) modal.style.display = "flex";
+  }, true);
+
+  return true;
+}
 
   // ===== End button logic =====
   function hookEndButton(){
@@ -1320,10 +1333,14 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
         });
         submitBtn.innerText = "Submitted ✓";
         modal.style.display = "none";
-        const widget = document.querySelector("elevenlabs-convai");
-        const sr = widget && widget.shadowRoot;
-        const realBtn = sr && sr.querySelector("#voizee-start-btn");
-        if (realBtn) realBtn.click();
+		const widget = document.querySelector("elevenlabs-convai");
+		const sr = widget && widget.shadowRoot;
+		// find the real ElevenLabs internal start button (not our circle)
+		const realStart = sr && sr.querySelector('button[aria-label="Start a call"], button[title="Start a call"]');
+		if (realStart) {
+  		 console.log("[Voizee] triggering ElevenLabs internal start");
+         realStart.click();
+		}
       } catch(err){
         console.warn("Logging failed:", err);
         submitBtn.innerText = "Retry submit";
