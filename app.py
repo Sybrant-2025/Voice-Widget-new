@@ -964,7 +964,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   const BRANDING_TEXT = "__BRANDING__";
   const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
 
-  // --- fetch with retries (for submit) ---
+  // --- fetch with retries ---
   async function fetchWithRetry(url, opts, retries = 2, backoffMs = 800, timeoutMs = 10000) {
     const attempt = (n) =>
       new Promise((resolve, reject) => {
@@ -1011,7 +1011,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     return Date.now() < ttl;
   }
 
-  // ===== Visit & Conv correlation =====
+  // ===== Visit & Conversation correlation =====
   let VISIT_ID = (typeof crypto !== "undefined" && crypto.randomUUID)
     ? crypto.randomUUID()
     : (Date.now() + "_" + Math.random().toString(36).slice(2));
@@ -1021,31 +1021,120 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   let _convIdResolve;
   const conversationIdReady = new Promise(res => (_convIdResolve = res));
 
-  // --- Helper: remove unwanted UI elements ---
-  function removeExtras(sr){
-    if (!sr) return;
-    try {
-      // Remove ElevenLabs credits & "Need help?" containers
-      const selectors = [
-        'span.opacity-30',
-        'a[href*="elevenlabs.io/conversational-ai"]',
-        'div.flex.items-center.p-1.gap-2.min-w-60',
-        'div.flex.flex-col.p-2.rounded-sheet.bg-base.shadow-md.pointer-events-auto.overflow-hidden',
-        'span:contains("Need help")'
-      ];
-      selectors.forEach(sel => sr.querySelectorAll(sel).forEach(el => el.remove()));
-
-      // If the outer wrapper has padding or background, reset it
-      const wrappers = sr.querySelectorAll('div.flex.flex-col.p-2.rounded-sheet');
-      wrappers.forEach(w => {
-        w.style.background = "transparent";
-        w.style.padding = "0";
-        w.style.boxShadow = "none";
-      });
-    } catch(e){}
+  // ---- Cached log sending ----
+  let __cachedLogSent = false;
+  function sendCachedVisitorLog(reason){
+    if (__cachedLogSent) return;
+    const cached = getFormCache();
+    if (!cached) return;
+    __cachedLogSent = true;
+    const payload = {
+      event: "visitor_log",
+      visit_id: VISIT_ID,
+      agent_id: AGENT_ID,
+      brand: BRAND,
+      url: location.href,
+      timestamp: new Date().toISOString(),
+      name: cached.name || "",
+      company: cached.company || "",
+      email: cached.email || "",
+      phone: cached.phone || "",
+      conversation_id: CONV_ID || null
+    };
+    fetch(LOG_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).catch(()=>{});
+    console.log("[ConvAI] auto-logged cached form → sheet (", reason, ")");
   }
 
-  // === make Start button circular ===
+  function setConvIdOnce(cid){
+    if (!cid || CONV_ID) return;
+    CONV_ID = cid;
+    try { _convIdResolve(CONV_ID); } catch(_) {}
+
+    fetch(LOG_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "conversation_id",
+        visit_id: VISIT_ID,
+        conversation_id: CONV_ID,
+        agent_id: AGENT_ID,
+        brand: BRAND,
+        url: location.href,
+        timestamp: new Date().toISOString()
+      })
+    }).catch(()=>{});
+
+    if (ttlActive()) sendCachedVisitorLog("conv_id_arrived");
+
+    setupCallEndHooks && setupCallEndHooks();
+    setupUnloadBeacons && setupUnloadBeacons();
+  }
+
+  window.addEventListener("message", (evt) => {
+    try {
+      const d = evt?.data;
+      const cid =
+        d?.conversation_initiation_metadata_event?.conversation_id ||
+        d?.conversation_id;
+      setConvIdOnce(cid);
+    } catch(_) {}
+  }, false);
+
+  (function patchWebSocket(){
+    const OriginalWS = window.WebSocket;
+    if (!OriginalWS) return;
+    function WrappedWS(url, protocols){
+      const ws = protocols ? new OriginalWS(url, protocols) : new OriginalWS(url);
+      ws.addEventListener("message", (ev) => {
+        try {
+          if (typeof ev.data !== "string") return;
+          const d = JSON.parse(ev.data);
+          const cid = d?.conversation_initiation_metadata_event?.conversation_id || d?.conversation_id;
+          if (cid) setConvIdOnce(cid);
+        } catch(_) {}
+      });
+      return ws;
+    }
+    WrappedWS.prototype = OriginalWS.prototype;
+    Object.getOwnPropertyNames(OriginalWS).forEach(k => { try { WrappedWS[k] = OriginalWS[k]; } catch(_){} });
+    window.WebSocket = WrappedWS;
+  })();
+
+  // --- Clean unwanted elements, keep circular button only ---
+  function removeExtras(sr) {
+    if (!sr) return;
+    try {
+      // Remove "Need help?" text
+      sr.querySelectorAll('span').forEach(span => {
+        if (span.textContent.trim().toLowerCase() === 'need help?') {
+          const parent = span.closest('.flex.items-center.p-1.gap-2.min-w-60');
+          if (parent) parent.remove();
+        }
+      });
+
+      // Remove card wrapper but keep button
+      sr.querySelectorAll('.flex.flex-col.p-2.rounded-sheet.bg-base.shadow-md.pointer-events-auto.overflow-hidden').forEach(el => {
+        const btn = el.querySelector('button');
+        if (btn) el.replaceWith(btn);
+        else el.remove();
+      });
+
+      // Remove extra backgrounds/padding
+      sr.querySelectorAll('.rounded-sheet, .bg-base, .shadow-md').forEach(el => {
+        el.style.background = 'transparent';
+        el.style.boxShadow = 'none';
+        el.style.padding = '0';
+        el.style.margin = '0';
+      });
+    } catch (e) {
+      console.warn('[ConvAI cleanup] error removing extras:', e);
+    }
+  }
+
   function makeStartButtonCircular(btn) {
     if (!btn) return;
     btn.style.width = "56px";
@@ -1058,10 +1147,9 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     btn.style.margin = "8px";
     btn.style.transition = "all 0.2s ease";
     const span = btn.querySelector("span");
-    if (span) span.style.display = "none"; // hide "Start a call" text
+    if (span) span.style.display = "none";
   }
 
-  // === Hook Start Button ===
   function hookStartButton(){
     const widget = document.querySelector("elevenlabs-convai");
     if (!widget) return false;
@@ -1088,7 +1176,6 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     return false;
   }
 
-  // === Intercept click ===
   function interceptStartClick(btn){
     window.__last_call_btn = btn;
     btn.addEventListener("click", (e) => {
@@ -1104,18 +1191,19 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     }, true);
   }
 
-  // === END BUTTON + transcript hooks (unchanged) ===
   function hookEndButton(){
     const widget = document.querySelector("elevenlabs-convai");
     if (!widget) return false;
     const sr = widget.shadowRoot;
     if (!sr) return false;
+
     let btn = sr.querySelector('button[aria-label="End"], button[title="End"], button[aria-label="End call"], button[title="End call"]');
     if (!btn) {
       const icon = sr.querySelector('slot[name="icon-phone-off"]');
       if (icon) btn = icon.closest('button');
     }
     if (!btn) return false;
+
     if (!btn.__endHooked) {
       btn.__endHooked = true;
       btn.addEventListener("click", () => {
@@ -1151,9 +1239,53 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     }
   }
 
-  // === Minimal modal & tracking logic omitted for brevity (same as previous version) ===
+  function setupUnloadBeacons(){
+    function beacon(){
+      if (!CONV_ID) return;
+      try {
+        const payload = JSON.stringify({
+          visit_id: VISIT_ID,
+          conversation_id: CONV_ID,
+          agent_id: AGENT_ID,
+          brand: BRAND,
+          url: location.href
+        });
+        const blob = new Blob([payload], {type: "application/json"});
+        navigator.sendBeacon("https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated-beacon", blob);
+      } catch(_) {}
+    }
+    window.addEventListener("pagehide", beacon);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") beacon();
+    });
+  }
 
-  // --- Add the widget ---
+  // --- Modal creation remains same ---
+  function createVisitorModal(){
+    if (document.getElementById("convai-visitor-modal")) return;
+    const modal = document.createElement("div");
+    modal.id = "convai-visitor-modal";
+    modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;align-items:center;justify-content:center;";
+    modal.innerHTML = `
+      <div style="background:white;border-radius:8px;padding:20px;max-width:400px;width:90%;font-family:sans-serif;">
+        <div style="text-align:right;"><button id="convai-close" style="font-size:18px;background:none;border:none;">×</button></div>
+        <h3 style="margin-top:0;">Tell us about you</h3>
+        <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
+          <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <input name="company" placeholder="Company name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <input name="phone" placeholder="Phone" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+          <div style="display:flex;gap:10px;">
+            <button type="submit" style="flex:1;padding:10px;background:#007bff;color:white;border:none;border-radius:4px;">Submit</button>
+            <button type="button" id="convai-cancel" style="padding:10px;background:#eee;border:none;border-radius:4px;">Cancel</button>
+          </div>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  // --- Load ElevenLabs widget ---
   try {
     const tag = document.createElement("elevenlabs-convai");
     tag.setAttribute("agent-id", AGENT_ID);
@@ -1173,7 +1305,8 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     document.body.appendChild(s);
   })();
 
-  // Wait for and re-hook the start button
+  createVisitorModal();
+
   const obs = new MutationObserver(() => { try { if (hookStartButton()) obs.disconnect(); } catch(e){} });
   obs.observe(document, { childList: true, subtree: true });
   let tries = 0;
