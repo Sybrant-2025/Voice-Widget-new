@@ -956,14 +956,14 @@ def serve_widget_js_update_new(agent_id, branding="Powered by Voizee", brand="")
 
 
 #test version 22222
-def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
+def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand="", buttonAvatar="https://sybrant.com/wp-content/uploads/2025/10/divya_cfo-1-e1761563595921.png"):
     js = r"""
 (function(){
   const AGENT_ID = "__AGENT_ID__";
   const BRAND = "__BRAND__";
   const BRANDING_TEXT = "__BRANDING__";
+  const BUTTON_AVATAR = "__BUTTON_AVATAR__";
   const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
-  const AVATAR_URL = "https://sybrant.com/wp-content/uploads/2025/10/divya_cfo-1-e1761563595921.png";
 
   // ====== Fetch with retry helper ======
   async function fetchWithRetry(url, opts, retries = 2, backoffMs = 800, timeoutMs = 10000) {
@@ -1084,8 +1084,8 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     } catch(e){ console.warn('[ConvAI cleanup] error:', e); }
   }
 
-  // ====== Style avatar start button ======
-  function makeStartButtonAvatar(btn){
+  // ====== Style circular button with avatar ======
+  function makeStartButtonCircular(btn){
     if (!btn) return;
     btn.style.width = "56px";
     btn.style.height = "56px";
@@ -1099,20 +1099,20 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     btn.style.pointerEvents = "auto";
     btn.style.cursor = "pointer";
     btn.style.zIndex = "999999";
-    // remove existing text/icon
-    btn.innerHTML = '';
-    // add avatar image
-    const img = document.createElement('img');
-    img.src = AVATAR_URL;
-    img.style.width = "100%";
-    img.style.height = "100%";
-    img.style.borderRadius = "50%";
-    img.style.objectFit = "cover";
-    btn.appendChild(img);
+
+    const span = btn.querySelector("span");
+    if (span) span.style.display = "none";
+
+    // Avatar background
+    btn.style.backgroundImage = `url('${BUTTON_AVATAR}')`;
+    btn.style.backgroundSize = "cover";
+    btn.style.backgroundPosition = "center";
+    btn.style.backgroundRepeat = "no-repeat";
+
     btn.disabled = false;
   }
 
-  // ====== Hook Start Call Button (persistent avatar) ======
+  // ====== Hook Start Call Button (persistent circular) ======
   function hookStartButton(){
     const widget = document.querySelector("elevenlabs-convai");
     if (!widget) return false;
@@ -1133,7 +1133,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     for (const sel of sels){
       const btn = sr.querySelector(sel);
       if (btn) {
-        makeStartButtonAvatar(btn);
+        makeStartButtonCircular(btn);
         btn._styled = true;
         found = true;
       }
@@ -1143,7 +1143,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       sr.__startObserver = new MutationObserver(() => {
         for (const sel of sels){
           const btn = sr.querySelector(sel);
-          if (btn) makeStartButtonAvatar(btn);
+          if (btn) makeStartButtonCircular(btn);
         }
       });
       sr.__startObserver.observe(sr, { childList: true, subtree: true });
@@ -1252,7 +1252,11 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
 
 })();
     """
-    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
+    return js.replace("__AGENT_ID__", agent_id)\
+             .replace("__BRANDING__", branding)\
+             .replace("__BRAND__", brand)\
+             .replace("__BUTTON_AVATAR__", buttonAvatar)
+
 
 
 
