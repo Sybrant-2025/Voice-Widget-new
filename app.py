@@ -963,6 +963,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   const BRAND = "__BRAND__";
   const BRANDING_TEXT = "__BRANDING__";
   const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
+  const AVATAR_URL = "https://sybrant.com/wp-content/uploads/2025/10/divya_cfo-1-e1761563595921.png";
 
   // ====== Fetch with retry helper ======
   async function fetchWithRetry(url, opts, retries = 2, backoffMs = 800, timeoutMs = 10000) {
@@ -1054,32 +1055,37 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   function removeExtras(sr){
     if (!sr) return;
     try {
-      // Remove connecting/help bubbles
-      sr.querySelectorAll('.flex.items-center.p-1.gap-2.min-w-60').forEach(el => el.remove());
-      sr.querySelectorAll('[data-shown], .animate-text, span').forEach(el => {
-          const txt = (el.textContent || "").trim().toLowerCase();
-          if (txt === "need help?" || txt === "connecting") el.remove();
+      sr.querySelectorAll('span').forEach(span => {
+        const txt = span.textContent.trim().toLowerCase();
+        if (txt === 'need help?' || txt === 'powered by elevenlabs') {
+          const parent = span.closest('.flex.items-center.p-1.gap-2.min-w-60') || span;
+          parent.remove();
+        }
       });
 
-      // Remove branding links
-      sr.querySelectorAll('a[href*="elevenlabs.io"]').forEach(el => el.remove());
+      sr.querySelectorAll('span.opacity-30, a[href*="elevenlabs.io"]').forEach(el => el.remove());
 
-      // Remove extra containers
       sr.querySelectorAll('.flex.flex-col.p-2.rounded-sheet.bg-base.shadow-md.pointer-events-auto.overflow-hidden')
-        .forEach(el => el.remove());
+        .forEach(el => {
+          const btn = el.querySelector('button');
+          if (btn) {
+            el.parentNode.insertBefore(btn, el);
+            el.remove();
+          } else el.remove();
+        });
 
-      // Reset extra element styles
       sr.querySelectorAll('.rounded-sheet, .bg-base, .shadow-md').forEach(el => {
-          el.style.background = 'transparent';
-          el.style.boxShadow = 'none';
-          el.style.padding = '0';
-          el.style.margin = '0';
+        el.style.background = 'transparent';
+        el.style.boxShadow = 'none';
+        el.style.padding = '0';
+        el.style.margin = '0';
+        el.style.pointerEvents = 'auto';
       });
     } catch(e){ console.warn('[ConvAI cleanup] error:', e); }
   }
 
-  // ====== Style circular button ======
-  function makeStartButtonCircular(btn){
+  // ====== Style avatar start button ======
+  function makeStartButtonAvatar(btn){
     if (!btn) return;
     btn.style.width = "56px";
     btn.style.height = "56px";
@@ -1093,12 +1099,20 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     btn.style.pointerEvents = "auto";
     btn.style.cursor = "pointer";
     btn.style.zIndex = "999999";
-    const span = btn.querySelector("span");
-    if (span) span.style.display = "none";
+    // remove existing text/icon
+    btn.innerHTML = '';
+    // add avatar image
+    const img = document.createElement('img');
+    img.src = AVATAR_URL;
+    img.style.width = "100%";
+    img.style.height = "100%";
+    img.style.borderRadius = "50%";
+    img.style.objectFit = "cover";
+    btn.appendChild(img);
     btn.disabled = false;
   }
 
-  // ====== Hook Start Call Button (persistent circular) ======
+  // ====== Hook Start Call Button (persistent avatar) ======
   function hookStartButton(){
     const widget = document.querySelector("elevenlabs-convai");
     if (!widget) return false;
@@ -1119,7 +1133,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     for (const sel of sels){
       const btn = sr.querySelector(sel);
       if (btn) {
-        makeStartButtonCircular(btn);
+        makeStartButtonAvatar(btn);
         btn._styled = true;
         found = true;
       }
@@ -1129,7 +1143,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       sr.__startObserver = new MutationObserver(() => {
         for (const sel of sels){
           const btn = sr.querySelector(sel);
-          if (btn) makeStartButtonCircular(btn);
+          if (btn) makeStartButtonAvatar(btn);
         }
       });
       sr.__startObserver.observe(sr, { childList: true, subtree: true });
