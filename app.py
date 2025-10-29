@@ -956,7 +956,7 @@ def serve_widget_js_update_new(agent_id, branding="Powered by Voizee", brand="")
 
 
 #test version 22222
-def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
+def serve_widget_js_updated(agent_id, branding="Powered by Voizee", brand=""):
     js = r"""
 (function(){
   const AGENT_ID = "__AGENT_ID__";
@@ -1108,28 +1108,38 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   function removeExtras(sr) {
     if (!sr) return;
     try {
-      // Remove "Need help?" text
+      // Remove "Need help?" and "Powered by ElevenLabs"
       sr.querySelectorAll('span').forEach(span => {
-        if (span.textContent.trim().toLowerCase() === 'need help?') {
-          const parent = span.closest('.flex.items-center.p-1.gap-2.min-w-60');
-          if (parent) parent.remove();
+        const text = span.textContent.trim().toLowerCase();
+        if (text === 'need help?' || text === 'powered by elevenlabs') {
+          const parent = span.closest('.flex.items-center.p-1.gap-2.min-w-60') || span;
+          parent.remove();
         }
       });
 
-      // Remove card wrapper but keep button
+      // Remove branding spans and links
+      sr.querySelectorAll('span.opacity-30').forEach(el => el.remove());
+      sr.querySelectorAll('a[href*="elevenlabs.io"]').forEach(el => el.remove());
+
+      // Remove white box wrappers but keep button clickable
       sr.querySelectorAll('.flex.flex-col.p-2.rounded-sheet.bg-base.shadow-md.pointer-events-auto.overflow-hidden').forEach(el => {
         const btn = el.querySelector('button');
-        if (btn) el.replaceWith(btn);
-        else el.remove();
+        if (btn) {
+          const parent = el.parentNode;
+          parent.insertBefore(btn, el);
+          el.remove();
+        } else el.remove();
       });
 
-      // Remove extra backgrounds/padding
+      // Cleanup styling
       sr.querySelectorAll('.rounded-sheet, .bg-base, .shadow-md').forEach(el => {
         el.style.background = 'transparent';
         el.style.boxShadow = 'none';
         el.style.padding = '0';
         el.style.margin = '0';
+        el.style.pointerEvents = 'auto';
       });
+
     } catch (e) {
       console.warn('[ConvAI cleanup] error removing extras:', e);
     }
@@ -1146,8 +1156,12 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     btn.style.padding = "0";
     btn.style.margin = "8px";
     btn.style.transition = "all 0.2s ease";
+    btn.style.pointerEvents = "auto";
+    btn.style.cursor = "pointer";
+    btn.style.zIndex = "99999";
     const span = btn.querySelector("span");
     if (span) span.style.display = "none";
+    btn.disabled = false;
   }
 
   function hookStartButton(){
@@ -1260,7 +1274,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     });
   }
 
-  // --- Modal creation remains same ---
+  // --- Create modal ---
   function createVisitorModal(){
     if (document.getElementById("convai-visitor-modal")) return;
     const modal = document.createElement("div");
@@ -1321,6 +1335,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
             .replace("__AGENT_ID__", agent_id)
             .replace("__BRANDING__", branding)
             .replace("__BRAND__", brand))
+
 
 
 
