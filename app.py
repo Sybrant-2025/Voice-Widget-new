@@ -956,12 +956,13 @@ def serve_widget_js_update_new(agent_id, branding="Powered by Voizee", brand="")
 
 
 #test version 22222
-def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
+def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand="", avatar_url=""):
     js = r"""
 (function(){
   const AGENT_ID = "__AGENT_ID__";
   const BRAND = "__BRAND__";
   const BRANDING_TEXT = "__BRANDING__";
+  const AVATAR_URL = "__AVATAR_URL__";
   const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
 
   // ====== Fetch with retry helper ======
@@ -1020,7 +1021,6 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     setupUnloadBeacons();
   }
 
-  // Listen for conversation_id from messages
   window.addEventListener("message", evt => {
     try {
       const d = evt?.data;
@@ -1029,7 +1029,6 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     } catch(_) {}
   }, false);
 
-  // Patch WebSocket to catch conv_id too
   (function patchWebSocket(){
     const OriginalWS = window.WebSocket;
     if (!OriginalWS) return;
@@ -1050,44 +1049,11 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     window.WebSocket = WrappedWS;
   })();
 
-  // ====== Cleanup extra UI elements ======
-  function removeExtras(sr){
-    if (!sr) return;
-    try {
-      sr.querySelectorAll('span').forEach(span => {
-        const txt = span.textContent.trim().toLowerCase();
-        if (txt === 'need help?' || txt === 'powered by elevenlabs') {
-          const parent = span.closest('.flex.items-center.p-1.gap-2.min-w-60') || span;
-          parent.remove();
-        }
-      });
-
-      sr.querySelectorAll('span.opacity-30, a[href*="elevenlabs.io"]').forEach(el => el.remove());
-
-      sr.querySelectorAll('.flex.flex-col.p-2.rounded-sheet.bg-base.shadow-md.pointer-events-auto.overflow-hidden')
-        .forEach(el => {
-          const btn = el.querySelector('button');
-          if (btn) {
-            el.parentNode.insertBefore(btn, el);
-            el.remove();
-          } else el.remove();
-        });
-
-      sr.querySelectorAll('.rounded-sheet, .bg-base, .shadow-md').forEach(el => {
-        el.style.background = 'transparent';
-        el.style.boxShadow = 'none';
-        el.style.padding = '0';
-        el.style.margin = '0';
-        el.style.pointerEvents = 'auto';
-      });
-    } catch(e){ console.warn('[ConvAI cleanup] error:', e); }
-  }
-
-  // ====== Style circular button ======
+  // ====== Circular button with avatar ======
   function makeStartButtonCircular(btn){
     if (!btn) return;
-    btn.style.width = "56px";
-    btn.style.height = "56px";
+    btn.style.width = "60px";
+    btn.style.height = "60px";
     btn.style.borderRadius = "50%";
     btn.style.display = "flex";
     btn.style.alignItems = "center";
@@ -1095,22 +1061,68 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     btn.style.padding = "0";
     btn.style.margin = "8px";
     btn.style.transition = "all 0.2s ease";
-    btn.style.pointerEvents = "auto";
     btn.style.cursor = "pointer";
     btn.style.zIndex = "999999";
-    const span = btn.querySelector("span");
-    if (span) span.style.display = "none";
+
+    // Add avatar image
+    if (AVATAR_URL && !btn.querySelector('img.avatar')) {
+      const img = document.createElement("img");
+      img.src = AVATAR_URL;
+      img.className = "avatar";
+      img.style.width = "100%";
+      img.style.height = "100%";
+      img.style.borderRadius = "50%";
+      img.style.objectFit = "cover";
+      btn.innerHTML = "";
+      btn.appendChild(img);
+    }
     btn.disabled = false;
   }
 
-  // ====== Hook Start Call Button (persistent circular) ======
+  // ====== Form tray ======
+  function createFormTray(){
+    if (document.querySelector("#convai-tray")) return;
+    const tray = document.createElement("div");
+    tray.id = "convai-tray";
+    tray.style.position = "fixed";
+    tray.style.right = "-400px";
+    tray.style.bottom = "80px";
+    tray.style.width = "350px";
+    tray.style.maxHeight = "80%";
+    tray.style.background = "#fff";
+    tray.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+    tray.style.borderRadius = "8px";
+    tray.style.transition = "right 0.3s ease";
+    tray.style.zIndex = "999998";
+    tray.style.display = "flex";
+    tray.style.flexDirection = "column";
+    tray.innerHTML = `
+      <div style="padding: 16px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+        Chat
+        <button id="convai-tray-close" style="background:none;border:none;font-size:18px;cursor:pointer;">&times;</button>
+      </div>
+      <div id="convai-tray-content" style="flex:1; overflow:auto; padding:16px;">Loading...</div>
+    `;
+    document.body.appendChild(tray);
+
+    document.querySelector("#convai-tray-close").onclick = () => {
+      tray.style.right = "-400px";
+    };
+    return tray;
+  }
+
+  function toggleTray(){
+    const tray = createFormTray();
+    if (tray.style.right === "0px") tray.style.right = "-400px";
+    else tray.style.right = "0px";
+  }
+
+  // ====== Hook Start Button ======
   function hookStartButton(){
     const widget = document.querySelector("elevenlabs-convai");
     if (!widget) return false;
     const sr = widget.shadowRoot;
     if (!sr) return false;
-
-    removeExtras(sr);
 
     const sels = [
       'button[aria-label="Start a call"]',
@@ -1125,91 +1137,15 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       const btn = sr.querySelector(sel);
       if (btn) {
         makeStartButtonCircular(btn);
-        btn._styled = true;
+        if (!btn.onclickAdded){
+          btn.onclickAdded = true;
+          btn.addEventListener("click", toggleTray);
+        }
         found = true;
       }
     }
 
-    if (!sr.__startObserver){
-      sr.__startObserver = new MutationObserver(() => {
-        for (const sel of sels){
-          const btn = sr.querySelector(sel);
-          if (btn) makeStartButtonCircular(btn);
-        }
-      });
-      sr.__startObserver.observe(sr, { childList: true, subtree: true });
-    }
-
     return found;
-  }
-
-  // ====== Hook End Button ======
-  function hookEndButton(){
-    const widget = document.querySelector("elevenlabs-convai");
-    const sr = widget && widget.shadowRoot;
-    if (!sr) return false;
-
-    let btn = sr.querySelector('button[aria-label="End"], button[title="End"], button[aria-label*="End call"], button[title*="End call"]');
-    if (!btn) {
-      const icon = sr.querySelector('slot[name="icon-phone-off"]');
-      if (icon) btn = icon.closest("button");
-    }
-    if (!btn) return false;
-
-    if (!btn.__endHooked){
-      btn.__endHooked = true;
-      btn.addEventListener("click", () => {
-        setTimeout(() => {
-          if (!CONV_ID) return;
-          fetch("https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              visit_id: VISIT_ID,
-              conversation_id: CONV_ID,
-              agent_id: AGENT_ID,
-              brand: BRAND,
-              url: location.href
-            }),
-            keepalive: true
-          }).catch(()=>{});
-          console.log("[ConvAI] requested transcript after call end");
-        }, 30000);
-      }, { capture: true });
-    }
-    return true;
-  }
-
-  function setupCallEndHooks(){
-    hookEndButton();
-    const widget = document.querySelector("elevenlabs-convai");
-    const sr = widget && widget.shadowRoot;
-    if (!sr) return;
-    if (!window.__endBtnObserver){
-      window.__endBtnObserver = new MutationObserver(() => { hookEndButton(); });
-      window.__endBtnObserver.observe(sr, { childList: true, subtree: true });
-    }
-  }
-
-  function setupUnloadBeacons(){
-    function beacon(){
-      if (!CONV_ID) return;
-      try {
-        const payload = JSON.stringify({
-          visit_id: VISIT_ID,
-          conversation_id: CONV_ID,
-          agent_id: AGENT_ID,
-          brand: BRAND,
-          url: location.href
-        });
-        const blob = new Blob([payload], {type: "application/json"});
-        navigator.sendBeacon("https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated-beacon", blob);
-      } catch(_) {}
-    }
-    window.addEventListener("pagehide", beacon);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden") beacon();
-    });
   }
 
   // ====== Load ElevenLabs widget ======
@@ -1232,7 +1168,6 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     document.body.appendChild(s);
   })();
 
-  // ====== Observe and style ======
   const obs = new MutationObserver(() => { try { if (hookStartButton()) obs.disconnect(); } catch(e){} });
   obs.observe(document, { childList: true, subtree: true });
   let tries = 0;
@@ -1243,8 +1178,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
 
 })();
     """
-    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
-
+    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand).replace("__AVATAR_URL__", avatar_url)
 
 
 
