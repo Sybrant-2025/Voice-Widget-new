@@ -1054,7 +1054,6 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   function removeExtras(sr){
     if (!sr) return;
     try {
-      // Remove "Need help?" and "Powered by ElevenLabs"
       sr.querySelectorAll('span').forEach(span => {
         const txt = span.textContent.trim().toLowerCase();
         if (txt === 'need help?' || txt === 'powered by elevenlabs') {
@@ -1063,10 +1062,8 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
         }
       });
 
-      // Remove opacity or link branding
       sr.querySelectorAll('span.opacity-30, a[href*="elevenlabs.io"]').forEach(el => el.remove());
 
-      // Remove background wrapper but keep button
       sr.querySelectorAll('.flex.flex-col.p-2.rounded-sheet.bg-base.shadow-md.pointer-events-auto.overflow-hidden')
         .forEach(el => {
           const btn = el.querySelector('button');
@@ -1076,7 +1073,6 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
           } else el.remove();
         });
 
-      // Clear remaining styling
       sr.querySelectorAll('.rounded-sheet, .bg-base, .shadow-md').forEach(el => {
         el.style.background = 'transparent';
         el.style.boxShadow = 'none';
@@ -1102,19 +1098,18 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     btn.style.pointerEvents = "auto";
     btn.style.cursor = "pointer";
     btn.style.zIndex = "999999";
-    btn.style.backgroundColor = "transparent";
-    btn.style.border = "none";
     const span = btn.querySelector("span");
     if (span) span.style.display = "none";
     btn.disabled = false;
   }
 
-  // ====== Hook Start Call Button ======
+  // ====== Hook Start Call Button (persistent circular) ======
   function hookStartButton(){
     const widget = document.querySelector("elevenlabs-convai");
     if (!widget) return false;
     const sr = widget.shadowRoot;
     if (!sr) return false;
+
     removeExtras(sr);
 
     const sels = [
@@ -1123,24 +1118,29 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       'button[aria-label*="Start"]',
       'button[title*="Start"]'
     ];
+
+    let found = false;
+
     for (const sel of sels){
       const btn = sr.querySelector(sel);
-      if (btn && !btn._styled){
-        btn._styled = true;
+      if (btn) {
         makeStartButtonCircular(btn);
-
-        // Observe style changes to keep button circular
-        if (!btn._observer){
-          const observer = new MutationObserver(() => {
-            makeStartButtonCircular(btn);
-          });
-          observer.observe(btn, { attributes: true, attributeFilter: ["style", "class"] });
-          btn._observer = observer;
-        }
-        return true;
+        btn._styled = true;
+        found = true;
       }
     }
-    return false;
+
+    if (!sr.__startObserver){
+      sr.__startObserver = new MutationObserver(() => {
+        for (const sel of sels){
+          const btn = sr.querySelector(sel);
+          if (btn) makeStartButtonCircular(btn);
+        }
+      });
+      sr.__startObserver.observe(sr, { childList: true, subtree: true });
+    }
+
+    return found;
   }
 
   // ====== Hook End Button ======
@@ -1244,7 +1244,6 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
 })();
     """
     return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
-
 
 
 
