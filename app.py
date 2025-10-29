@@ -964,7 +964,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   const BRANDING_TEXT = "__BRANDING__";
   const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
 
-  // --- fetch with retries ---
+  // ====== Fetch with retry helper ======
   async function fetchWithRetry(url, opts, retries = 2, backoffMs = 800, timeoutMs = 10000) {
     const attempt = (n) =>
       new Promise((resolve, reject) => {
@@ -974,89 +974,38 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
           .then((r) => {
             clearTimeout(t);
             if (r.ok) return resolve(r);
-            if (n < retries) return setTimeout(() => resolve(attempt(n + 1)), backoffMs * (n + 1));
+            if (n < retries)
+              return setTimeout(() => resolve(attempt(n + 1)), backoffMs * (n + 1));
             reject(new Error(`HTTP ${r.status}`));
           })
           .catch((e) => {
             clearTimeout(t);
-            if (n < retries) return setTimeout(() => resolve(attempt(n + 1)), backoffMs * (n + 1));
+            if (n < retries)
+              return setTimeout(() => resolve(attempt(n + 1)), backoffMs * (n + 1));
             reject(e);
           });
       });
     return attempt(0);
   }
 
-  // ===== Cache (24h) =====
-  const FORM_KEY = "convai_form_cache";
-  const TTL_KEY  = "convai_form_submitted";
-  const FORM_TTL_MS = 24 * 60 * 60 * 1000;
-
-  function saveFormCache(fields){
-    try {
-      const rec = { data: fields, ts: Date.now() };
-      localStorage.setItem(FORM_KEY, JSON.stringify(rec));
-      localStorage.setItem(TTL_KEY, String(Date.now() + FORM_TTL_MS));
-    } catch(_) {}
-  }
-  function getFormCache(){
-    try {
-      const rec = JSON.parse(localStorage.getItem(FORM_KEY) || "null");
-      if (!rec || !rec.data) return null;
-      if (Date.now() - (rec.ts || 0) > FORM_TTL_MS) return null;
-      return rec.data;
-    } catch(_) { return null; }
-  }
-  function ttlActive(){
-    const ttl = parseInt(localStorage.getItem(TTL_KEY) || "0");
-    return Date.now() < ttl;
-  }
-
-  // ===== Visit & Conversation correlation =====
-  let VISIT_ID = (typeof crypto !== "undefined" && crypto.randomUUID)
-    ? crypto.randomUUID()
-    : (Date.now() + "_" + Math.random().toString(36).slice(2));
+  // ====== Visit & Conversation tracking ======
+  let VISIT_ID =
+    (typeof crypto !== "undefined" && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : Date.now() + "_" + Math.random().toString(36).slice(2);
   try { localStorage.setItem("convai_visit_id", VISIT_ID); } catch(_) {}
 
   let CONV_ID = null;
   let _convIdResolve;
   const conversationIdReady = new Promise(res => (_convIdResolve = res));
 
-  // ---- Cached log sending ----
-  let __cachedLogSent = false;
-  function sendCachedVisitorLog(reason){
-    if (__cachedLogSent) return;
-    const cached = getFormCache();
-    if (!cached) return;
-    __cachedLogSent = true;
-    const payload = {
-      event: "visitor_log",
-      visit_id: VISIT_ID,
-      agent_id: AGENT_ID,
-      brand: BRAND,
-      url: location.href,
-      timestamp: new Date().toISOString(),
-      name: cached.name || "",
-      company: cached.company || "",
-      email: cached.email || "",
-      phone: cached.phone || "",
-      conversation_id: CONV_ID || null
-    };
-    fetch(LOG_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).catch(()=>{});
-    console.log("[ConvAI] auto-logged cached form → sheet (", reason, ")");
-  }
-
   function setConvIdOnce(cid){
     if (!cid || CONV_ID) return;
     CONV_ID = cid;
     try { _convIdResolve(CONV_ID); } catch(_) {}
-
     fetch(LOG_ENDPOINT, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
         event: "conversation_id",
         visit_id: VISIT_ID,
@@ -1067,23 +1016,20 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
         timestamp: new Date().toISOString()
       })
     }).catch(()=>{});
-
-    if (ttlActive()) sendCachedVisitorLog("conv_id_arrived");
-
-    setupCallEndHooks && setupCallEndHooks();
-    setupUnloadBeacons && setupUnloadBeacons();
+    setupCallEndHooks();
+    setupUnloadBeacons();
   }
 
-  window.addEventListener("message", (evt) => {
+  // Listen for conversation_id from messages
+  window.addEventListener("message", evt => {
     try {
       const d = evt?.data;
-      const cid =
-        d?.conversation_initiation_metadata_event?.conversation_id ||
-        d?.conversation_id;
+      const cid = d?.conversation_initiation_metadata_event?.conversation_id || d?.conversation_id;
       setConvIdOnce(cid);
     } catch(_) {}
   }, false);
 
+  // Patch WebSocket to catch conv_id too
   (function patchWebSocket(){
     const OriginalWS = window.WebSocket;
     if (!OriginalWS) return;
@@ -1104,34 +1050,33 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     window.WebSocket = WrappedWS;
   })();
 
-  // --- Clean unwanted elements, keep circular button only ---
-  function removeExtras(sr) {
+  // ====== Cleanup extra UI elements ======
+  function removeExtras(sr){
     if (!sr) return;
     try {
       // Remove "Need help?" and "Powered by ElevenLabs"
       sr.querySelectorAll('span').forEach(span => {
-        const text = span.textContent.trim().toLowerCase();
-        if (text === 'need help?' || text === 'powered by elevenlabs') {
+        const txt = span.textContent.trim().toLowerCase();
+        if (txt === 'need help?' || txt === 'powered by elevenlabs') {
           const parent = span.closest('.flex.items-center.p-1.gap-2.min-w-60') || span;
           parent.remove();
         }
       });
 
-      // Remove branding spans and links
-      sr.querySelectorAll('span.opacity-30').forEach(el => el.remove());
-      sr.querySelectorAll('a[href*="elevenlabs.io"]').forEach(el => el.remove());
+      // Remove opacity or link branding
+      sr.querySelectorAll('span.opacity-30, a[href*="elevenlabs.io"]').forEach(el => el.remove());
 
-      // Remove white box wrappers but keep button clickable
-      sr.querySelectorAll('.flex.flex-col.p-2.rounded-sheet.bg-base.shadow-md.pointer-events-auto.overflow-hidden').forEach(el => {
-        const btn = el.querySelector('button');
-        if (btn) {
-          const parent = el.parentNode;
-          parent.insertBefore(btn, el);
-          el.remove();
-        } else el.remove();
-      });
+      // Remove background wrapper but keep button
+      sr.querySelectorAll('.flex.flex-col.p-2.rounded-sheet.bg-base.shadow-md.pointer-events-auto.overflow-hidden')
+        .forEach(el => {
+          const btn = el.querySelector('button');
+          if (btn) {
+            el.parentNode.insertBefore(btn, el);
+            el.remove();
+          } else el.remove();
+        });
 
-      // Cleanup styling
+      // Clear remaining styling
       sr.querySelectorAll('.rounded-sheet, .bg-base, .shadow-md').forEach(el => {
         el.style.background = 'transparent';
         el.style.boxShadow = 'none';
@@ -1139,13 +1084,11 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
         el.style.margin = '0';
         el.style.pointerEvents = 'auto';
       });
-
-    } catch (e) {
-      console.warn('[ConvAI cleanup] error removing extras:', e);
-    }
+    } catch(e){ console.warn('[ConvAI cleanup] error:', e); }
   }
 
-  function makeStartButtonCircular(btn) {
+  // ====== Style circular button ======
+  function makeStartButtonCircular(btn){
     if (!btn) return;
     btn.style.width = "56px";
     btn.style.height = "56px";
@@ -1158,67 +1101,51 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     btn.style.transition = "all 0.2s ease";
     btn.style.pointerEvents = "auto";
     btn.style.cursor = "pointer";
-    btn.style.zIndex = "99999";
+    btn.style.zIndex = "999999";
     const span = btn.querySelector("span");
     if (span) span.style.display = "none";
     btn.disabled = false;
   }
 
+  // ====== Hook Start Call Button ======
   function hookStartButton(){
     const widget = document.querySelector("elevenlabs-convai");
     if (!widget) return false;
     const sr = widget.shadowRoot;
     if (!sr) return false;
-
     removeExtras(sr);
 
     const sels = [
-      'button[title="Start a call"]',
       'button[aria-label="Start a call"]',
-      'button[title*="Start"]',
-      'button[aria-label*="Start"]'
+      'button[title="Start a call"]',
+      'button[aria-label*="Start"]',
+      'button[title*="Start"]'
     ];
-    for (const sel of sels) {
+    for (const sel of sels){
       const btn = sr.querySelector(sel);
-      if (btn && !btn._hooked) {
-        btn._hooked = true;
+      if (btn && !btn._styled){
+        btn._styled = true;
         makeStartButtonCircular(btn);
-        interceptStartClick(btn);
         return true;
       }
     }
     return false;
   }
 
-  function interceptStartClick(btn){
-    window.__last_call_btn = btn;
-    btn.addEventListener("click", (e) => {
-      if (ttlActive() && getFormCache()) {
-        sendCachedVisitorLog("start_btn_ttl_active");
-        return;
-      }
-      if (btn._allowCall) { btn._allowCall = false; return; }
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      const modal = document.getElementById("convai-visitor-modal");
-      if (modal) modal.style.display = "flex";
-    }, true);
-  }
-
+  // ====== Hook End Button ======
   function hookEndButton(){
     const widget = document.querySelector("elevenlabs-convai");
-    if (!widget) return false;
-    const sr = widget.shadowRoot;
+    const sr = widget && widget.shadowRoot;
     if (!sr) return false;
 
-    let btn = sr.querySelector('button[aria-label="End"], button[title="End"], button[aria-label="End call"], button[title="End call"]');
+    let btn = sr.querySelector('button[aria-label="End"], button[title="End"], button[aria-label*="End call"], button[title*="End call"]');
     if (!btn) {
       const icon = sr.querySelector('slot[name="icon-phone-off"]');
-      if (icon) btn = icon.closest('button');
+      if (icon) btn = icon.closest("button");
     }
     if (!btn) return false;
 
-    if (!btn.__endHooked) {
+    if (!btn.__endHooked){
       btn.__endHooked = true;
       btn.addEventListener("click", () => {
         setTimeout(() => {
@@ -1235,7 +1162,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
             }),
             keepalive: true
           }).catch(()=>{});
-          console.log("[ConvAI] requested transcript (T+30s) for", CONV_ID);
+          console.log("[ConvAI] requested transcript after call end");
         }, 30000);
       }, { capture: true });
     }
@@ -1274,37 +1201,12 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     });
   }
 
-  // --- Create modal ---
-  function createVisitorModal(){
-    if (document.getElementById("convai-visitor-modal")) return;
-    const modal = document.createElement("div");
-    modal.id = "convai-visitor-modal";
-    modal.style = "display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;align-items:center;justify-content:center;";
-    modal.innerHTML = `
-      <div style="background:white;border-radius:8px;padding:20px;max-width:400px;width:90%;font-family:sans-serif;">
-        <div style="text-align:right;"><button id="convai-close" style="font-size:18px;background:none;border:none;">×</button></div>
-        <h3 style="margin-top:0;">Tell us about you</h3>
-        <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
-          <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <input name="company" placeholder="Company name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <input name="phone" placeholder="Phone" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-          <div style="display:flex;gap:10px;">
-            <button type="submit" style="flex:1;padding:10px;background:#007bff;color:white;border:none;border-radius:4px;">Submit</button>
-            <button type="button" id="convai-cancel" style="padding:10px;background:#eee;border:none;border-radius:4px;">Cancel</button>
-          </div>
-        </form>
-      </div>
-    `;
-    document.body.appendChild(modal);
-  }
-
-  // --- Load ElevenLabs widget ---
+  // ====== Load ElevenLabs widget ======
   try {
     const tag = document.createElement("elevenlabs-convai");
     tag.setAttribute("agent-id", AGENT_ID);
     document.body.appendChild(tag);
-  } catch (e) {}
+  } catch(e){}
 
   (function loadEmbed(){
     const s = document.createElement("script");
@@ -1319,8 +1221,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     document.body.appendChild(s);
   })();
 
-  createVisitorModal();
-
+  // ====== Observe and style ======
   const obs = new MutationObserver(() => { try { if (hookStartButton()) obs.disconnect(); } catch(e){} });
   obs.observe(document, { childList: true, subtree: true });
   let tries = 0;
@@ -1331,10 +1232,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
 
 })();
     """
-    return (js
-            .replace("__AGENT_ID__", agent_id)
-            .replace("__BRANDING__", branding)
-            .replace("__BRAND__", brand))
+    return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
 
 
 
