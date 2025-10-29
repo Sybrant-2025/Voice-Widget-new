@@ -1054,31 +1054,26 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
   function removeExtras(sr){
     if (!sr) return;
     try {
-      sr.querySelectorAll('span').forEach(span => {
-        const txt = span.textContent.trim().toLowerCase();
-        if (txt === 'need help?' || txt === 'powered by elevenlabs') {
-          const parent = span.closest('.flex.items-center.p-1.gap-2.min-w-60') || span;
-          parent.remove();
-        }
+      // Remove connecting/help bubbles
+      sr.querySelectorAll('.flex.items-center.p-1.gap-2.min-w-60').forEach(el => el.remove());
+      sr.querySelectorAll('[data-shown], .animate-text, span').forEach(el => {
+          const txt = (el.textContent || "").trim().toLowerCase();
+          if (txt === "need help?" || txt === "connecting") el.remove();
       });
 
-      sr.querySelectorAll('span.opacity-30, a[href*="elevenlabs.io"]').forEach(el => el.remove());
+      // Remove branding links
+      sr.querySelectorAll('a[href*="elevenlabs.io"]').forEach(el => el.remove());
 
+      // Remove extra containers
       sr.querySelectorAll('.flex.flex-col.p-2.rounded-sheet.bg-base.shadow-md.pointer-events-auto.overflow-hidden')
-        .forEach(el => {
-          const btn = el.querySelector('button');
-          if (btn) {
-            el.parentNode.insertBefore(btn, el);
-            el.remove();
-          } else el.remove();
-        });
+        .forEach(el => el.remove());
 
+      // Reset extra element styles
       sr.querySelectorAll('.rounded-sheet, .bg-base, .shadow-md').forEach(el => {
-        el.style.background = 'transparent';
-        el.style.boxShadow = 'none';
-        el.style.padding = '0';
-        el.style.margin = '0';
-        el.style.pointerEvents = 'auto';
+          el.style.background = 'transparent';
+          el.style.boxShadow = 'none';
+          el.style.padding = '0';
+          el.style.margin = '0';
       });
     } catch(e){ console.warn('[ConvAI cleanup] error:', e); }
   }
@@ -1244,7 +1239,6 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
 })();
     """
     return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
-
 
 
 
