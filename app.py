@@ -956,7 +956,7 @@ def serve_widget_js_update_new(agent_id, branding="Powered by Voizee", brand="")
 
 
 #test version 22222
-def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
+def serve_widget_js_updated(agent_id, branding="Powered by Voizee", brand=""):
     js = r"""
 (function(){
   const AGENT_ID = "__AGENT_ID__";
@@ -1102,6 +1102,8 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
     btn.style.pointerEvents = "auto";
     btn.style.cursor = "pointer";
     btn.style.zIndex = "999999";
+    btn.style.backgroundColor = "transparent";
+    btn.style.border = "none";
     const span = btn.querySelector("span");
     if (span) span.style.display = "none";
     btn.disabled = false;
@@ -1126,6 +1128,15 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
       if (btn && !btn._styled){
         btn._styled = true;
         makeStartButtonCircular(btn);
+
+        // Observe style changes to keep button circular
+        if (!btn._observer){
+          const observer = new MutationObserver(() => {
+            makeStartButtonCircular(btn);
+          });
+          observer.observe(btn, { attributes: true, attributeFilter: ["style", "class"] });
+          btn._observer = observer;
+        }
         return true;
       }
     }
@@ -1233,6 +1244,7 @@ def serve_widget_js_updated2(agent_id, branding="Powered by Voizee", brand=""):
 })();
     """
     return js.replace("__AGENT_ID__", agent_id).replace("__BRANDING__", branding).replace("__BRAND__", brand)
+
 
 
 
