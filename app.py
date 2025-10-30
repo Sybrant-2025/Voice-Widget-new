@@ -2237,7 +2237,12 @@ def serve_widget_js_updated5(
              .replace("__BUTTON_AVATAR__", buttonAvatar)
 
 
-def serve_widget_js_updated6(agent_id, branding="Powered by Voizee", brand="", buttonAvatar="https://sybrant.com/wp-content/uploads/2025/10/divya_cfo-1-e1761563595921.png"):
+def serve_widget_js_updated6(
+    agent_id,
+    branding="Powered by Voizee",
+    brand="",
+    buttonAvatar="https://sybrant.com/wp-content/uploads/2025/10/divya_cfo-1-e1761563595921.png",
+):
     js = r"""
 (function(){
   const AGENT_ID = "__AGENT_ID__";
@@ -2245,13 +2250,14 @@ def serve_widget_js_updated6(agent_id, branding="Powered by Voizee", brand="", b
   const BRANDING_TEXT = "__BRANDING__";
   const AVATAR_URL = "__BUTTON_AVATAR__";
   const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
+
   let VISIT_ID = (crypto.randomUUID ? crypto.randomUUID() : Date.now()+"_"+Math.random().toString(36).slice(2));
   try { localStorage.setItem("convai_visit_id", VISIT_ID); } catch(_){}
 
-  // ====== Inject ElevenLabs widget (hidden initially) ======
+  // ====== Inject ElevenLabs widget (hidden) ======
   const tag = document.createElement("elevenlabs-convai");
   tag.setAttribute("agent-id", AGENT_ID);
-  tag.style.display = "none"; // hide initially
+  tag.style.display = "none"; // hide until user submits form
   document.body.appendChild(tag);
 
   const s = document.createElement("script");
@@ -2259,7 +2265,50 @@ def serve_widget_js_updated6(agent_id, branding="Powered by Voizee", brand="", b
   s.async = true;
   document.body.appendChild(s);
 
-  // ====== Inject CSS for tray UI ======
+  // ====== Hide ElevenLabs "Powered by" branding ======
+  function hideElevenLabsBranding(){
+    // Global CSS kill switch
+    if(!document.getElementById("hide-elevenlabs-style")){
+      const style = document.createElement("style");
+      style.id = "hide-elevenlabs-style";
+      style.textContent = `
+        p[class*="whitespace-nowrap"][class*="text-[10px]"],
+        p:has(span:contains("Powered by ElevenLabs")),
+        span:has-text("Powered by ElevenLabs"),
+        a[href*="elevenlabs.io/conversational-ai"] {
+          display:none !important;
+          visibility:hidden !important;
+          opacity:0 !important;
+          height:0 !important;
+          pointer-events:none !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // Remove visible branding text (main DOM)
+    document.querySelectorAll('p,span,a').forEach(el=>{
+      const txt = el.textContent?.toLowerCase() || "";
+      if(txt.includes("powered by elevenlabs") || txt.includes("agents")){
+        el.remove();
+      }
+    });
+
+    // Remove inside shadow DOM of widget
+    const widget = document.querySelector("elevenlabs-convai");
+    if(widget && widget.shadowRoot){
+      widget.shadowRoot.querySelectorAll('p,span,a').forEach(el=>{
+        const txt = el.textContent?.toLowerCase() || "";
+        if(txt.includes("powered by elevenlabs") || txt.includes("agents")){
+          el.remove();
+        }
+      });
+    }
+  }
+  // Enforce every second — bulletproof
+  setInterval(hideElevenLabsBranding, 1000);
+
+  // ====== Inject tray styles ======
   function injectStyles(){
     if (document.getElementById("voizee-corner-styles")) return;
     const css = `
@@ -2300,13 +2349,13 @@ def serve_widget_js_updated6(agent_id, branding="Powered by Voizee", brand="", b
     document.head.appendChild(style);
   }
 
-  // ====== Build tray UI ======
+  // ====== Build the tray launcher ======
   function buildTray(){
     if (document.getElementById("voizee-launcher")) return;
 
     injectStyles();
 
-    // Launcher button
+    // Launcher
     const launcher = document.createElement("div");
     launcher.id = "voizee-launcher";
     launcher.className = "voizee-launcher";
@@ -2344,12 +2393,12 @@ def serve_widget_js_updated6(agent_id, branding="Powered by Voizee", brand="", b
     `;
     document.body.appendChild(tray);
 
-    // Toggle tray
+    // Open / Close handlers
     launcher.onclick = ()=> tray.classList.add("open");
     tray.querySelector("#voizee-close").onclick = ()=> tray.classList.remove("open");
     tray.querySelector("#voizee-cancel").onclick = ()=> tray.classList.remove("open");
 
-    // Form submit handler
+    // ====== Handle form submit ======
     tray.querySelector("#voizee-form").onsubmit = async (e)=>{
       e.preventDefault();
       const fd = new FormData(e.target);
@@ -2377,16 +2426,16 @@ def serve_widget_js_updated6(agent_id, branding="Powered by Voizee", brand="", b
         btn.textContent = "Starting Call...";
         tray.classList.remove("open");
 
-        // Wait briefly for widget
+        // Wait a moment then start the call
         setTimeout(()=>{
           tag.style.display = "block";
+          hideElevenLabsBranding();
           const sr = tag.shadowRoot;
           if(sr){
             const startBtn = sr.querySelector('button[aria-label*="Start"],button[title*="Start"]');
             if(startBtn) startBtn.click();
           }
-        }, 1000);
-
+        }, 1200);
       } catch(err){
         console.error("Log error:", err);
         btn.textContent = "Error. Try again";
@@ -2395,15 +2444,18 @@ def serve_widget_js_updated6(agent_id, branding="Powered by Voizee", brand="", b
     };
   }
 
-  // Wait for DOM ready
+  // Initialize tray once DOM is ready
   if(document.readyState!=="loading") buildTray();
   else document.addEventListener("DOMContentLoaded", buildTray);
+
 })();
     """
-    return js.replace("__AGENT_ID__", agent_id)\
-             .replace("__BRANDING__", branding)\
-             .replace("__BRAND__", brand)\
-             .replace("__BUTTON_AVATAR__", buttonAvatar)
+    return (
+        js.replace("__AGENT_ID__", agent_id)
+        .replace("__BRANDING__", branding)
+        .replace("__BRAND__", brand)
+        .replace("__BUTTON_AVATAR__", buttonAvatar)
+    )
 
 
 ##########updated end##########
