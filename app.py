@@ -2236,21 +2236,22 @@ def serve_widget_js_updated5(
              .replace("__BRAND__", brand)\
              .replace("__BUTTON_AVATAR__", buttonAvatar)
 
+
 def serve_widget_js_updated6(agent_id, branding="Powered by Voizee", brand="", buttonAvatar="https://sybrant.com/wp-content/uploads/2025/10/divya_cfo-1-e1761563595921.png"):
     js = r"""
 (function(){
   const AGENT_ID = "__AGENT_ID__";
   const BRAND = "__BRAND__";
   const BRANDING_TEXT = "__BRANDING__";
-  const BUTTON_AVATAR = "__BUTTON_AVATAR__";
+  const AVATAR_URL = "__BUTTON_AVATAR__";
   const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
-
   let VISIT_ID = (crypto.randomUUID ? crypto.randomUUID() : Date.now()+"_"+Math.random().toString(36).slice(2));
   try { localStorage.setItem("convai_visit_id", VISIT_ID); } catch(_){}
 
-  // ====== Inject ElevenLabs widget ======
+  // ====== Inject ElevenLabs widget (hidden initially) ======
   const tag = document.createElement("elevenlabs-convai");
   tag.setAttribute("agent-id", AGENT_ID);
+  tag.style.display = "none"; // hide initially
   document.body.appendChild(tag);
 
   const s = document.createElement("script");
@@ -2258,72 +2259,105 @@ def serve_widget_js_updated6(agent_id, branding="Powered by Voizee", brand="", b
   s.async = true;
   document.body.appendChild(s);
 
-  // ====== Style circular avatar button ======
-  function makeCircular(btn){
-    btn.style.width = "56px";
-    btn.style.height = "56px";
-    btn.style.borderRadius = "50%";
-    btn.style.display = "flex";
-    btn.style.alignItems = "center";
-    btn.style.justifyContent = "center";
-    btn.style.padding = "0";
-    btn.style.margin = "8px";
-    btn.style.cursor = "pointer";
-    btn.style.backgroundImage = `url('${BUTTON_AVATAR}')`;
-    btn.style.backgroundSize = "cover";
-    btn.style.backgroundPosition = "center";
-    btn.style.backgroundRepeat = "no-repeat";
-    const span = btn.querySelector("span");
-    if(span) span.style.display = "none";
+  // ====== Inject CSS for tray UI ======
+  function injectStyles(){
+    if (document.getElementById("voizee-corner-styles")) return;
+    const css = `
+      .voizee-launcher{position:fixed;right:20px;bottom:20px;z-index:999999;
+        width:64px;height:64px;border-radius:999px;cursor:pointer;
+        background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.25);
+        display:flex;align-items:center;justify-content:center;overflow:hidden;}
+      .voizee-launcher .avatar{width:100%;height:100%;
+        background-image:url('${AVATAR_URL}');
+        background-size:cover;background-position:center;}
+      .voizee-tray{position:fixed;right:20px;bottom:96px;z-index:999999;
+        width:360px;max-width:calc(100vw - 40px);
+        transform:translateY(20px);opacity:0;pointer-events:none;
+        transition:transform .25s ease,opacity .25s ease;}
+      .voizee-tray.open{transform:translateY(0);opacity:1;pointer-events:auto;}
+      .voizee-card{background:#fff;border-radius:16px;overflow:hidden;
+        box-shadow:0 16px 48px rgba(0,0,0,.28);font-family:sans-serif;}
+      .voizee-header{display:flex;align-items:center;gap:10px;
+        padding:12px 14px;background:#000;color:#fff;}
+      .voizee-header .h-avatar{width:36px;height:36px;border-radius:999px;
+        background-image:url('${AVATAR_URL}');
+        background-size:cover;background-position:center;
+        border:2px solid rgba(255,255,255,.4);}
+      .voizee-body{padding:14px;}
+      .voizee-input{width:100%;padding:10px 12px;border:1px solid #e5e7eb;
+        border-radius:8px;font-size:14px;margin-bottom:10px;background:#f8fafc;}
+      .voizee-actions{display:flex;gap:10px;margin-top:10px;}
+      .voizee-btn{flex:1;padding:10px 12px;border:none;border-radius:8px;
+        cursor:pointer;font-weight:600;}
+      .voizee-btn.primary{background:#000;color:#fff;}
+      .voizee-btn.ghost{background:#f3f4f6;color:#111;}
+      .voizee-footer{padding:10px 14px;font-size:12px;color:#6b7280;text-align:center;}
+      @media(max-width:480px){.voizee-tray{right:12px;left:12px;width:auto;}}
+    `;
+    const style = document.createElement("style");
+    style.id = "voizee-corner-styles";
+    style.textContent = css;
+    document.head.appendChild(style);
   }
 
-  // ====== Create form inside widget tray ======
-  function injectForm(sr, startBtn){
-    if(sr.querySelector("#voizeeForm")) return; // avoid duplicates
+  // ====== Build tray UI ======
+  function buildTray(){
+    if (document.getElementById("voizee-launcher")) return;
 
-    const formWrap = document.createElement("div");
-    formWrap.id = "voizeeForm";
-    formWrap.innerHTML = `
-      <div style="padding:16px; display:flex; flex-direction:column; gap:8px; font-family:sans-serif;">
-        <h3 style="margin:0 0 8px 0;">Let's connect</h3>
-        <input type="text" id="vf_name" placeholder="Name" style="padding:8px;border-radius:6px;border:1px solid #ccc;">
-        <input type="email" id="vf_email" placeholder="Email" style="padding:8px;border-radius:6px;border:1px solid #ccc;">
-        <input type="tel" id="vf_phone" placeholder="Phone" style="padding:8px;border-radius:6px;border:1px solid #ccc;">
-        <input type="text" id="vf_company" placeholder="Company" style="padding:8px;border-radius:6px;border:1px solid #ccc;">
-        <div style="display:flex;gap:8px;margin-top:8px;">
-          <button id="vf_cancel" style="flex:1;padding:8px;border-radius:6px;background:#eee;border:none;cursor:pointer;">Cancel</button>
-          <button id="vf_submit" style="flex:1;padding:8px;border-radius:6px;background:#000;color:#fff;border:none;cursor:pointer;">Start a Call</button>
+    injectStyles();
+
+    // Launcher button
+    const launcher = document.createElement("div");
+    launcher.id = "voizee-launcher";
+    launcher.className = "voizee-launcher";
+    launcher.innerHTML = `<div class="avatar" title="Need help?"></div>`;
+    document.body.appendChild(launcher);
+
+    // Tray
+    const tray = document.createElement("div");
+    tray.id = "voizee-tray";
+    tray.className = "voizee-tray";
+    tray.innerHTML = `
+      <div class="voizee-card">
+        <div class="voizee-header">
+          <div class="h-avatar"></div>
+          <div>
+            <div style="font-weight:700;">Hi, I'm Vidhya</div>
+            <div style="font-size:12px;opacity:.75;">Your AI CFO Partner</div>
+          </div>
+          <button id="voizee-close" style="margin-left:auto;background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">×</button>
         </div>
-        <small style="color:#999;text-align:center;margin-top:6px;">${BRANDING_TEXT}</small>
+        <div class="voizee-body">
+          <form id="voizee-form">
+            <input class="voizee-input" name="name" placeholder="Full name" required>
+            <input class="voizee-input" name="company" placeholder="Company name" required>
+            <input class="voizee-input" type="email" name="email" placeholder="Email" required>
+            <input class="voizee-input" name="phone" placeholder="Phone number" required>
+            <div class="voizee-actions">
+              <button type="submit" class="voizee-btn primary" id="voizee-submit">Start Call</button>
+              <button type="button" class="voizee-btn ghost" id="voizee-cancel">Cancel</button>
+            </div>
+          </form>
+        </div>
+        <div class="voizee-footer">${BRANDING_TEXT}</div>
       </div>
     `;
-    formWrap.style.position = "absolute";
-    formWrap.style.bottom = "70px";
-    formWrap.style.right = "0";
-    formWrap.style.background = "#fff";
-    formWrap.style.borderRadius = "12px";
-    formWrap.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
-    formWrap.style.zIndex = "999999";
-    formWrap.style.width = "260px";
+    document.body.appendChild(tray);
 
-    document.body.appendChild(formWrap);
+    // Toggle tray
+    launcher.onclick = ()=> tray.classList.add("open");
+    tray.querySelector("#voizee-close").onclick = ()=> tray.classList.remove("open");
+    tray.querySelector("#voizee-cancel").onclick = ()=> tray.classList.remove("open");
 
-    // Cancel button hides form
-    formWrap.querySelector("#vf_cancel").onclick = ()=> formWrap.remove();
-
-    // Submit button logic
-    formWrap.querySelector("#vf_submit").onclick = async ()=>{
-      const name = formWrap.querySelector("#vf_name").value.trim();
-      const email = formWrap.querySelector("#vf_email").value.trim();
-      const phone = formWrap.querySelector("#vf_phone").value.trim();
-      const company = formWrap.querySelector("#vf_company").value.trim();
-
-      if(!name || !email){
-        alert("Please fill out name and email.");
-        return;
-      }
-
-      const btn = formWrap.querySelector("#vf_submit");
+    // Form submit handler
+    tray.querySelector("#voizee-form").onsubmit = async (e)=>{
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const name = fd.get("name").trim();
+      const company = fd.get("company").trim();
+      const email = fd.get("email").trim();
+      const phone = fd.get("phone").trim();
+      const btn = tray.querySelector("#voizee-submit");
       btn.textContent = "Submitting...";
       btn.disabled = true;
 
@@ -2340,55 +2374,36 @@ def serve_widget_js_updated6(agent_id, branding="Powered by Voizee", brand="", b
             timestamp: new Date().toISOString()
           })
         });
-        btn.textContent = "Starting call...";
+        btn.textContent = "Starting Call...";
+        tray.classList.remove("open");
+
+        // Wait briefly for widget
         setTimeout(()=>{
-          formWrap.remove();
-          if(startBtn){
-            startBtn.click();
+          tag.style.display = "block";
+          const sr = tag.shadowRoot;
+          if(sr){
+            const startBtn = sr.querySelector('button[aria-label*="Start"],button[title*="Start"]');
+            if(startBtn) startBtn.click();
           }
-        }, 800);
-      } catch(e){
+        }, 1000);
+
+      } catch(err){
+        console.error("Log error:", err);
         btn.textContent = "Error. Try again";
-        console.error(e);
+        btn.disabled = false;
       }
     };
   }
 
-  // ====== Observe and replace UI ======
-  const obs = new MutationObserver(()=>{
-    const widget = document.querySelector("elevenlabs-convai");
-    if(!widget) return;
-    const sr = widget.shadowRoot;
-    if(!sr) return;
-
-    // remove ElevenLabs extra UI
-    sr.querySelectorAll('span,a').forEach(el=>{
-      const txt = el.textContent?.toLowerCase() || "";
-      if(txt.includes("powered by") || txt.includes("need help")) el.remove();
-    });
-    sr.querySelectorAll('.rounded-sheet, .bg-base, .shadow-md').forEach(el=>{
-      el.style.background='transparent';el.style.boxShadow='none';el.style.padding='0';el.style.margin='0';
-    });
-
-    // find start button
-    const startBtn = sr.querySelector('button[aria-label="Start a call"],button[title="Start a call"],button[aria-label*="Start"],button[title*="Start"]');
-    if(startBtn && !startBtn._formHooked){
-      startBtn._formHooked = true;
-      makeCircular(startBtn);
-      startBtn.addEventListener("click",(e)=>{
-        e.preventDefault();
-        injectForm(sr, startBtn);
-      }, {capture:true});
-    }
-  });
-  obs.observe(document, {childList:true, subtree:true});
+  // Wait for DOM ready
+  if(document.readyState!=="loading") buildTray();
+  else document.addEventListener("DOMContentLoaded", buildTray);
 })();
     """
     return js.replace("__AGENT_ID__", agent_id)\
              .replace("__BRANDING__", branding)\
              .replace("__BRAND__", brand)\
              .replace("__BUTTON_AVATAR__", buttonAvatar)
-
 
 
 ##########updated end##########
