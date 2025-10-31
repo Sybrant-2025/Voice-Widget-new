@@ -2478,6 +2478,15 @@ def serve_widget_js_updated7(
   let VISIT_ID = (crypto.randomUUID ? crypto.randomUUID() : Date.now()+"_"+Math.random().toString(36).slice(2));
   try { localStorage.setItem("convai_visit_id", VISIT_ID); } catch(_){}
 
+  // ====== Ensure ElevenLabs script loaded ======
+  if (!window.__elevenlabs_loaded) {
+    const s = document.createElement("script");
+    s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
+    s.async = true;
+    s.onload = () => window.__elevenlabs_loaded = true;
+    document.head.appendChild(s);
+  }
+
   // ====== Hide ElevenLabs "Powered by" branding ======
   function hideElevenLabsBranding(){
     if(!document.getElementById("hide-elevenlabs-style")){
@@ -2493,7 +2502,6 @@ def serve_widget_js_updated7(
       document.head.appendChild(style);
     }
   }
-
   setInterval(hideElevenLabsBranding, 1000);
 
   // ====== CSS for tray ======
@@ -2542,14 +2550,14 @@ def serve_widget_js_updated7(
     if(document.getElementById("voizee-launcher")) return;
     injectStyles();
 
-    // launcher button
+    // launcher
     const launcher=document.createElement("div");
     launcher.id="voizee-launcher";
     launcher.className="voizee-launcher";
     launcher.innerHTML=`<div class="avatar" title="Need help?"></div>`;
     document.body.appendChild(launcher);
 
-    // tray container
+    // tray
     const tray=document.createElement("div");
     tray.id="voizee-tray";
     tray.className="voizee-tray";
@@ -2579,12 +2587,12 @@ def serve_widget_js_updated7(
       </div>`;
     document.body.appendChild(tray);
 
-    // open/close actions
+    // open/close
     launcher.onclick=()=>tray.classList.add("open");
     tray.querySelector("#voizee-close").onclick=()=>tray.classList.remove("open");
     tray.querySelector("#voizee-cancel").onclick=()=>tray.classList.remove("open");
 
-    // form submit handler
+    // submit
     tray.querySelector("#voizee-form").onsubmit=async(e)=>{
       e.preventDefault();
       const fd=new FormData(e.target);
@@ -2610,7 +2618,6 @@ def serve_widget_js_updated7(
           })
         });
 
-        // replace form with terms & call screen
         const body=tray.querySelector(".voizee-body");
         body.innerHTML=`
           <div id="voizee-terms">
@@ -2628,7 +2635,6 @@ def serve_widget_js_updated7(
         body.querySelector("#terms-cancel").onclick=()=>tray.classList.remove("open");
 
         body.querySelector("#terms-accept").onclick=()=>{
-          // Replace with call view
           body.innerHTML=`
             <div id="voizee-call-container" style="text-align:center;">
               <p>Connecting...</p>
@@ -2637,21 +2643,29 @@ def serve_widget_js_updated7(
             </div>
           `;
 
-          // inject ElevenLabs widget inside tray
+          // inject widget
           const convaiTag=document.createElement("elevenlabs-convai");
           convaiTag.setAttribute("agent-id",AGENT_ID);
           body.querySelector("#call-widget").appendChild(convaiTag);
           hideElevenLabsBranding();
 
-          setTimeout(()=>{
+          // retry-safe call start
+          function tryStartCall(retries=10){
             const sr=convaiTag.shadowRoot;
             if(sr){
-              const startBtn=sr.querySelector('button[aria-label*="Start"],button[title*="Start"]');
-              if(startBtn) startBtn.click();
+              const startBtn=sr.querySelector('button[aria-label*="Start"],button[title*="Start"],button:has(svg)');
+              if(startBtn){
+                console.log("🎤 Starting call...");
+                startBtn.click();
+                return;
+              }
             }
-          },1200);
+            if(retries>0)setTimeout(()=>tryStartCall(retries-1),800);
+            else console.warn("⚠️ Start button not found");
+          }
+          tryStartCall();
 
-          // handle End button
+          // end call
           body.querySelector("#end-call").onclick=()=>{
             convaiTag.remove();
             tray.classList.remove("open");
@@ -2677,6 +2691,7 @@ def serve_widget_js_updated7(
           .replace("__BRAND__", brand)
           .replace("__BUTTON_AVATAR__", buttonAvatar)
     )
+
 
 
 
