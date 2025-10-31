@@ -2914,9 +2914,6 @@ def serve_widget_js_updated8(
         body.querySelector("#terms-accept").onclick=()=>{
           body.innerHTML=`
             <div id="voizee-call-container" style="text-align:center;">
-              <p>Connecting...</p>
-              <div id="call-widget" style="margin-top:10px;"></div>
-              <button id="end-call" class="voizee-btn ghost" style="margin-top:10px;">End Call</button>
             </div>
           `;
 
@@ -3281,7 +3278,7 @@ def serve_cfobridge_widget():
 @app.route('/newcfobridge')
 def serve_newcfobridge_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated9(agent_id, branding="Powered by cfobridge", brand="demo")
+    js = serve_widget_js_updated8(agent_id, branding="Powered by cfobridge", brand="demo")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/voiceassistant')
