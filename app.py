@@ -2465,7 +2465,7 @@ def serve_widget_js_updated7(
     agent_id,
     branding="Powered by cfobridge",
     brand="",
-    buttonAvatar="https://sybrant.com/wp-content/uploads/2025/10/divya_cfo-1-e1761563595921.png",
+    buttonAvatar="https://sybrant.com/wp-content/uploads/2025/10/vidhyacircle-e1761290742273.png",
 ):
     js = r"""
 (function(){
