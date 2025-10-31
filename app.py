@@ -2914,7 +2914,7 @@ def serve_widget_js_updated8(
         body.querySelector("#terms-accept").onclick=()=>{
           body.innerHTML=`
             <div id="voizee-call-container" style="text-align:center;">
-              <p>Connecting...</p>
+              <p></p>
               <div id="call-widget" style="margin-top:10px;"></div>
               <button id="end-call" class="voizee-btn ghost" style="margin-top:10px;">End Call</button>
             </div>
