@@ -6332,11 +6332,11 @@ def demo_newcfobridge():
     return render_template('cfobridge.html')
 
 
-@app.route('/lessportsfrancais_online')
+@app.route('/ebook')
 def demo_lessportsfrancais_online():
     return render_template('LesSportsFrancais_online.html')
 
-@app.route('/demo/lessportsfrancais_pdf')
+@app.route('/ebook2')
 def demo_lessportsfrancais_pdf():
     return render_template('LesSportsFrancais_pdf.html')
 
