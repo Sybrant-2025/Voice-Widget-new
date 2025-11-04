@@ -6331,6 +6331,15 @@ def demo_newgendigital():
 def demo_newcfobridge():
     return render_template('cfobridge.html')
 
+
+@app.route('/lessportsfrancais_online')
+def demo_lessportsfrancais_online():
+    return render_template('LesSportsFrancais_online.html')
+
+@app.route('/demo/lessportsfrancais_pdf')
+def demo_lessportsfrancais_pdf():
+    return render_template('LesSportsFrancais_pdf.html')
+
 # --- Health Check & Root ---
 @app.route('/')
 def home():
