@@ -15,6 +15,9 @@
       --accent-gold: #d4a648;
       --text-main: #1f2933;
       --text-muted: #6b7280;
+      --roland: #c1440e;
+      --lemans: #0b2540;
+      --tour: #f5b800;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -23,23 +26,28 @@
       font-family: "Montserrat", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: radial-gradient(circle at top left, #ffffff 0, #e5e7eb 35%, #f9fafb 100%);
       color: var(--text-main);
-      padding: 32px 8px 60px 8px;
+      padding: 24px 8px 60px 8px;
     }
 
-    .magazine-wrapper { max-width: 1200px; margin: 0 auto; }
+    .magazine-wrapper { max-width: 860px; margin: 0 auto; }
 
     .magazine-title-bar {
-      text-align: center; margin-bottom: 24px;
-      letter-spacing: 0.15em; font-size: 12px;
+      text-align: center; margin-bottom: 20px;
+      letter-spacing: 0.18em; font-size: 11px;
       color: var(--text-muted); text-transform: uppercase;
     }
 
+    /* A4 portrait look for screen */
     .page {
-      width: 100%; max-width: 1080px;
-      margin: 0 auto 40px auto; min-height: 640px;
+      width: 100%;
+      max-width: 794px;           /* ~ A4 width in px */
+      min-height: 1123px;         /* ~ A4 height in px */
+      margin: 0 auto 32px auto;
       background: var(--page-bg);
-      border-radius: 18px; box-shadow: 0 25px 60px rgba(15,23,42,0.22);
-      padding: 40px 60px; position: relative;
+      border-radius: 18px;
+      box-shadow: 0 25px 60px rgba(15,23,42,0.22);
+      padding: 40px 52px;
+      position: relative;
       overflow: hidden;
     }
 
@@ -51,8 +59,8 @@
     }
 
     h1,h2,h3,h4 { font-family: "Playfair Display","Times New Roman",serif; }
-    h1 { font-size: 44px; letter-spacing: 0.03em; }
-    h2 { font-size: 28px; margin-bottom: 6px; }
+    h1 { font-size: 46px; letter-spacing: 0.04em; }
+    h2 { font-size: 28px; margin-bottom: 8px; }
     h3 { font-size: 20px; margin-bottom: 4px; }
     p { font-size: 14px; line-height: 1.7; margin-bottom: 10px; }
     .muted { color: var(--text-muted); }
@@ -90,16 +98,15 @@
       padding-right: 8px; padding-top: 6px; color: var(--accent-red);
     }
 
-    .tagline { font-size: 14px; text-transform: uppercase; letter-spacing: 0.3em; margin-top: 10px; color: var(--text-muted); }
+    .tagline { font-size: 13px; text-transform: uppercase; letter-spacing: 0.3em; margin-top: 10px; color: var(--text-muted); }
 
     .image-block {
       background: linear-gradient(135deg,#d1d5db,#e5e7eb);
       border-radius: 18px; min-height: 220px;
       position: relative; overflow: hidden;
     }
-
-    .image-block.has-image::after { display: none; }
     .image-block img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
     .image-note { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
 
     .quote-block {
@@ -143,27 +150,142 @@
 
     .footer-note { font-size: 11px; color: var(--text-muted); margin-top: 30px; }
 
-    .nav-controls {
-      max-width: 1080px; margin: -16px auto 0 auto;
-      display: flex; align-items: center; justify-content: center; gap: 16px;
+    /* NEW: cover layout */
+    .cover-page {
+      display:flex; flex-direction:column; height:100%;
     }
-    .nav-btn {
-      border: none; border-radius: 999px; padding: 8px 18px;
-      background: var(--bg-dark); color: #f9fafb; font-size: 11px;
-      letter-spacing: 0.14em; text-transform: uppercase;
-      cursor: pointer; box-shadow: 0 10px 25px rgba(15,23,42,0.35);
-      display: inline-flex; align-items: center; gap: 6px;
+    .cover-hero {
+      position:relative;
+      flex:1;
+      border-radius:18px;
+      overflow:hidden;
+      margin-top:20px;
+      background:
+        linear-gradient(135deg,rgba(2,6,23,0.85),rgba(15,23,42,0.5)),
+        url("https://images.pexels.com/photos/114296/pexels-photo-114296.jpeg") center/cover no-repeat;
+      display:flex;
+      align-items:flex-end;
+      padding:32px 34px;
     }
-    .nav-btn:disabled { opacity: 0.35; cursor: default; box-shadow: none; }
-    .nav-status { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-muted); }
+    .cover-headline {
+      color:#f9fafb;
+      max-width:460px;
+    }
+    .cover-row {
+      display:flex;
+      gap:14px;
+      margin-top:18px;
+      flex-wrap:wrap;
+    }
+    .cover-pill {
+      font-size:11px;
+      padding:4px 10px;
+      border-radius:999px;
+      border:1px solid rgba(249,250,251,0.3);
+      color:#e5e7eb;
+      text-transform:uppercase;
+      letter-spacing:0.16em;
+    }
+
+    .cover-subgrid {
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:16px;
+      margin-top:18px;
+    }
+    .cover-mini {
+      border-radius:999px;
+      overflow:hidden;
+      width:90px;
+      height:90px;
+      border:2px solid rgba(148,163,184,0.8);
+    }
+    .cover-mini img {
+      width:100%; height:100%; object-fit:cover;
+    }
+    .cover-badge {
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:0.18em;
+      color:var(--text-muted);
+      margin-top:12px;
+    }
+
+    .stat-grid {
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:16px;
+      margin-top:16px;
+    }
+    .stat-card {
+      background:#fff;
+      border-radius:14px;
+      padding:12px 14px;
+      border:1px solid #e5e7eb;
+      font-size:12px;
+    }
+    .stat-number {
+      font-size:20px;
+      font-weight:700;
+      display:block;
+    }
+    .stat-label {
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:0.12em;
+      color:var(--text-muted);
+    }
+
+    .vocab-list {
+      columns:2;
+      column-gap:24px;
+      list-style:none;
+      font-size:13px;
+      margin-top:10px;
+    }
+    .vocab-list li { break-inside:avoid; margin-bottom:6px; }
+
+    .full-photo {
+      position:relative;
+      border-radius:18px;
+      overflow:hidden;
+      min-height:360px;
+      margin-top:16px;
+      background:linear-gradient(135deg,#d1d5db,#e5e7eb);
+    }
+    .full-photo img {
+      width:100%; height:100%; object-fit:cover;
+      display:block;
+    }
+    .photo-overlay {
+      position:absolute;
+      inset:0;
+      background:linear-gradient(180deg,rgba(15,23,42,0.1),rgba(15,23,42,0.8));
+    }
+    .photo-caption {
+      position:absolute;
+      left:24px; right:24px; bottom:24px;
+      color:#f9fafb;
+      font-size:13px;
+    }
+
+    .badge-theme-roland { color:var(--roland); }
+    .badge-theme-lemans { color:var(--lemans); }
+    .badge-theme-tour { color:var(--tour); }
 
     @media (max-width:900px){
-      .page { padding:26px 20px 40px 20px; }
-      .two-column,.three-column,.quiz-grid { grid-template-columns:minmax(0,1fr); }
-      .nav-controls { flex-direction:column; gap:10px; }
+      .page { padding:26px 18px 40px 18px; min-height:auto; }
+      .two-column,.three-column,.quiz-grid,.cover-subgrid,.stat-grid { grid-template-columns:minmax(0,1fr); }
+      .cover-hero { padding:24px 18px; }
+      .cover-subgrid { justify-items:flex-start; }
     }
 
     /* ===== PDF / Print Optimization ===== */
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+
     @media print {
       body { background:white !important; padding:0; margin:0; }
       .nav-controls, #prevPage, #nextPage, #pageIndicator { display:none !important; }
@@ -179,414 +301,911 @@
 </head>
 
 <body>
-    <div class="magazine-wrapper">
+  <div class="magazine-wrapper">
 
-        <!-- TITLE BAR -->
-        <div class="magazine-title-bar">
-          Édition Spéciale · Roland Garros · 24 Heures du Mans · Tour de France
+    <!-- TITLE BAR -->
+    <div class="magazine-title-bar">
+      Édition Spéciale · Roland Garros · 24 Heures du Mans · Tour de France
+    </div>
+
+    <!-- PAGE 1 – NEW COVER (MORE ATTRACTIVE, IMAGE-LED) -->
+    <section class="page" data-page="1">
+      <div class="cover-page">
+        <div>
+          <div class="pill" style="margin-bottom:12px; background:rgba(15,23,42,0.05);">
+            <span>Numéro spécial · 2025</span>
+          </div>
+          <h1>L’Écran Sportif Français</h1>
+          <div class="tagline">Roland Garros · 24 Heures du Mans · Tour de France</div>
         </div>
-      
-        <!-- PAGE 1 – COVER -->
-        <section class="page" data-page="1">
-          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; text-align:center;">
-            <div class="pill" style="margin-bottom:18px;">
-              <span>Numéro spécial</span>
-            </div>
-            <h1>L’Écran Sportif Français</h1>
-            <div class="tagline">Roland Garros · 24 Heures du Mans · Tour de France</div>
-      
-            <div style="margin:40px 0 26px 0; width:120px; height:120px; border-radius:999px; border:2px solid rgba(148,163,184,0.7); display:flex; align-items:center; justify-content:center; overflow:hidden;">
-              <!-- Book page-turning GIF – replace src with your own if you like -->
-              <img src="https://i.gifer.com/78xa.gif"
-                   alt="Animated book pages turning"
-                   style="width:110px; height:110px; object-fit:cover; border-radius:999px;">
-            </div>
-      
-            <p class="muted" style="max-width:480px;">
-              Une invitation à découvrir trois événements qui font battre le cœur de la France&nbsp;: le tennis sur terre battue, la course d’endurance la plus célèbre du monde et la grande épopée du vélo.
+
+        <div class="cover-hero">
+          <div class="cover-headline">
+            <p style="font-size:14px; text-transform:uppercase; letter-spacing:0.18em; margin-bottom:8px; color:#e5e7eb;">
+              Trois événements, une seule passion
             </p>
-      
-            <p class="muted" style="margin-top:40px; font-size:11px; letter-spacing:0.2em; text-transform:uppercase;">
-              Créé par Sybrant · 2025
+            <h2 style="font-size:30px; margin-bottom:8px; color:#f9fafb;">
+              La France vue à travers ses grandes scènes sportives
+            </h2>
+            <p style="font-size:13px; color:#e5e7eb; max-width:420px;">
+              Terre battue, bitume incandescent et routes de montagne&nbsp;: un voyage visuel et
+              pédagogique à travers les sports qui font vibrer la France.
             </p>
-          </div>
-        </section>
-      
-        <!-- PAGE 2 – INTRO TO FRENCH SPORTS -->
-        <section class="page" data-page="2">
-          <div class="eyebrow">Ouverture</div>
-          <h2>Les sports comme miroir de la France</h2>
-          <p class="muted" style="margin-bottom:12px;">
-            Texte en français avec quelques explications claires et simples pour les apprenants.
-          </p>
-      
-          <div class="two-column">
-            <div>
-              <p class="dropcap">
-                En France, le sport n’est pas seulement une compétition. C’est un langage commun, un
-                prétexte pour se retrouver, discuter, vibrer et rêver. Des gradins de Roland Garros aux
-                routes sinueuses du Tour de France, en passant par la nuit bruyante des 24 Heures du Mans,
-                chaque événement raconte une histoire de passion, de patience et d’innovation.
-              </p>
-              <p>
-                Ce magazine propose un voyage à travers trois icônes du calendrier sportif français.
-                Chacun de ces événements attire des millions de regards dans le monde entier, tout en
-                restant profondément lié aux paysages, aux villes et aux traditions de la France.
-              </p>
-      
-              <div class="quote-block">
-                «&nbsp;Quand la France joue, court ou roule, c’est tout un pays qui respire au rythme du sport.&nbsp;»
-              </div>
-      
-              <p>
-                L’objectif de ces pages est simple&nbsp;: découvrir les histoires, les lieux et les
-                symboles qui se cachent derrière les images que nous voyons à la télévision ou sur les
-                réseaux sociaux.
-              </p>
+
+            <div class="cover-row">
+              <span class="cover-pill">Roland Garros</span>
+              <span class="cover-pill">24 Heures du Mans</span>
+              <span class="cover-pill">Tour de France</span>
             </div>
-      
-            <div>
-              <div class="section-label">Les trois icônes</div>
-              <div class="fact-card">
-                <h4>Roland Garros</h4>
-                <p>
-                  Le temple de la terre battue à Paris, théâtre du Grand Chelem français où les plus
-                  grands champions se disputent la Coupe des Mousquetaires.
-                </p>
-                <hr style="border:none; border-top:1px solid #e5e7eb; margin:10px 0;">
-                <h4>24 Heures du Mans</h4>
-                <p>
-                  Une course automobile d’endurance où pilotes et constructeurs se battent contre le
-                  temps, la fatigue et la nuit.
-                </p>
-                <hr style="border:none; border-top:1px solid #e5e7eb; margin:10px 0;">
-                <h4>Tour de France</h4>
-                <p>
-                  Une aventure cycliste qui traverse montagnes, villages et grandes villes, sous les yeux
-                  de millions de spectateurs.
-                </p>
+
+            <div class="cover-subgrid" style="margin-top:20px;">
+              <div>
+                <div class="cover-mini">
+                  <img src="https://images.unsplash.com/photo-1749107775435-b05af0a33d9d?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=689"
+                       alt="Court de tennis en terre battue">
+                </div>
+                <div class="cover-badge badge-theme-roland">Roland Garros</div>
+              </div>
+              <div>
+                <div class="cover-mini">
+                  <img src="https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=400&q=80"
+                       alt="Voiture de course de nuit sur circuit">
+                </div>
+                <div class="cover-badge badge-theme-lemans">24 Heures du Mans</div>
+              </div>
+              <div>
+                <div class="cover-mini">
+                  <img src="https://images.pexels.com/photos/276517/pexels-photo-276517.jpeg"
+                       alt="Cyclistes dans la montagne">
+                </div>
+                <div class="cover-badge badge-theme-tour">Tour de France</div>
               </div>
             </div>
           </div>
-        </section>
-      
-        <!-- PAGE 3 – ROLAND GARROS (HISTORY & ATMOSPHERE) -->
-        <section class="page" data-page="3">
-          <div class="eyebrow">Roland Garros</div>
-          <h2>Le théâtre de la terre battue</h2>
-      
-          <div class="two-column">
-            <div>
-              <div class="image-block has-image" style="min-height:260px;">
-                <!-- Replace this URL with a real Roland Garros photo if you wish -->
-                <img src="https://images.unsplash.com/photo-1646343251574-a7b03ee3dbaf?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170"
-                     alt="Court de Roland Garros">
-              </div>
-              <!-- <p class="image-note">Ajoutez ici une photo du Court Philippe-Chatrier ou d’un joueur en pleine glissade sur la terre battue.</p> -->
-      
-              <div class="chip-row">
-                <span class="chip">Grand Chelem</span>
-                <span class="chip">Paris</span>
-                <span class="chip">Terre battue</span>
-                <span class="chip">Printemps</span>
-              </div>
-            </div>
-      
-            <div>
-              <p class="dropcap">
-                Créé en 1928, Roland Garros est bien plus qu’un simple tournoi de tennis. Situé au
-                sud-ouest de Paris, le stade porte le nom d’un aviateur français, héros de la Première
-                Guerre mondiale. Chaque année, au mois de mai et de juin, les meilleurs joueurs du monde
-                viennent y tester leur patience et leur créativité sur la surface la plus exigeante du
-                tennis&nbsp;: la terre battue.
-              </p>
-              <p>
-                Les échanges sont longs, les glissades spectaculaires, les rebonds parfois capricieux.
-                Ici, les matches se gagnent autant avec le mental qu’avec la technique. Le public, très
-                proche du court, réagit au moindre changement de rythme&nbsp;: un coup droit fulgurant,
-                une amortie parfaite, un revers long de ligne qui touche la ligne blanche.
-              </p>
-              <p>
-                Pour les Français, Roland Garros est aussi une fête populaire. On y vient pour encourager
-                les joueurs tricolores, mais aussi pour observer les grandes stars internationales. Les
-                tribunes vibrent au son des «&nbsp;Allez&nbsp;!&nbsp;» et des applaudissements prolongés
-                lorsque les joueurs offrent un spectacle inoubliable.
-              </p>
-            </div>
-          </div>
-        </section>
-      
-        <!-- PAGE 4 – ROLAND GARROS (CHAMPIONS & FUN FACTS) -->
-        <section class="page" data-page="4">
-          <div class="eyebrow">Roland Garros</div>
-          <h2>Champions, chiffres &amp; traditions</h2>
-      
-          <div class="three-column">
-            <div>
-              <span class="section-label">Les héros français</span>
-              <p>
-                <strong>Yannick Noah</strong> reste une figure emblématique du tournoi. En 1983, il
-                devient le dernier Français à remporter le simple messieurs, soulevant la Coupe des
-                Mousquetaires sous une pluie de confettis.
-              </p>
-              <p>
-                Côté dames, des championnes comme <strong>Mary Pierce</strong> ou
-                <strong>Amélie Mauresmo</strong> ont marqué l’histoire par leur combativité et leur
-                élégance sur le court.
-              </p>
-              <div class="quote-block">
-                «&nbsp;À Roland Garros, chaque point est une bataille, chaque match une petite
-                épopée.&nbsp;»
-              </div>
-            </div>
-      
-            <div>
-              <span class="section-label">Repères clés</span>
-              <div class="timeline">
-                <div class="timeline-item">
-                  <div class="timeline-year">1928</div>
-                  <div>Inauguration du stade et première édition du tournoi moderne.</div>
-                </div>
-                <div class="timeline-item">
-                  <div class="timeline-year">1968</div>
-                  <div>Roland Garros devient le premier tournoi du Grand Chelem de l’ère Open.</div>
-                </div>
-                <div class="timeline-item">
-                  <div class="timeline-year">2006</div>
-                  <div>Introduction du toit rétractable (projet), symbole de modernisation.</div>
-                </div>
-                <div class="timeline-item">
-                  <div class="timeline-year">Aujourd’hui</div>
-                  <div>Plus de 600&nbsp;000 spectateurs visitent le site chaque année.</div>
-                </div>
-              </div>
-            </div>
-      
-            <div>
-              <span class="section-label">Le saviez-vous&nbsp;?</span>
-              <div class="fact-card">
-                <span class="label-chip">Fun facts</span>
-                <ul style="padding-left:16px; margin-top:2px;">
-                  <li>La couleur de la terre battue provient de briques pilées.</li>
-                  <li>Les balles sont changées tous les 7 jeux pour garder le même rebond.</li>
-                  <li>Le court central peut accueillir plus de 15&nbsp;000 spectateurs.</li>
-                  <li>Plusieurs tonnes de fraises à la crème sont vendues pendant le tournoi.</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
-      
-        <!-- PAGE 5 – 24 HEURES DU MANS (HISTORY) -->
-        <section class="page" data-page="5">
-          <div class="eyebrow">Les 24 Heures du Mans</div>
-          <h2>Une nuit de vitesse et de lumière</h2>
-      
-          <div class="two-column">
-            <div>
-              <p class="dropcap">
-                Depuis 1923, la petite ville du Mans, dans l’ouest de la France, devient chaque année le
-                centre du monde automobile. Pendant 24 heures, des prototypes et des voitures de série
-                modifiées tournent sans relâche sur un circuit de plus de 13 kilomètres, mélange de
-                route fermée et de piste permanente.
-              </p>
-              <p>
-                Contrairement aux courses classiques, le but n’est pas d’être le plus rapide sur un tour,
-                mais de parcourir la plus grande distance en une journée entière. Les équipes se
-                relaient, les pilotes doivent gérer la fatigue, la nuit, la pluie ou le lever du soleil
-                sur la ligne droite des Hunaudières.
-              </p>
-              <p>
-                Les 24 Heures du Mans sont un laboratoire technologique. Freins, moteurs hybrides,
-                aérodynamique&nbsp;: de nombreuses innovations testées ici se retrouvent ensuite sur nos
-                voitures du quotidien.
-              </p>
-            </div>
-      
-            <div>
-              <div class="image-block has-image" style="min-height:260px;">
-                <!-- Replace URL with real Le Mans night photo if desired -->
-                <img src="https://images.unsplash.com/photo-1749952649296-8fc0e1201f83?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1107"
-                     alt="Course des 24 Heures du Mans de nuit">
-              </div>
-              <!-- <p class="image-note">Insérez ici une photo de bolides de nuit, phares allumés sur le circuit du Mans.</p> -->
-      
-              <div class="chip-row">
-                <span class="chip">Endurance</span>
-                <span class="chip">Technologie</span>
-                <span class="chip">Nuit blanche</span>
-                <span class="chip">Prototype &amp; GT</span>
-              </div>
-            </div>
-          </div>
-        </section>
-      
-        <!-- PAGE 6 – 24 HEURES DU MANS (TEAMS & FACTS) -->
-        <section class="page" data-page="6">
-          <div class="eyebrow">Les 24 Heures du Mans</div>
-          <h2>Constructeurs, légendes &amp; records</h2>
-      
-          <div class="three-column">
-            <div>
-              <span class="section-label">Constructeurs français</span>
-              <p>
-                Des marques comme <strong>Peugeot</strong>, <strong>Alpine</strong> ou
-                <strong>Renault</strong> ont utilisé Le Mans pour démontrer leur savoir-faire. La
-                victoire n’est pas seulement sportive&nbsp;: c’est aussi un outil d’image et de
-                communication.
-              </p>
-              <p>
-                Les équipes mélangent ingénieurs, mécaniciens, stratèges et pilotes. Chaque seconde
-                gagnée au stand peut faire la différence.
-              </p>
-            </div>
-      
-            <div>
-              <span class="section-label">Moments clés</span>
-              <div class="timeline">
-                <div class="timeline-item">
-                  <div class="timeline-year">Années 1960</div>
-                  <div>Duels mythiques entre Ford et Ferrari, symboles de rivalité industrielle.</div>
-                </div>
-                <div class="timeline-item">
-                  <div class="timeline-year">1991</div>
-                  <div>Victoire historique de Mazda avec une voiture à moteur rotatif.</div>
-                </div>
-                <div class="timeline-item">
-                  <div class="timeline-year">Années 2000</div>
-                  <div>Domination d’Audi et essor des moteurs diesel performants.</div>
-                </div>
-                <div class="timeline-item">
-                  <div class="timeline-year">Aujourd’hui</div>
-                  <div>Ère de l’hybride et retour des grands constructeurs en catégorie Hypercar.</div>
-                </div>
-              </div>
-            </div>
-      
-            <div>
-              <span class="section-label">Le saviez-vous&nbsp;?</span>
-              <div class="fact-card">
-                <span class="label-chip">Fun facts</span>
-                <ul style="padding-left:16px;">
-                  <li>Les voitures peuvent parcourir plus de 5&nbsp;000&nbsp;km en 24 heures.</li>
-                  <li>Les pilotes dorment parfois seulement quelques minutes entre deux relais.</li>
-                  <li>La course attire plus de 250&nbsp;000 spectateurs sur place.</li>
-                  <li>La météo changeante rend chaque édition unique.</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
-      
-        <!-- PAGE 7 – TOUR DE FRANCE -->
-        <section class="page" data-page="7">
-          <div class="eyebrow">Le Tour de France</div>
-          <h2>L’épopée cycliste qui traverse le pays</h2>
-      
-          <div class="two-column">
-            <div>
-              <div class="image-block has-image" style="min-height:240px;">
-                <!-- Replace URL with real Tour de France peloton photo if you like -->
-                <img src="https://images.pexels.com/photos/248547/pexels-photo-248547.jpeg"
-                     alt="Peloton du Tour de France dans la montagne">
-              </div>
-              <!-- <p class="image-note">Remplacez par une photo du peloton dans la montagne ou sur les Champs-Élysées.</p> -->
-      
-              <div class="chip-row">
-                <span class="chip">Maillot jaune</span>
-                <span class="chip">Alpes</span>
-                <span class="chip">Pyrénées</span>
-                <span class="chip">Étapes</span>
-              </div>
-            </div>
-      
-            <div>
-              <p class="dropcap">
-                Créé en 1903 par un journal sportif, le Tour de France est devenu le rendez-vous estival
-                incontournable. Pendant trois semaines, les coureurs parcourent plus de 3&nbsp;000
-                kilomètres à travers plaines, côtes, cols mythiques et arrivées spectaculaires.
-              </p>
-              <p>
-                Le <strong>maillot jaune</strong> récompense le leader du classement général. D’autres
-                maillots complètent cette symbolique&nbsp;: le maillot à pois pour le meilleur
-                grimpeur, le vert pour le sprinteur le plus régulier, et le blanc pour le meilleur jeune.
-              </p>
-              <p>
-                Pour les spectateurs, le Tour est aussi une carte postale géante de la France. Hélicoptères
-                et motos-caméras montrent châteaux, villages, lacs et sommets, donnant envie de voyager
-                et de découvrir ces paysages autrement qu’à la télévision.
-              </p>
-              <div class="quote-block">
-                «&nbsp;Le Tour, c’est la France qui se raconte à vélo, étape après étape.&nbsp;»
-              </div>
-            </div>
-          </div>
-        </section>
-      
-        <!-- PAGE 8 – CONCLUSION & QUIZ -->
-        <section class="page" data-page="8">
-          <div class="eyebrow">Clôture</div>
-          <h2>L’esprit du sport français</h2>
-      
+        </div>
+
+        <!-- <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; font-size:11px; color:var(--text-muted);">
+          <span>Magazine pédagogique sur les sports français</span>
+          <span>Édition scolaire · Version numérique &amp; PDF</span>
+        </div> -->
+      </div>
+    </section>
+
+    <!-- PAGE 2 – INTRO TO FRENCH SPORTS -->
+    <section class="page" data-page="2">
+      <div class="eyebrow">Ouverture</div>
+      <h2>Les sports comme miroir de la France</h2>
+      <p class="muted" style="margin-bottom:12px;">
+        Texte en français avec quelques explications claires et simples pour les apprenants.
+      </p>
+
+      <div class="two-column">
+        <div>
           <p class="dropcap">
-            Qu’ils se jouent sur une terre battue parisienne, sur un circuit automobile illuminé ou sur
-            une route de montagne balayée par le vent, ces trois événements ont un point commun&nbsp;:
-            ils célèbrent le courage, la persévérance et le goût du spectacle.
+            En France, le sport n’est pas seulement une compétition. C’est un langage commun, un
+            prétexte pour se retrouver, discuter, vibrer et rêver. Des gradins de Roland Garros aux
+            routes sinueuses du Tour de France, en passant par la nuit bruyante des 24 Heures du Mans,
+            chaque événement raconte une histoire de passion, de patience et d’innovation.
           </p>
           <p>
-            Roland Garros, les 24 Heures du Mans et le Tour de France montrent une France en mouvement,
-            capable d’accueillir le monde entier tout en valorisant ses propres paysages et talents.
-            Derrière chaque victoire, il y a des années d’entraînement, d’innovations techniques et de
-            soutien du public.
+            Ce magazine propose un voyage à travers trois icônes du calendrier sportif français.
+            Chacun de ces événements attire des millions de regards dans le monde entier, tout en
+            restant profondément lié aux paysages, aux villes et aux traditions de la France.
           </p>
-      
-          <div class="section-label" style="margin-top:18px;">Mini-quiz</div>
-          <div class="quiz-grid">
-            <div class="quiz-item">
-              <span>1. Où se déroule Roland Garros&nbsp;?</span>
-              <div>Ville&nbsp;: ____________________________</div>
+
+          <div class="quote-block">
+            «&nbsp;Quand la France joue, court ou roule, c’est tout un pays qui respire au rythme du sport.&nbsp;»
+          </div>
+
+          <p>
+            L’objectif de ces pages est simple&nbsp;: découvrir les histoires, les lieux et les
+            symboles qui se cachent derrière les images que nous voyons à la télévision ou sur les
+            réseaux sociaux.
+          </p>
+        </div>
+
+        <div>
+          <div class="section-label">Les trois icônes</div>
+          <div class="fact-card">
+            <h4>Roland Garros</h4>
+            <p>
+              Le temple de la terre battue à Paris, théâtre du Grand Chelem français où les plus
+              grands champions se disputent la Coupe des Mousquetaires.
+            </p>
+            <hr style="border:none; border-top:1px solid #e5e7eb; margin:10px 0;">
+            <h4>24 Heures du Mans</h4>
+            <p>
+              Une course automobile d’endurance où pilotes et constructeurs se battent contre le
+              temps, la fatigue et la nuit.
+            </p>
+            <hr style="border:none; border-top:1px solid #e5e7eb; margin:10px 0;">
+            <h4>Tour de France</h4>
+            <p>
+              Une aventure cycliste qui traverse montagnes, villages et grandes villes, sous les yeux
+              de millions de spectateurs.
+            </p>
+          </div>
+
+          <div class="stat-grid">
+            <div class="stat-card">
+              <span class="stat-number">15 M+</span>
+              <span class="stat-label">Téléspectateurs en France</span>
             </div>
-            <div class="quiz-item">
-              <span>2. Combien de temps dure la course du Mans&nbsp;?</span>
-              <div>Durée&nbsp;: ____________________________</div>
+            <div class="stat-card">
+              <span class="stat-number">3</span>
+              <span class="stat-label">Événements majeurs étudiés</span>
             </div>
-            <div class="quiz-item">
-              <span>3. Quel maillot porte le leader du Tour&nbsp;?</span>
-              <div>Couleur&nbsp;: ____________________________</div>
-            </div>
-            <div class="quiz-item">
-              <span>4. Sur quelle surface se joue Roland Garros&nbsp;?</span>
-              <div>Surface&nbsp;: ____________________________</div>
+            <div class="stat-card">
+              <span class="stat-number">100+</span>
+              <span class="stat-label">Années d’histoire sportive</span>
             </div>
           </div>
-      
-          <div class="section-label" style="margin-top:26px;">Pour aller plus loin</div>
-          <ul class="playlist">
-            <li>🎾 Regarder la finale de Roland Garros en replay.</li>
-            <li>🏎️ Explorer un documentaire sur l’histoire des 24 Heures du Mans.</li>
-            <li>🚴 Suivre une étape de montagne du Tour de France à la télévision ou sur place.</li>
-          </ul>
-      
-          <!-- <p class="footer-note">
-            Magazine réalisé pour un projet scolaire sur les sports français. Mettez à jour les images,
-            les textes et les couleurs selon votre style graphique ou la charte de votre établissement.
-          </p> -->
-        </section>
-      
+        </div>
       </div>
 
-<!-- Navigation (visible only in browser) -->
-<!-- <div class="nav-controls">
-  <button id="prevPage" class="nav-btn">◀ Page précédente</button>
-  <div class="nav-status">Page <span id="pageIndicator">1 / 8</span></div>
-  <button id="nextPage" class="nav-btn">Page suivante ▶</button>
-</div> -->
+      <!-- Extra full-width visual banner -->
+      <div class="full-photo" style="margin-top:20px; min-height:260px;">
+        <img src="https://images.unsplash.com/photo-1504609813442-a8924e83f76e?auto=format&fit=crop&w=1200&q=80"
+             alt="Supporters français dans un stade">
+        <div class="photo-overlay"></div>
+        <!-- <div class="photo-caption">
+          Le sport rassemble toutes les générations en France, du village aux grandes villes.
+        </div> -->
+      </div>
+    </section>
 
-<script>
-  /* Show all pages for PDF rendering */
-  document.addEventListener("DOMContentLoaded", function(){
-    document.querySelectorAll(".page").forEach(p=>p.style.display="block");
-  });
-</script>
+    <!-- PAGE 3 – ROLAND GARROS (HISTORY & ATMOSPHERE) -->
+    <section class="page" data-page="3">
+      <div class="eyebrow">Roland Garros</div>
+      <h2>Le théâtre de la terre battue</h2>
+
+      <div class="two-column">
+        <div>
+          <div class="image-block" style="min-height:260px;">
+            <img src="https://images.unsplash.com/photo-1723807566542-796b6d62340d?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=687"
+                 alt="Court de Roland Garros vu des tribunes">
+          </div>
+
+          <div class="chip-row">
+            <span class="chip">Grand Chelem</span>
+            <span class="chip">Paris</span>
+            <span class="chip">Terre battue</span>
+            <span class="chip">Printemps</span>
+          </div>
+        </div>
+
+        <div>
+          <p class="dropcap">
+            Créé en 1928, Roland Garros est bien plus qu’un simple tournoi de tennis. Situé au
+            sud-ouest de Paris, le stade porte le nom d’un aviateur français, héros de la Première
+            Guerre mondiale. Chaque année, au mois de mai et de juin, les meilleurs joueurs du monde
+            viennent y tester leur patience et leur créativité sur la surface la plus exigeante du
+            tennis&nbsp;: la terre battue.
+          </p>
+          <p>
+            Les échanges sont longs, les glissades spectaculaires, les rebonds parfois capricieux.
+            Ici, les matches se gagnent autant avec le mental qu’avec la technique. Le public, très
+            proche du court, réagit au moindre changement de rythme&nbsp;: un coup droit fulgurant,
+            une amortie parfaite, un revers long de ligne qui touche la ligne blanche.
+          </p>
+          <p>
+            Pour les Français, Roland Garros est aussi une fête populaire. On y vient pour encourager
+            les joueurs tricolores, mais aussi pour observer les grandes stars internationales. Les
+            tribunes vibrent au son des «&nbsp;Allez&nbsp;!&nbsp;» et des applaudissements prolongés
+            lorsque les joueurs offrent un spectacle inoubliable.
+          </p>
+        </div>
+      </div>
+
+      <!-- Secondary gallery strip -->
+      <div class="image-block" style="margin-top:22px; min-height:200px;">
+        <img src="https://images.unsplash.com/photo-1543204467-f385a642f1e3?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170"
+             alt="Détail de terre battue et balle de tennis">
+      </div>
+      <!-- <p class="image-note">
+        La terre battue, symbole visuel de Roland Garros, demande une technique de glissade particulière.
+      </p> -->
+    </section>
+
+    <!-- PAGE 4 – ROLAND GARROS (CHAMPIONS & FUN FACTS) -->
+    <section class="page" data-page="4">
+      <div class="eyebrow">Roland Garros</div>
+      <h2>Champions, chiffres &amp; traditions</h2>
+
+      <div class="three-column">
+        <div>
+          <span class="section-label">Les héros français</span>
+          <p>
+            <strong>Yannick Noah</strong> reste une figure emblématique du tournoi. En 1983, il
+            devient le dernier Français à remporter le simple messieurs, soulevant la Coupe des
+            Mousquetaires sous une pluie de confettis.
+          </p>
+          <p>
+            Côté dames, des championnes comme <strong>Mary Pierce</strong> ou
+            <strong>Amélie Mauresmo</strong> ont marqué l’histoire par leur combativité et leur
+            élégance sur le court.
+          </p>
+          <div class="quote-block">
+            «&nbsp;À Roland Garros, chaque point est une bataille, chaque match une petite
+            épopée.&nbsp;»
+          </div>
+        </div>
+
+        <div>
+          <span class="section-label">Repères clés</span>
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="timeline-year">1928</div>
+              <div>Inauguration du stade et première édition du tournoi moderne.</div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-year">1968</div>
+              <div>Roland Garros devient le premier tournoi du Grand Chelem de l’ère Open.</div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-year">2006</div>
+              <div>Modernisation du site et agrandissement des courts.</div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-year">Aujourd’hui</div>
+              <div>Plus de 600&nbsp;000 spectateurs visitent le site chaque année.</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <span class="section-label">Le saviez-vous&nbsp;?</span>
+          <div class="fact-card">
+            <span class="label-chip">Fun facts</span>
+            <ul style="padding-left:16px; margin-top:2px;">
+              <li>La couleur de la terre battue provient de briques pilées.</li>
+              <li>Les balles sont changées tous les 7 jeux pour garder le même rebond.</li>
+              <li>Le court central peut accueillir plus de 15&nbsp;000 spectateurs.</li>
+              <li>Des millions de téléspectateurs suivent la finale dans le monde entier.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="image-block" style="margin-top:20px; min-height:240px;">
+        <img src="https://images.unsplash.com/photo-1521412644187-c49fa049e84d?auto=format&fit=crop&w=1200&q=80"
+             alt="Célébration d’un joueur à Roland Garros">
+      </div>
+      <!-- <p class="image-note">Un cri de victoire qui résonne jusque dans la capitale.</p> -->
+    </section>
+
+    <!-- PAGE 5 – ROLAND GARROS (COULISSES & EXPÉRIENCE FAN) -->
+    <section class="page" data-page="5">
+      <div class="eyebrow">Roland Garros</div>
+      <h2>Dans les coulisses du tournoi</h2>
+
+      <div class="two-column">
+        <div>
+          <p class="dropcap">
+            Derrière les matchs que l’on voit à la télévision, une véritable petite ville s’organise.
+            Les ramasseurs de balles s’entraînent toute l’année, les arbitres révisent les règles, les
+            techniciens préparent les caméras et les journalistes installent leurs plateaux.
+          </p>
+          <p>
+            Pour les spectateurs, l’expérience commence dès l’entrée&nbsp;: contrôle de sécurité,
+            découverte des allées, boutiques officielles, stands de restauration et écrans géants pour
+            suivre les matchs en cours sur d’autres courts.
+          </p>
+          <p>
+            Roland Garros, c’est aussi une ambiance sonore&nbsp;: le bruit sec de la balle sur la
+            raquette, le crissement des chaussures sur la terre battue, les applaudissements qui
+            montent après un échange spectaculaire.
+          </p>
+          <div class="quote-block">
+            «&nbsp;On ne vient pas seulement voir du tennis, on vient vivre une expérience complète.&nbsp;»
+          </div>
+        </div>
+
+        <div>
+          <div class="image-block" style="min-height:260px;">
+            <img src="https://images.unsplash.com/photo-1526394931762-90052e97b376?auto=format&fit=crop&w=1200&q=80"
+                 alt="Vue du court depuis les gradins">
+          </div>
+          <!-- <p class="image-note">
+            Vue depuis les tribunes&nbsp;: les spectateurs suivent chaque point en retenant leur souffle.
+          </p> -->
+
+          <div class="fact-card" style="margin-top:10px;">
+            <span class="label-chip">À noter</span>
+            <p style="margin-bottom:6px;">
+              Les ramasseurs de balles ont entre 12 et 16 ans. Ils passent par une sélection stricte et
+              un entraînement spécifique.
+            </p>
+            <p>
+              Les surfaces sont régulièrement balayées pour garder des lignes bien visibles et un rebond
+              le plus régulier possible.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Small secondary illustration -->
+      <div class="image-block" style="margin-top:22px; min-height:180px;">
+        <img src="https://images.unsplash.com/photo-1519985176271-adb1088fa94c?auto=format&fit=crop&w=1200&q=80"
+             alt="Caméras et médias autour d’un court de tennis">
+      </div>
+      <!-- <p class="image-note">
+        Les médias et les caméras transforment le stade en scène mondiale suivie en direct.
+      </p> -->
+    </section>
+
+    <!-- PAGE 6 – 24 HEURES DU MANS (HISTORY) -->
+    <section class="page" data-page="6">
+      <div class="eyebrow">Les 24 Heures du Mans</div>
+      <h2>Une nuit de vitesse et de lumière</h2>
+
+      <div class="two-column">
+        <div>
+          <p class="dropcap">
+            Depuis 1923, la petite ville du Mans, dans l’ouest de la France, devient chaque année le
+            centre du monde automobile. Pendant 24 heures, des prototypes et des voitures de série
+            modifiées tournent sans relâche sur un circuit de plus de 13 kilomètres, mélange de
+            route fermée et de piste permanente.
+          </p>
+          <p>
+            Contrairement aux courses classiques, le but n’est pas d’être le plus rapide sur un tour,
+            mais de parcourir la plus grande distance en une journée entière. Les équipes se
+            relaient, les pilotes doivent gérer la fatigue, la nuit, la pluie ou le lever du soleil
+            sur la ligne droite des Hunaudières.
+          </p>
+          <p>
+            Les 24 Heures du Mans sont un laboratoire technologique. Freins, moteurs hybrides,
+            aérodynamique&nbsp;: de nombreuses innovations testées ici se retrouvent ensuite sur nos
+            voitures du quotidien.
+          </p>
+        </div>
+
+        <div>
+          <div class="image-block" style="min-height:260px;">
+            <img src="https://images.unsplash.com/photo-1502877338535-766e1452684a?auto=format&fit=crop&w=1200&q=80"
+                 alt="Course des 24 Heures du Mans de nuit">
+          </div>
+
+          <div class="chip-row">
+            <span class="chip">Endurance</span>
+            <span class="chip">Technologie</span>
+            <span class="chip">Nuit blanche</span>
+            <span class="chip">Prototype &amp; GT</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Extra aerial view -->
+      <div class="image-block" style="margin-top:22px; min-height:200px;">
+        <img src="https://images.unsplash.com/photo-1525609004556-c46c7d6cf023?auto=format&fit=crop&w=1200&q=80"
+             alt="Vue aérienne du circuit du Mans">
+      </div>
+      <!-- <p class="image-note">
+        Le tracé du circuit mêle partie permanente et routes nationales fermées pour la course.
+      </p> -->
+    </section>
+
+    <!-- PAGE 7 – 24 HEURES DU MANS (TEAMS & FACTS) -->
+    <section class="page" data-page="7">
+      <div class="eyebrow">Les 24 Heures du Mans</div>
+      <h2>Constructeurs, légendes &amp; records</h2>
+
+      <div class="three-column">
+        <div>
+          <span class="section-label">Constructeurs français</span>
+          <p>
+            Des marques comme <strong>Peugeot</strong>, <strong>Alpine</strong> ou
+            <strong>Renault</strong> ont utilisé Le Mans pour démontrer leur savoir-faire. La
+            victoire n’est pas seulement sportive&nbsp;: c’est aussi un outil d’image et de
+            communication.
+          </p>
+          <p>
+            Les équipes mélangent ingénieurs, mécaniciens, stratèges et pilotes. Chaque seconde
+            gagnée au stand peut faire la différence.
+          </p>
+        </div>
+
+        <div>
+          <span class="section-label">Moments clés</span>
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="timeline-year">Années 1960</div>
+              <div>Duels mythiques entre Ford et Ferrari, symboles de rivalité industrielle.</div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-year">1991</div>
+              <div>Victoire historique de Mazda avec une voiture à moteur rotatif.</div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-year">Années 2000</div>
+              <div>Domination d’Audi et essor des moteurs diesel performants.</div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-year">Aujourd’hui</div>
+              <div>Ère de l’hybride et retour des grands constructeurs en catégorie Hypercar.</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <span class="section-label">Le saviez-vous&nbsp;?</span>
+          <div class="fact-card">
+            <span class="label-chip">Fun facts</span>
+            <ul style="padding-left:16px;">
+              <li>Les voitures peuvent parcourir plus de 5&nbsp;000&nbsp;km en 24 heures.</li>
+              <li>Les pilotes dorment parfois seulement quelques minutes entre deux relais.</li>
+              <li>La course attire plus de 250&nbsp;000 spectateurs sur place.</li>
+              <li>La météo changeante rend chaque édition unique.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="full-photo" style="margin-top:24px; min-height:240px;">
+        <img src="https://images.unsplash.com/photo-1525609004556-c46c7d6cf023?auto=format&fit=crop&w=1200&q=80"
+             alt="Équipe technique dans les stands du Mans">
+        <div class="photo-overlay"></div>
+        <!-- <div class="photo-caption">Dans les stands, la coordination est aussi cruciale que sur la piste.</div> -->
+      </div>
+    </section>
+
+    <!-- PAGE 8 – 24 HEURES DU MANS (EXPÉRIENCE SPECTATEUR) -->
+    <section class="page" data-page="8">
+      <div class="eyebrow">Les 24 Heures du Mans</div>
+      <h2>Vivre la course depuis les tribunes</h2>
+
+      <div class="two-column">
+        <div>
+          <p class="dropcap">
+            Pour les fans, assister aux 24 Heures du Mans, c’est un marathon autant qu’un spectacle.
+            Certains campent plusieurs jours autour du circuit, d’autres viennent en groupe pour
+            encourager une marque ou une équipe en particulier.
+          </p>
+          <p>
+            Les journées sont rythmées par les essais, les séances d’autographes, les concerts et le
+            départ de la course. La nuit, les phares des voitures tracent des lignes lumineuses dans
+            l’obscurité, tandis que les stands restent en action permanente.
+          </p>
+          <p>
+            Les spectateurs doivent s’équiper comme pour une randonnée&nbsp;: bonnes chaussures,
+            vêtements chauds pour la nuit, bouchons d’oreille, casquette et crème solaire pour la
+            journée. La course est longue, mais l’ambiance est unique.
+          </p>
+        </div>
+        <div>
+          <div class="full-photo">
+            <img src="https://images.unsplash.com/photo-1517154421773-0529f29ea451?auto=format&fit=crop&w=1200&q=80"
+                 alt="Tribunes au Mans">
+            <!-- <div class="photo-overlay"></div>
+            <div class="photo-caption">
+              Les tribunes se remplissent plusieurs heures avant le départ. Les drapeaux de nombreux
+              pays flottent au-dessus du circuit.
+            </div>
+          </div> -->
+
+          <div class="fact-card" style="margin-top:18px;">
+            <span class="label-chip">Checklist spectateur</span>
+            <ul style="padding-left:16px; margin-top:4px;">
+              <li>🎧 Protection auditive</li>
+              <li>🥤 Bouteille d’eau réutilisable</li>
+              <li>🧥 Veste chaude pour la nuit</li>
+              <li>📸 Appareil photo ou smartphone chargé</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 9 – TOUR DE FRANCE (INTRO) -->
+    <section class="page" data-page="9">
+      <div class="eyebrow">Le Tour de France</div>
+      <h2>L’épopée cycliste qui traverse le pays</h2>
+
+      <div class="two-column">
+        <div>
+          <div class="image-block" style="min-height:240px;">
+            <img src="https://images.pexels.com/photos/248547/pexels-photo-248547.jpeg"
+                 alt="Peloton du Tour de France dans la montagne">
+          </div>
+
+          <div class="chip-row">
+            <span class="chip">Maillot jaune</span>
+            <span class="chip">Alpes</span>
+            <span class="chip">Pyrénées</span>
+            <span class="chip">Étapes</span>
+          </div>
+        </div>
+
+        <div>
+          <p class="dropcap">
+            Créé en 1903 par un journal sportif, le Tour de France est devenu le rendez-vous estival
+            incontournable. Pendant trois semaines, les coureurs parcourent plus de 3&nbsp;000
+            kilomètres à travers plaines, côtes, cols mythiques et arrivées spectaculaires.
+          </p>
+          <p>
+            Le <strong>maillot jaune</strong> récompense le leader du classement général. D’autres
+            maillots complètent cette symbolique&nbsp;: le maillot à pois pour le meilleur
+            grimpeur, le vert pour le sprinteur le plus régulier, et le blanc pour le meilleur jeune.
+          </p>
+          <p>
+            Pour les spectateurs, le Tour est aussi une carte postale géante de la France. Hélicoptères
+            et motos-caméras montrent châteaux, villages, lacs et sommets, donnant envie de voyager
+            et de découvrir ces paysages autrement qu’à la télévision.
+          </p>
+          <div class="quote-block">
+            «&nbsp;Le Tour, c’est la France qui se raconte à vélo, étape après étape.&nbsp;»
+          </div>
+        </div>
+      </div>
+
+      <!-- Extra Champs-Élysées finish photo -->
+      <div class="image-block" style="margin-top:22px; min-height:220px;">
+        <img src="https://images.unsplash.com/photo-1509099863731-ef4bff19e808?auto=format&fit=crop&w=1200&q=80"
+             alt="Arrivée du Tour de France à Paris">
+      </div>
+      <!-- <p class="image-note">
+        L’arrivée finale à Paris, souvent sur les Champs-Élysées, reste l’une des images les plus célèbres du Tour.
+      </p> -->
+    </section>
+
+    <!-- PAGE 10 – TOUR DE FRANCE (COLS & PAYSAGES) -->
+    <section class="page" data-page="10">
+      <div class="eyebrow">Le Tour de France</div>
+      <h2>Les grandes montagnes du Tour</h2>
+
+      <div class="three-column">
+        <div>
+          <span class="section-label">Alpes</span>
+          <p>
+            Les Alpes offrent certains des cols les plus célèbres du Tour&nbsp;: l’Alpe d’Huez,
+            le Galibier, l’Iseran. Les routes serpentent au-dessus des vallées, avec des pentes qui
+            dépassent parfois les 10&nbsp;%.
+          </p>
+          <p>
+            Les spectateurs grimpent à pied ou en voiture pour encourager les coureurs à quelques
+            mètres seulement, créant une atmosphère impressionnante.
+          </p>
+        </div>
+        <div>
+          <span class="section-label">Pyrénées</span>
+          <p>
+            Plus sauvages, les Pyrénées proposent des ascensions comme le Tourmalet ou l’Aubisque.
+            Le paysage y est souvent plus vert, avec des troupeaux et des villages de montagne.
+          </p>
+          <p>
+            Ces étapes sont décisives pour le classement général&nbsp;: un jour sans peut faire perdre
+            le Tour.
+          </p>
+        </div>
+        <div>
+          <span class="section-label">Étapes de plaine</span>
+          <p>
+            Les étapes de plaine sont le terrain de jeu des sprinteurs. Les longues lignes droites
+            mènent à des arrivées spectaculaires où le vainqueur se décide parfois pour quelques centimètres.
+          </p>
+          <p>
+            Elles traversent des champs, des villes moyennes et des régions viticoles, montrant une
+            autre facette du pays.
+          </p>
+        </div>
+      </div>
+
+      <div class="full-photo" style="margin-top:24px;">
+        <img src="https://images.pexels.com/photos/276517/pexels-photo-276517.jpeg"
+             alt="Cyclistes dans les Alpes">
+        <div class="photo-overlay"></div>
+        <!-- <div class="photo-caption">
+          Des lacets impressionnants, des sommets enneigés au loin et des milliers de supporters&nbsp;:
+          les étapes de montagne sont parmi les plus attendues.
+        </div> -->
+      </div>
+    </section>
+
+    <!-- PAGE 11 – TOUR DE FRANCE (CARAVANE & FANS) -->
+    <section class="page" data-page="11">
+      <div class="eyebrow">Le Tour de France</div>
+      <h2>La caravane publicitaire &amp; les supporters</h2>
+
+      <div class="two-column">
+        <div>
+          <p class="dropcap">
+            Avant même le passage des coureurs, la «&nbsp;caravane publicitaire&nbsp;» anime la route.
+            Des véhicules décorés aux couleurs des sponsors distribuent des cadeaux&nbsp;: casquettes,
+            porte-clés, échantillons alimentaires…
+          </p>
+          <p>
+            Pour les familles, c’est un moment de fête&nbsp;: on arrive tôt, on pique-nique en
+            attendant, puis on essaie d’attraper un maximum de souvenirs.
+          </p>
+          <p>
+            Les supporters viennent de toute l’Europe, parfois déguisés. On voit des drapeaux,
+            des banderoles et des messages de soutien peints sur la route.
+          </p>
+        </div>
+
+        <div>
+          <div class="image-block" style="min-height:260px;">
+            <img src="https://images.unsplash.com/photo-1510766461678-4a8420db04d2?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1106"
+                 alt="Supporters au bord de la route">
+          </div>
+          <!-- <p class="image-note">
+            Supporters au bord de la route, prêts à encourager leurs coureurs préférés.
+          </p> -->
+
+          <div class="fact-card" style="margin-top:10px;">
+            <span class="label-chip">Ambiance</span>
+            <ul style="padding-left:16px;">
+              <li>Musique et klaxons tout au long du parcours.</li>
+              <li>Des heures d’attente pour quelques secondes de passage du peloton.</li>
+              <li>Des images diffusées dans plus de 190 pays.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="full-photo" style="margin-top:22px; min-height:220px;">
+        <img src="https://images.unsplash.com/photo-1630341912995-d7ed2cb5d4c4?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170"
+             alt="Foule du Tour de France">
+        <div class="photo-overlay"></div>
+        <!-- <div class="photo-caption">La foule du Tour de France, symbole d’une passion populaire inégalée.</div> -->
+      </div>
+    </section>
+
+    <!-- PAGE 12 – COMPARAISON DES TROIS ÉVÉNEMENTS -->
+    <section class="page" data-page="12">
+      <div class="eyebrow">Regards croisés</div>
+      <h2>Roland Garros, Le Mans, Tour&nbsp;: trois façons de vibrer</h2>
+
+      <div class="three-column">
+        <div>
+          <span class="section-label">Lieu &amp; durée</span>
+          <div class="fact-card">
+            <ul style="padding-left:16px;">
+              <li><strong>Roland Garros</strong>&nbsp;: Paris, 2 semaines.</li>
+              <li><strong>24 Heures du Mans</strong>&nbsp;: Le Mans, 24 heures non-stop.</li>
+              <li><strong>Tour de France</strong>&nbsp;: tout le pays, 3 semaines.</li>
+            </ul>
+          </div>
+        </div>
+        <div>
+          <span class="section-label">Discipline</span>
+          <div class="fact-card">
+            <ul style="padding-left:16px;">
+              <li>🎾 Tennis individuel et double.</li>
+              <li>🏎️ Course automobile d’endurance.</li>
+              <li>🚴 Épreuves cyclistes en équipe.</li>
+            </ul>
+          </div>
+        </div>
+        <div>
+          <span class="section-label">Public &amp; images</span>
+          <div class="fact-card">
+            <ul style="padding-left:16px;">
+              <li>Stades remplis de spectateurs.</li>
+              <li>Camping et tribunes autour du circuit.</li>
+              <li>Routes bordées de fans dans les villages et montagnes.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <p style="margin-top:24px;">
+        Ces trois événements montrent différentes facettes de la France&nbsp;: la capitale élégante,
+        la province industrielle et innovante, puis les paysages variés du territoire. Ils sont tous
+        reliés par la même énergie&nbsp;: le plaisir de partager des émotions fortes autour du sport.
+      </p>
+
+      <div class="quote-block" style="margin-top:14px;">
+        «&nbsp;Qu’on soit dans les tribunes, au bord de la route ou devant un écran, on partage la
+        même histoire française.&nbsp;»
+      </div>
+
+      <!-- Visual collage -->
+      <div class="full-photo" style="margin-top:22px; min-height:260px;">
+        <img src="https://images.unsplash.com/photo-1589988508262-5b16d988af55?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=954"
+             alt="Collage symbolique des sports français">
+        <div class="photo-overlay"></div>
+        <!-- <div class="photo-caption">
+          Trois univers différents, une même passion&nbsp;: élégance du tennis, puissance des moteurs, souffle des cyclistes.
+        </div> -->
+      </div>
+    </section>
+
+    <!-- PAGE 13 – VOCABULAIRE & LANGUE -->
+    <section class="page" data-page="13">
+      <div class="eyebrow">Outils pour l’apprenant</div>
+      <h2>Petit vocabulaire du sport en français</h2>
+
+      <p>
+        Cette page présente quelques mots et expressions utiles pour parler du sport en français.
+        Vous pouvez les surligner, les noter ou les réutiliser dans vos propres phrases.
+      </p>
+
+      <ul class="vocab-list">
+        <li><strong>Un match</strong> – a match / game</li>
+        <li><strong>Un tournoi</strong> – a tournament</li>
+        <li><strong>Une équipe</strong> – a team</li>
+        <li><strong>Un joueur / une joueuse</strong> – a player</li>
+        <li><strong>Un coureur</strong> – a rider / runner</li>
+        <li><strong>Un circuit</strong> – a racing track</li>
+        <li><strong>Une étape</strong> – a stage (of a race)</li>
+        <li><strong>Une victoire</strong> – a victory</li>
+        <li><strong>Une défaite</strong> – a defeat</li>
+        <li><strong>Un supporter</strong> – a fan / supporter</li>
+        <li><strong>Un record</strong> – a record</li>
+        <li><strong>L’endurance</strong> – endurance</li>
+        <li><strong>La vitesse</strong> – speed</li>
+        <li><strong>Un podium</strong> – a podium</li>
+        <li><strong>Un maillot</strong> – a jersey</li>
+        <li><strong>Une tribune</strong> – a stand</li>
+        <li><strong>Un col</strong> – a mountain pass</li>
+        <li><strong>Une ligne de départ</strong> – starting line</li>
+        <li><strong>Une ligne d’arrivée</strong> – finish line</li>
+        <li><strong>Une épreuve</strong> – an event / test</li>
+      </ul>
+
+      <div class="fact-card" style="margin-top:24px;">
+        <span class="label-chip">Astuce de classe</span>
+        <p>
+          En groupe, choisissez un des trois événements (Roland Garros, Le Mans ou Tour de France) et
+          créez une affiche en français en utilisant au moins dix mots de ce vocabulaire.
+        </p>
+      </div>
+
+      <!-- Classroom illustration -->
+      <div class="image-block" style="margin-top:22px; min-height:220px;">
+        <img src="https://images.unsplash.com/photo-1571260899304-425eee4c7efc?auto=format&fit=crop&w=1200&q=80"
+             alt="Élèves en classe travaillant sur le vocabulaire du sport">
+      </div>
+      <!-- <p class="image-note">
+        En classe, le sport devient un excellent support pour apprendre du vocabulaire vivant et concret.
+      </p> -->
+    </section>
+
+    <!-- PAGE 14 – MINI-QUIZ (ÉTENDU) -->
+    <section class="page" data-page="14">
+      <div class="eyebrow">Clôture</div>
+      <h2>Mini-quiz et révision</h2>
+
+      <p class="dropcap">
+        Utilisez ce quiz pour vérifier ce que vous avez retenu. Vous pouvez répondre à l’oral, à
+        l’écrit ou en petits groupes.
+      </p>
+
+      <div class="quiz-grid">
+        <div class="quiz-item">
+          <span>1. Où se déroule Roland Garros&nbsp;?</span>
+          <div>Ville&nbsp;: ____________________________</div>
+        </div>
+        <div class="quiz-item">
+          <span>2. Combien de temps dure la course du Mans&nbsp;?</span>
+          <div>Durée&nbsp;: ____________________________</div>
+        </div>
+        <div class="quiz-item">
+          <span>3. Quel maillot porte le leader du Tour&nbsp;?</span>
+          <div>Couleur&nbsp;: ____________________________</div>
+        </div>
+        <div class="quiz-item">
+          <span>4. Sur quelle surface se joue Roland Garros&nbsp;?</span>
+          <div>Surface&nbsp;: ____________________________</div>
+        </div>
+        <div class="quiz-item">
+          <span>5. Quelle ville accueille les 24 Heures du Mans&nbsp;?</span>
+          <div>Ville&nbsp;: ____________________________</div>
+        </div>
+        <div class="quiz-item">
+          <span>6. Combien de semaines dure le Tour de France&nbsp;?</span>
+          <div>Durée&nbsp;: ____________________________</div>
+        </div>
+        <div class="quiz-item">
+          <span>7. Citez un constructeur français présent au Mans.</span>
+          <div>Nom&nbsp;: ____________________________</div>
+        </div>
+        <div class="quiz-item">
+          <span>8. Que signifie «&nbsp;épreuve de montagne&nbsp;»&nbsp;?</span>
+          <div>Réponse&nbsp;: ____________________________</div>
+        </div>
+      </div>
+
+      <div class="section-label" style="margin-top:26px;">Pour aller plus loin</div>
+      <ul class="playlist">
+        <li>🎾 Regarder la finale de Roland Garros en replay.</li>
+        <li>🏎️ Explorer un documentaire sur l’histoire des 24 Heures du Mans.</li>
+        <li>🚴 Suivre une étape de montagne du Tour de France à la télévision ou sur place.</li>
+        <li>📝 Écrire un court texte en français sur votre sport préféré.</li>
+      </ul>
+
+      <!-- Quiz ambience image -->
+      <div class="image-block" style="margin-top:22px; min-height:200px;">
+        <img src="https://images.unsplash.com/photo-1523580846011-d3a5bc25702b?auto=format&fit=crop&w=1200&q=80"
+             alt="Élèves remplissant un quiz en classe">
+      </div>
+      <!-- <p class="image-note">
+        Le quiz peut se faire en équipe pour encourager la coopération et la discussion en français.
+      </p> -->
+    </section>
+
+    <!-- PAGE 15 – CONCLUSION GÉNÉRALE -->
+    <section class="page" data-page="15">
+      <div class="eyebrow">Conclusion</div>
+      <h2>L’esprit du sport français</h2>
+
+      <p class="dropcap">
+        Qu’ils se jouent sur une terre battue parisienne, sur un circuit automobile illuminé ou sur
+        une route de montagne balayée par le vent, ces trois événements ont un point commun&nbsp;:
+        ils célèbrent le courage, la persévérance et le goût du spectacle.
+      </p>
+      <p>
+        Roland Garros, les 24 Heures du Mans et le Tour de France montrent une France en mouvement,
+        capable d’accueillir le monde entier tout en valorisant ses propres paysages et talents.
+        Derrière chaque victoire, il y a des années d’entraînement, d’innovations techniques et de
+        soutien du public.
+      </p>
+      <p>
+        Pour les apprenants de français, ces événements sont aussi une porte d’entrée vers la langue
+        et la culture&nbsp;: on y rencontre des accents différents, des musiques variées, des paysages
+        contrastés et des histoires humaines fortes.
+      </p>
+
+      <div class="quote-block">
+        «&nbsp;Le sport est un langage universel. En France, il se parle en bleu, en blanc, en rouge
+        et en émotions.&nbsp;»
+      </div>
+
+      <!-- Inspirational closing photo -->
+      <div class="image-block" style="margin-top:22px; min-height:240px;">
+        <img src="https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=1200&q=80"
+             alt="Sportifs français célébrant ensemble">
+      </div>
+      <!-- <p class="image-note">
+        Une même passion unit joueurs, pilotes, coureurs et supporters &nbsp;: le plaisir de partager des émotions fortes.
+      </p> -->
+    </section>
+
+    <!-- PAGE 16 – PAGE FINALE AVEC GRANDE IMAGE & CRÉDITS -->
+    <section class="page" data-page="16">
+      <div class="full-photo">
+        <img src="https://images.unsplash.com/photo-1691770127796-51657cc875e9?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1026"
+             alt="Vue nocturne d’un stade illuminé en France">
+        <div class="photo-overlay"></div>
+        <!-- <div class="photo-caption" style="font-size:14px;">
+          Fin du voyage&nbsp;: un dernier regard sur la lumière des stades, le bruit des tribunes et
+          la beauté des paysages français.
+        </div> -->
+      </div>
+
+      <div style="margin-top:26px;">
+        <div class="section-label">Crédits &amp; utilisation</div>
+        <p>
+          Ce magazine numérique a été conçu comme support pédagogique pour découvrir la culture
+          sportive française. Il peut être imprimé au format A4, projeté en classe ou consulté en
+          ligne.
+        </p>
+        <p class="muted" style="font-size:12px; margin-top:10px;">
+          Images illustratives libres de droits (type Unsplash / Pexels). Remplacez-les si nécessaire
+          par vos propres images d’établissement ou de projet.
+        </p>
+      </div>
+
+      <div style="margin-top:24px; font-size:12px; color:var(--text-muted);">
+        <p><strong>Remarque</strong>&nbsp;: vous pouvez adapter les textes, simplifier le vocabulaire ou
+        ajouter des activités selon le niveau de votre classe.</p>
+      </div>
+
+      <!-- Tricolore footer ribbon -->
+      <div style="margin-top:40px; border-top:6px solid transparent;
+            background:linear-gradient(90deg,#0055a4 33%,#fff 33%,#fff 66%,#ef4135 66%);
+            height:10px; border-radius:4px;">
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Simple script: force all pages visible for HTML / PDF -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function(){
+      document.querySelectorAll(".page").forEach(p => p.style.display = "block");
+    });
+  </script>
 </body>
 </html>
