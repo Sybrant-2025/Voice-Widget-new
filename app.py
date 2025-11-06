@@ -172,15 +172,24 @@ def _pull_transcript(conv_id: str, api_key: str):
         return "", None, f"exception: {e}"
 
 def _push_transcript_to_sheet(visit_id: str, conv_id: str, transcript: str, brand: str, page_url: str, duration: int | None = None):
-    payload = {
-        "event": "transcript",
-        "visit_id": visit_id,
-        "conversation_id": conv_id,
-        "transcript": transcript,
-        "brand": brand or "",
-        "url": page_url or "",
-        "server_timestamp_ms": int(time.time() * 1000),
-    }
+    # payload = {
+    #     "event": "transcript",
+    #     "visit_id": visit_id,
+    #     "conversation_id": conv_id,
+    #     "transcript": transcript,
+    #     "brand": brand or "",
+    #     "url": page_url or "",
+    #     "server_timestamp_ms": int(time.time() * 1000),
+    # }
+	payload = {
+    "event": "transcript",
+    "visit_id": visit_id,
+    "conversation_id": conversation_id,
+    "transcript": transcript_text,
+    "duration_seconds": duration,  # ✅ Match Apps Script field
+    "server_timestamp_ms": int(time.time() * 1000),
+	}
+
     if duration is not None:
         payload["call_duration_secs"] = duration
     return _send_to_sheet_brand(payload, brand)
