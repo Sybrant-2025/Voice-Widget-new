@@ -56,7 +56,7 @@ BRAND_TO_WEBHOOK = {
     "dhilaktest": "https://script.google.com/macros/s/AKfycbz_VKhTD7G2Iqqk-ZrqOkebX-sXncZiqhxP12EOv3xgMvCchPbZ4n6PHPdTOKA7spwnKw/exec",
     "kopiko": "https://script.google.com/macros/s/AKfycbzip7wk995Q8BfktpVNZp6uJREQ8CqydyTVtxlTG0NucPugFOECa6XBpqo3Xv6pAkgM/exec",
     "leaserush": "https://script.google.com/macros/s/AKfycbxt20fVA71fAuePCWGzoRB-KRhjmpoogQF62Yr_qmFlqAP0wUQBkeNLJzlr9CrosIo9/exec",
-    "demo": "https://script.google.com/macros/s/AKfycbweMAcL-f2yKQmriSjCWVWjYuzV4A0SoOCiFz0Ws6PoKlEVS2_dokziMM2YNXvJamIGTQ/exec",
+    "demo": "https://script.google.com/macros/s/AKfycbxLYMDjeIyNU5-eO6OgnVa8RqOgvp2pBA8jNF5azWY1qiUDutrIyJs3zSkn1ZgyL5zfwQ/exec",
     "newgendigital": "https://script.google.com/macros/s/AKfycbyKHdnaO1IFWQSkpJiV-_dIZ6PU9GC-oRNwb8JjW6RM-DVVCcwScy3qTrG0ltRyH5Dc/exec",
 }
 
