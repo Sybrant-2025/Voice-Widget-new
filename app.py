@@ -4264,60 +4264,126 @@ def serve_newgendigital_widget():
 
 ########updated method
 # ---------- Logging / Transcript (brand-aware) ----------
-@app.route('/log-visitor-updated', methods=['POST'])
+# @app.route('/log-visitor-updated', methods=['POST'])
+# def log_visitor_updated():
+#     try:
+#         data = request.get_json(force=True) or {}
+#         app.logger.info(">>> /log-visitor-updated")
+
+#         event     = (data.get("event") or "").strip()
+#         visit_id  = (data.get("visit_id") or "").strip()
+#         name      = (data.get("name") or "").strip()
+#         email     = (data.get("email") or "").strip()
+#         phone     = (data.get("phone") or "").strip()
+#         company   = (data.get("company") or "").strip()
+#         url       = (data.get("url") or "").strip()
+#         brand     = (data.get("brand") or "").strip()
+#         agent_id  = (data.get("agent_id") or "").strip()
+#         conv_id   = (data.get("conversation_id") or "").strip()
+#         client_ts = (data.get("timestamp") or data.get("client_timestamp") or "").strip()
+#         server_ts_ms = int(time.time() * 1000)
+
+#         # remember metadata for transcript routing
+#         if visit_id:
+#             _VISIT_META[visit_id] = {"brand": brand, "url": url}
+#         if conv_id:
+#             _CONV_META[conv_id] = {"brand": brand, "url": url, "visit_id": visit_id}
+
+#         if not event:
+#             event = "conversation_id" if conv_id and not (name or email or phone) else "visitor_log"
+
+#         payload = {
+#             "event": event,
+#             "visit_id": visit_id,
+#             "name": name,
+#             "email": email,
+#             "phone": phone,
+#             "company": company,
+#             "url": url,
+#             "brand": brand,
+#             "agent_id": agent_id,
+#             "conversation_id": conv_id,
+#             "client_timestamp": client_ts,
+#             "server_timestamp_ms": server_ts_ms,
+#         }
+
+#         ok, body = _send_to_sheet_brand(payload, brand)
+
+#         # schedule background transcript pulls with brand awareness
+#         if event == "conversation_id" and visit_id and conv_id:
+#             _schedule_transcript_pull(visit_id, conv_id, agent_id, brand, url)
+
+#         return jsonify({"status": "success" if ok else "error", "detail": body[:200]}), (200 if ok else 502)
+
+#     except Exception as e:
+#         app.logger.exception("log_visitor_updated failed")
+#         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+
+### above is old commented for cfo bridge
+
+
+@app.route("/log-visitor-updated", methods=["POST"])
 def log_visitor_updated():
+    import requests, json, time
+    from flask import request, jsonify
+
     try:
-        data = request.get_json(force=True) or {}
-        app.logger.info(">>> /log-visitor-updated")
+        data = request.get_json(force=True)
+        if not data:
+            return jsonify({"status": "error", "message": "No JSON body"}), 400
 
-        event     = (data.get("event") or "").strip()
-        visit_id  = (data.get("visit_id") or "").strip()
-        name      = (data.get("name") or "").strip()
-        email     = (data.get("email") or "").strip()
-        phone     = (data.get("phone") or "").strip()
-        company   = (data.get("company") or "").strip()
-        url       = (data.get("url") or "").strip()
-        brand     = (data.get("brand") or "").strip()
-        agent_id  = (data.get("agent_id") or "").strip()
-        conv_id   = (data.get("conversation_id") or "").strip()
-        client_ts = (data.get("timestamp") or data.get("client_timestamp") or "").strip()
-        server_ts_ms = int(time.time() * 1000)
+        # === Log incoming data ===
+        print(f"[Voizee] Received visitor log event: {data}")
 
-        # remember metadata for transcript routing
-        if visit_id:
-            _VISIT_META[visit_id] = {"brand": brand, "url": url}
-        if conv_id:
-            _CONV_META[conv_id] = {"brand": brand, "url": url, "visit_id": visit_id}
+        # === Google Apps Script endpoint ===
+        GOOGLE_SHEET_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwbm5HVpTxIgvSmBAfRC3s3xgT5OaQ1Y9_f9cfU5eUUj0dNJ7wAffn4dn8d0c7aYz3s_g/exec"
 
-        if not event:
-            event = "conversation_id" if conv_id and not (name or email or phone) else "visitor_log"
+        # === Mandatory fields ===
+        event = data.get("event", "visitor_log")
+        visit_id = data.get("visit_id", "")
+        brand = data.get("brand", "")
+        agent_id = data.get("agent_id", "")
+        timestamp = data.get("timestamp", time.strftime("%Y-%m-%dT%H:%M:%SZ"))
 
+        if not visit_id:
+            return jsonify({"status": "error", "message": "Missing visit_id"}), 400
+
+        # === Prepare payload exactly as Apps Script expects ===
         payload = {
             "event": event,
             "visit_id": visit_id,
-            "name": name,
-            "email": email,
-            "phone": phone,
-            "company": company,
-            "url": url,
-            "brand": brand,
+            "visitId": visit_id,
             "agent_id": agent_id,
-            "conversation_id": conv_id,
-            "client_timestamp": client_ts,
-            "server_timestamp_ms": server_ts_ms,
+            "brand": brand,
+            "url": data.get("url", ""),
+            "name": data.get("name", ""),
+            "email": data.get("email", ""),
+            "phone": data.get("phone", ""),
+            "company": data.get("company", ""),
+            "conversation_id": data.get("conversation_id", ""),
+            "duration_seconds": data.get("duration_seconds", ""),
+            "transcript": data.get("transcript", ""),
+            "timestamp": timestamp,
         }
 
-        ok, body = _send_to_sheet_brand(payload, brand)
+        # === Forward to Google Sheet webhook ===
+        try:
+            r = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=payload, timeout=10)
+            if r.status_code == 200:
+                print(f"[Voizee] Google Sheet updated ({r.text})")
+            else:
+                print(f"[Voizee] Sheet update failed {r.status_code}: {r.text}")
+        except Exception as e:
+            print(f"[Voizee] Error sending to sheet: {e}")
 
-        # schedule background transcript pulls with brand awareness
-        if event == "conversation_id" and visit_id and conv_id:
-            _schedule_transcript_pull(visit_id, conv_id, agent_id, brand, url)
-
-        return jsonify({"status": "success" if ok else "error", "detail": body[:200]}), (200 if ok else 502)
+        return jsonify({"status": "ok", "event": event})
 
     except Exception as e:
-        app.logger.exception("log_visitor_updated failed")
+        print(f"[Voizee] /log-visitor-updated ERROR: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
+
 
 @app.route('/fetch-transcript-updated', methods=['POST'])
 def fetch_transcript_updated():
