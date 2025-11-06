@@ -21,8 +21,28 @@ SHEET_WEBHOOK_URL_FALLBACK = os.getenv(
 )
 
 # ---- Brand → Apps Script mapping ----
+# BRAND_TO_WEBHOOK = {
+#     "default":     "https://script.google.com/macros/s/AKfycbzW-OSCQ1bJA17bqac6WlsdXs3pVrUvPlFhhbIud_uZwuQugD8HoHRxG3NWp-J6e0wP/exec",  
+#     "kfwcorp":     "https://script.google.com/macros/s/AKfycbw3Mw25MO3a0JDsTE9YWpOIx9skESyftz4FUYZY6CnycStnrIcNVjFO7LqKkjlkvyoH7A/exec",
+#     "successgyan": "https://script.google.com/macros/s/AKfycbyASM8a0kZ649kxqvzmkOiyYbFpdXobDPCUYEF0y3CK-409iEe9dgWnsYp5dhCCOmrLhw/exec",
+#     "orientbell":  "https://script.google.com/macros/s/AKfycby0hb5wDlSqtDwLiTWKULqkuZzVmtpJXRgof9ncF5adfIV_y3hL7QmDw7tliYtvF_fRGw/exec",
+#     "galent":      "https://script.google.com/macros/s/AKfycbzZrTfc6KbWz0L98YjhWiID1Wwwhcg4_MLybcKF4plbCYzOcVMQgsPsS-cnPv5nKxVPSw/exec",
+#     "myndwell":    "https://script.google.com/macros/s/AKfycbznRQAdKL7e2y7AqOhK6vmFuW9xzKZ29AHJQa8HFPqS01tn_bAF4hiGCohxvex2R8LGeA/exec",
+#     "preludesys":  "https://script.google.com/macros/s/AKfycbwZpUmj42D_GB3AgxTqSSdQcua2byy5dvFr7dO5jJBhYrUDNhulPj-RxLtWwlz_87T5Pg/exec",
+#     "cfobridge":   "https://script.google.com/macros/s/AKfycbxltOr9C6T7Nw2DOKanBjiKVYrma9-EODtoReLUCNTp-3dANl2s0mS3oQACIp_P--Bb/exec",
+#     "voiceassistant": "https://script.google.com/macros/s/AKfycbyde5ank1ylpdAM3Kn28ZAULySme300V__VjOy7ESLHd0NX-gtoQAvMkmbt0bv7QJ01LQ/exec",
+#     "sybrant": "https://script.google.com/macros/s/AKfycbzW-OSCQ1bJA17bqac6WlsdXs3pVrUvPlFhhbIud_uZwuQugD8HoHRxG3NWp-J6e0wP/exec",
+#     "dhilaktest_old": "https://script.google.com/macros/s/AKfycby0hb5wDlSqtDwLiTWKULqkuZzVmtpJXRgof9ncF5adfIV_y3hL7QmDw7tliYtvF_fRGw/exec",
+#     "dhilaktest": "https://script.google.com/macros/s/AKfycbz_VKhTD7G2Iqqk-ZrqOkebX-sXncZiqhxP12EOv3xgMvCchPbZ4n6PHPdTOKA7spwnKw/exec",
+#     "kopiko": "https://script.google.com/macros/s/AKfycbzip7wk995Q8BfktpVNZp6uJREQ8CqydyTVtxlTG0NucPugFOECa6XBpqo3Xv6pAkgM/exec",
+#     "leaserush" :"https://script.google.com/a/macros/sybrantdata.com/s/AKfycbxt20fVA71fAuePCWGzoRB-KRhjmpoogQF62Yr_qmFlqAP0wUQBkeNLJzlr9CrosIo9/exec",
+# 	"demo": "https://script.google.com/macros/s/AKfycbweMAcL-f2yKQmriSjCWVWjYuzV4A0SoOCiFz0Ws6PoKlEVS2_dokziMM2YNXvJamIGTQ/exec",
+# 	"newgendigital": "https://script.google.com/macros/s/AKfycbyKHdnaO1IFWQSkpJiV-_dIZ6PU9GC-oRNwb8JjW6RM-DVVCcwScy3qTrG0ltRyH5Dc/exec",
+# }
+
+
 BRAND_TO_WEBHOOK = {
-    "default":     "https://script.google.com/macros/s/AKfycbzW-OSCQ1bJA17bqac6WlsdXs3pVrUvPlFhhbIud_uZwuQugD8HoHRxG3NWp-J6e0wP/exec",  
+    "default":     "https://script.google.com/macros/s/AKfycbwbm5HVpTxIgvSmBAfRC3s3xgT5OaQ1Y9_f9cfU5eUUj0dNJ7wAffn4dn8d0c7aYz3s_g/exec",
     "kfwcorp":     "https://script.google.com/macros/s/AKfycbw3Mw25MO3a0JDsTE9YWpOIx9skESyftz4FUYZY6CnycStnrIcNVjFO7LqKkjlkvyoH7A/exec",
     "successgyan": "https://script.google.com/macros/s/AKfycbyASM8a0kZ649kxqvzmkOiyYbFpdXobDPCUYEF0y3CK-409iEe9dgWnsYp5dhCCOmrLhw/exec",
     "orientbell":  "https://script.google.com/macros/s/AKfycby0hb5wDlSqtDwLiTWKULqkuZzVmtpJXRgof9ncF5adfIV_y3hL7QmDw7tliYtvF_fRGw/exec",
@@ -35,9 +55,9 @@ BRAND_TO_WEBHOOK = {
     "dhilaktest_old": "https://script.google.com/macros/s/AKfycby0hb5wDlSqtDwLiTWKULqkuZzVmtpJXRgof9ncF5adfIV_y3hL7QmDw7tliYtvF_fRGw/exec",
     "dhilaktest": "https://script.google.com/macros/s/AKfycbz_VKhTD7G2Iqqk-ZrqOkebX-sXncZiqhxP12EOv3xgMvCchPbZ4n6PHPdTOKA7spwnKw/exec",
     "kopiko": "https://script.google.com/macros/s/AKfycbzip7wk995Q8BfktpVNZp6uJREQ8CqydyTVtxlTG0NucPugFOECa6XBpqo3Xv6pAkgM/exec",
-    "leaserush" :"https://script.google.com/a/macros/sybrantdata.com/s/AKfycbxt20fVA71fAuePCWGzoRB-KRhjmpoogQF62Yr_qmFlqAP0wUQBkeNLJzlr9CrosIo9/exec",
-	"demo": "https://script.google.com/macros/s/AKfycbweMAcL-f2yKQmriSjCWVWjYuzV4A0SoOCiFz0Ws6PoKlEVS2_dokziMM2YNXvJamIGTQ/exec",
-	"newgendigital": "https://script.google.com/macros/s/AKfycbyKHdnaO1IFWQSkpJiV-_dIZ6PU9GC-oRNwb8JjW6RM-DVVCcwScy3qTrG0ltRyH5Dc/exec",
+    "leaserush": "https://script.google.com/macros/s/AKfycbxt20fVA71fAuePCWGzoRB-KRhjmpoogQF62Yr_qmFlqAP0wUQBkeNLJzlr9CrosIo9/exec",
+    "demo": "https://script.google.com/macros/s/AKfycbweMAcL-f2yKQmriSjCWVWjYuzV4A0SoOCiFz0Ws6PoKlEVS2_dokziMM2YNXvJamIGTQ/exec",
+    "newgendigital": "https://script.google.com/macros/s/AKfycbyKHdnaO1IFWQSkpJiV-_dIZ6PU9GC-oRNwb8JjW6RM-DVVCcwScy3qTrG0ltRyH5Dc/exec",
 }
 
 # 	"demo": "https://script.google.com/macros/s/AKfycbx5P0eiH1v7SE1Uoy1R_V4u-ab7dOqJJO7CpLFxgjkH7C8gMXwICzsaGTl3AWG2KU_Y0g/exec",
@@ -4324,38 +4344,84 @@ def serve_newgendigital_widget():
 ### above is old commented for cfo bridge
 
 
+# @app.route("/log-visitor-updated", methods=["POST"])
+# def log_visitor_updated():
+#     import requests, json, time
+#     from flask import request, jsonify
+
+#     try:
+#         data = request.get_json(force=True)
+#         if not data:
+#             return jsonify({"status": "error", "message": "No JSON body"}), 400
+
+#         # === Log incoming data ===
+#         print(f"[Voizee] Received visitor log event: {data}")
+
+#         # === Google Apps Script endpoint ===
+#         GOOGLE_SHEET_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwbm5HVpTxIgvSmBAfRC3s3xgT5OaQ1Y9_f9cfU5eUUj0dNJ7wAffn4dn8d0c7aYz3s_g/exec"
+
+#         # === Mandatory fields ===
+#         event = data.get("event", "visitor_log")
+#         visit_id = data.get("visit_id", "")
+#         brand = data.get("brand", "")
+#         agent_id = data.get("agent_id", "")
+#         timestamp = data.get("timestamp", time.strftime("%Y-%m-%dT%H:%M:%SZ"))
+
+#         if not visit_id:
+#             return jsonify({"status": "error", "message": "Missing visit_id"}), 400
+
+#         # === Prepare payload exactly as Apps Script expects ===
+#         payload = {
+#             "event": event,
+#             "visit_id": visit_id,
+#             "visitId": visit_id,
+#             "agent_id": agent_id,
+#             "brand": brand,
+#             "url": data.get("url", ""),
+#             "name": data.get("name", ""),
+#             "email": data.get("email", ""),
+#             "phone": data.get("phone", ""),
+#             "company": data.get("company", ""),
+#             "conversation_id": data.get("conversation_id", ""),
+#             "duration_seconds": data.get("duration_seconds", ""),
+#             "transcript": data.get("transcript", ""),
+#             "timestamp": timestamp,
+#         }
+
+#         # === Forward to Google Sheet webhook ===
+#         try:
+#             r = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=payload, timeout=10)
+#             if r.status_code == 200:
+#                 print(f"[Voizee] Google Sheet updated ({r.text})")
+#             else:
+#                 print(f"[Voizee] Sheet update failed {r.status_code}: {r.text}")
+#         except Exception as e:
+#             print(f"[Voizee] Error sending to sheet: {e}")
+
+#         return jsonify({"status": "ok", "event": event})
+
+#     except Exception as e:
+#         print(f"[Voizee] /log-visitor-updated ERROR: {e}")
+#         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+
 @app.route("/log-visitor-updated", methods=["POST"])
 def log_visitor_updated():
-    import requests, json, time
+    import requests, time
     from flask import request, jsonify
 
     try:
-        data = request.get_json(force=True)
-        if not data:
-            return jsonify({"status": "error", "message": "No JSON body"}), 400
-
-        # === Log incoming data ===
+        data = request.get_json(force=True) or {}
         print(f"[Voizee] Received visitor log event: {data}")
 
-        # === Google Apps Script endpoint ===
-        GOOGLE_SHEET_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwbm5HVpTxIgvSmBAfRC3s3xgT5OaQ1Y9_f9cfU5eUUj0dNJ7wAffn4dn8d0c7aYz3s_g/exec"
+        brand = (data.get("brand") or "").strip().lower()
+        webhook_url = BRAND_TO_WEBHOOK.get(brand, BRAND_TO_WEBHOOK["default"])
 
-        # === Mandatory fields ===
-        event = data.get("event", "visitor_log")
-        visit_id = data.get("visit_id", "")
-        brand = data.get("brand", "")
-        agent_id = data.get("agent_id", "")
-        timestamp = data.get("timestamp", time.strftime("%Y-%m-%dT%H:%M:%SZ"))
-
-        if not visit_id:
-            return jsonify({"status": "error", "message": "Missing visit_id"}), 400
-
-        # === Prepare payload exactly as Apps Script expects ===
         payload = {
-            "event": event,
-            "visit_id": visit_id,
-            "visitId": visit_id,
-            "agent_id": agent_id,
+            "event": data.get("event", "visitor_log"),
+            "visit_id": data.get("visit_id", ""),
+            "agent_id": data.get("agent_id", ""),
             "brand": brand,
             "url": data.get("url", ""),
             "name": data.get("name", ""),
@@ -4365,23 +4431,16 @@ def log_visitor_updated():
             "conversation_id": data.get("conversation_id", ""),
             "duration_seconds": data.get("duration_seconds", ""),
             "transcript": data.get("transcript", ""),
-            "timestamp": timestamp,
+            "timestamp": data.get("timestamp", time.strftime("%Y-%m-%dT%H:%M:%SZ")),
         }
 
-        # === Forward to Google Sheet webhook ===
-        try:
-            r = requests.post(GOOGLE_SHEET_WEBHOOK_URL, json=payload, timeout=10)
-            if r.status_code == 200:
-                print(f"[Voizee] Google Sheet updated ({r.text})")
-            else:
-                print(f"[Voizee] Sheet update failed {r.status_code}: {r.text}")
-        except Exception as e:
-            print(f"[Voizee] Error sending to sheet: {e}")
+        r = requests.post(webhook_url, json=payload, timeout=10)
+        print(f"[Voizee] Sent to: {brand or 'default'} | {r.status_code} | {r.text[:120]}")
 
-        return jsonify({"status": "ok", "event": event})
+        return jsonify({"status": "ok", "brand": brand}), 200
 
     except Exception as e:
-        print(f"[Voizee] /log-visitor-updated ERROR: {e}")
+        print(f"[Voizee] log_visitor_updated ERROR: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
