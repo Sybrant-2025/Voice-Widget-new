@@ -3720,7 +3720,7 @@ def serve_widget_js_updated12(
   // ===== Cache (24h) =====
   const FORM_KEY="convai_form_cache";
   const TTL_KEY="convai_form_ttl";
-  const TTL_MS=24*60*60*1000;
+  const TTL_MS=60*1000;
   const saveForm=(d)=>{try{localStorage.setItem(FORM_KEY,JSON.stringify({data:d,ts:Date.now()}));localStorage.setItem(TTL_KEY,String(Date.now()+TTL_MS));}catch(_){}};  
   const getForm=()=>{try{let o=JSON.parse(localStorage.getItem(FORM_KEY)||"null");if(!o||!o.data)return null;if(Date.now()-o.ts>TTL_MS)return null;return o.data;}catch(_){return null;}};  
   const ttlActive=()=>Date.now()<parseInt(localStorage.getItem(TTL_KEY)||"0");
