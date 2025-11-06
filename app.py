@@ -171,28 +171,58 @@ def _pull_transcript(conv_id: str, api_key: str):
         # always 3-tuple
         return "", None, f"exception: {e}"
 
-def _push_transcript_to_sheet(visit_id: str, conv_id: str, transcript: str, brand: str, page_url: str, duration: int | None = None):
-    # payload = {
-    #     "event": "transcript",
-    #     "visit_id": visit_id,
-    #     "conversation_id": conv_id,
-    #     "transcript": transcript,
-    #     "brand": brand or "",
-    #     "url": page_url or "",
-    #     "server_timestamp_ms": int(time.time() * 1000),
-    # }
-	payload = {
-    "event": "transcript",
-    "visit_id": visit_id,
-    "conversation_id": conversation_id,
-    "transcript": transcript_text,
-    "duration_seconds": duration,  # ✅ Match Apps Script field
-    "server_timestamp_ms": int(time.time() * 1000),
-	}
+# def _push_transcript_to_sheet(visit_id: str, conv_id: str, transcript: str, brand: str, page_url: str, duration: int | None = None):
+#     # payload = {
+#     #     "event": "transcript",
+#     #     "visit_id": visit_id,
+#     #     "conversation_id": conv_id,
+#     #     "transcript": transcript,
+#     #     "brand": brand or "",
+#     #     "url": page_url or "",
+#     #     "server_timestamp_ms": int(time.time() * 1000),
+#     # }
+# 	payload = {
+#     "event": "transcript",
+#     "visit_id": visit_id,
+#     "conversation_id": conversation_id,
+#     "transcript": transcript_text,
+#     "duration_seconds": duration,  # ✅ Match Apps Script field
+#     "server_timestamp_ms": int(time.time() * 1000),
+# 	}
 
+#     if duration is not None:
+#         payload["call_duration_secs"] = duration
+#     return _send_to_sheet_brand(payload, brand)
+
+def _push_transcript_to_sheet(
+    visit_id: str,
+    conv_id: str,
+    transcript: str,
+    brand: str,
+    page_url: str,
+    duration: int | None = None
+):
+    """
+    Push transcript + duration to the correct Google Sheet (brand aware).
+    """
+
+    payload = {
+        "event": "transcript",
+        "visit_id": visit_id,
+        "conversation_id": conv_id,
+        "transcript": transcript or "",
+        "duration_seconds": duration or "",  # ✅ Matches Apps Script field
+        "brand": brand or "",
+        "url": page_url or "",
+        "server_timestamp_ms": int(time.time() * 1000),
+    }
+
+    # Optional: backward compatibility for older sheets
     if duration is not None:
         payload["call_duration_secs"] = duration
+
     return _send_to_sheet_brand(payload, brand)
+
 
 def _background_transcript_worker(visit_id: str, conv_id: str, agent_id: str, brand: str, page_url: str):
     api_key = (os.getenv("ELEVENLABS_API_KEY") or ELEVENLABS_API_KEY).strip()
