@@ -4423,237 +4423,195 @@ def serve_widget_js_updated_cfo(
 
 def serve_widget_js_updated_cfo1(
     agent_id,
-    branding="Powered by cfobridge",
+    branding="Powered by CFOBridge",
     brand="",
     buttonAvatar="https://sybrant.com/wp-content/uploads/2025/10/voizee_vidhya_white-e1761903844115.png",
 ):
     js = r"""
 (function(){
-  const AGENT_ID = "__AGENT_ID__";
-  const BRAND = "__BRAND__";
-  const BRANDING_TEXT = "__BRANDING__";
-  const AVATAR_URL = "__BUTTON_AVATAR__";
-  const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
-
-  // ===== Utilities =====
-  async function fetchWithRetry(url, opts, retries = 2, backoffMs = 800) {
-    for (let i = 0; i <= retries; i++) {
-      try {
-        const ctrl = new AbortController();
-        const timeout = setTimeout(() => ctrl.abort(), 10000);
-        const r = await fetch(url, { ...opts, signal: ctrl.signal });
-        clearTimeout(timeout);
-        if (r.ok) return r;
-      } catch(e){}
-      await new Promise(res => setTimeout(res, backoffMs * (i+1)));
-    }
-  }
+  const AGENT_ID="__AGENT_ID__";
+  const BRAND="__BRAND__";
+  const BRANDING_TEXT="__BRANDING__";
+  const AVATAR_URL="__BUTTON_AVATAR__";
+  const LOG_ENDPOINT="https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
+  const TRANSCRIPT_ENDPOINT="https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated";
 
   // ===== Cache (24h) =====
-  const FORM_KEY = "convai_form_cache";
-  const TTL_KEY  = "convai_form_submitted";
-  const FORM_TTL_MS = 24*60*60*1000;
+  const FORM_KEY="convai_form_cache";
+  const TTL_KEY="convai_form_ttl";
+  const FORM_TTL_MS=24*60*60*1000;
+  const saveForm=(data)=>{try{localStorage.setItem(FORM_KEY,JSON.stringify({data,t:Date.now()}));localStorage.setItem(TTL_KEY,String(Date.now()+FORM_TTL_MS));}catch(_){}};  
+  const getForm=()=>{try{const o=JSON.parse(localStorage.getItem(FORM_KEY)||"null");if(!o)return null;if(Date.now()-o.t>FORM_TTL_MS)return null;return o.data;}catch(_){return null;}};  
+  const ttlActive=()=>Date.now()<parseInt(localStorage.getItem(TTL_KEY)||"0");
 
-  function saveFormCache(fields){
-    try {
-      localStorage.setItem(FORM_KEY, JSON.stringify({data:fields, ts:Date.now()}));
-      localStorage.setItem(TTL_KEY, String(Date.now() + FORM_TTL_MS));
-    }catch(_){}
-  }
-  function getFormCache(){
-    try {
-      const rec = JSON.parse(localStorage.getItem(FORM_KEY) || "null");
-      if (!rec || !rec.data) return null;
-      if (Date.now() - rec.ts > FORM_TTL_MS) return null;
-      return rec.data;
-    }catch(_){return null;}
-  }
-  function ttlActive(){ return Date.now() < parseInt(localStorage.getItem(TTL_KEY)||"0"); }
+  // ===== IDs =====
+  let VISIT_ID=(crypto.randomUUID?crypto.randomUUID():Date.now()+"_"+Math.random().toString(36).slice(2));
+  let CONV_ID=null;
+  let CALL_START=null;
+  let CALL_END=null;
+  let autoMonitor=null;
 
-  // ===== Visit & Conversation correlation =====
-  let VISIT_ID = (crypto.randomUUID ? crypto.randomUUID() : Date.now()+"_"+Math.random().toString(36).slice(2));
-  try { localStorage.setItem("convai_visit_id", VISIT_ID); } catch(_){}
-  let CONV_ID = null;
-  let _convIdResolve; const conversationIdReady = new Promise(res=>_convIdResolve=res);
-
-  function sendVisitorLog(reason){
-    const cached = getFormCache();
-    if (!cached) return;
-    const payload = {
-      event: "visitor_log",
-      visit_id: VISIT_ID,
-      agent_id: AGENT_ID,
-      brand: BRAND,
-      url: location.href,
-      timestamp: new Date().toISOString(),
-      ...cached
-    };
-    fetch(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}).catch(()=>{});
-    console.log("[ConvAI] visitor_log → sheet ("+reason+")");
-  }
-
-  function setConvIdOnce(cid){
-    if (!cid || CONV_ID) return;
-    CONV_ID = cid; try{_convIdResolve(cid);}catch(_){}
-    fetch(LOG_ENDPOINT,{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        event:"conversation_id",
-        visit_id:VISIT_ID,
-        conversation_id:CONV_ID,
-        agent_id:AGENT_ID,
-        brand:BRAND,
-        url:location.href,
-        timestamp:new Date().toISOString()
-      })
-    }).catch(()=>{});
-    if (ttlActive()) sendVisitorLog("conv_id_arrived");
-    setupCallEndWatcher();
-  }
-
-  // ===== Capture Conv ID from messages =====
-  window.addEventListener("message",(evt)=>{
-    try{
-      const d=evt.data;
-      const cid=d?.conversation_initiation_metadata_event?.conversation_id||d?.conversation_id;
-      setConvIdOnce(cid);
-    }catch(_){}
-  });
-  (function patchWS(){
-    const OWS=window.WebSocket;if(!OWS)return;
-    function W(url,p){const ws=p?new OWS(url,p):new OWS(url);
-      ws.addEventListener("message",ev=>{try{
-        if(typeof ev.data!=="string")return;
-        const d=JSON.parse(ev.data);
-        const cid=d?.conversation_initiation_metadata_event?.conversation_id||d?.conversation_id;
-        if(cid) setConvIdOnce(cid);
-      }catch(_){}});return ws;}
-    W.prototype=OWS.prototype;Object.getOwnPropertyNames(OWS).forEach(k=>{try{W[k]=OWS[k];}catch(_){}});window.WebSocket=W;
-  })();
-
-  // ===== Remove ElevenLabs branding =====
-  function removeExtras(sr){
-    try{sr.querySelectorAll('a[href*="elevenlabs.io"]').forEach(el=>el.remove());
-      sr.querySelectorAll('span.opacity-30').forEach(el=>el.remove());
-    }catch(_){}
-  }
-
-  // ===== Inject visitor modal =====
-  function createVisitorModal(){
-    if(document.getElementById("convai-visitor-modal"))return;
-    const modal=document.createElement("div");
-    modal.id="convai-visitor-modal";
-    modal.style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:999999;align-items:center;justify-content:center;";
-    modal.innerHTML=`<div style="background:#fff;padding:20px;border-radius:8px;max-width:400px;width:90%;font-family:sans-serif;">
-      <h3 style="margin-top:0;">Tell us about you</h3>
-      <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
-        <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-        <input name="company" placeholder="Company" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-        <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-        <input name="phone" placeholder="Phone" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
-        <div style="display:flex;gap:10px;">
-          <button type="submit" style="flex:1;padding:10px;background:#007bff;color:white;border:none;border-radius:4px;">Submit</button>
-          <button type="button" id="convai-cancel" style="padding:10px;background:#eee;border:none;border-radius:4px;">Cancel</button>
-        </div>
-      </form></div>`;
-    document.body.appendChild(modal);
-    const form=modal.querySelector("#convai-form");
-    const cancel=modal.querySelector("#convai-cancel");
-    cancel.onclick=()=>modal.style.display="none";
-    form.onsubmit=(ev)=>{
-      ev.preventDefault();
-      const fdata=Object.fromEntries(new FormData(form).entries());
-      saveFormCache(fdata);
-      sendVisitorLog("form_submit");
-      modal.style.display="none";
-      startCallNow();
-    };
-  }
-
-  // ===== Start button interception =====
-  function interceptStart(){
-    const widget=document.querySelector("elevenlabs-convai");
-    if(!widget)return;
-    const sr=widget.shadowRoot;if(!sr)return;
-    removeExtras(sr);
-    const btns=['button[title="Start a call"]','button[aria-label="Start a call"]'];
-    btns.forEach(sel=>{
-      const b=sr.querySelector(sel);
-      if(b&&!b.__hooked){
-        b.__hooked=true;
-        b.addEventListener("click",ev=>{
-          if(ttlActive()&&getFormCache()){sendVisitorLog("ttl_cached");return;}
-          ev.preventDefault();createVisitorModal();document.getElementById("convai-visitor-modal").style.display="flex";
-        },true);
-      }
+  // ===== Load ElevenLabs =====
+  const loadScript=()=>{
+    if(window.__elevenlabs_loaded) return Promise.resolve();
+    return new Promise(res=>{
+      const s=document.createElement("script");
+      s.src="https://unpkg.com/@elevenlabs/convai-widget-embed";
+      s.async=true;
+      s.onload=()=>{window.__elevenlabs_loaded=true;res();};
+      s.onerror=()=>res();
+      document.head.appendChild(s);
     });
+  };
+
+  // ===== Hide Branding =====
+  function hideBranding(){
+    const stId="hide-elevenlabs-branding";
+    if(document.getElementById(stId))return;
+    const st=document.createElement("style");
+    st.id=stId;
+    st.textContent=`a[href*="elevenlabs.io"],span.opacity-30,p[class*="text-[10px]"],p:has(span.opacity-30){display:none!important;}`;
+    document.head.appendChild(st);
   }
-  setInterval(interceptStart,1000);
+  setInterval(hideBranding,1000);
 
-  // ===== End Call Watcher (manual + auto) =====
-  function setupCallEndWatcher(){
-    const widget=document.querySelector("elevenlabs-convai");
-    if(!widget)return;
-    const sr=widget.shadowRoot;if(!sr)return;
+  // ===== UI =====
+  function buildTray(){
+    if(document.getElementById("voizee-launcher"))return;
+    const css=`
+      .voizee-launcher{position:fixed;right:20px;bottom:20px;width:90px;height:90px;border-radius:50%;background:#fff;
+        box-shadow:0 0 20px rgba(0,123,255,0.4);cursor:pointer;z-index:999999;overflow:hidden;}
+      .voizee-launcher::before{content:'';position:absolute;width:100%;height:100%;border-radius:50%;
+        background:rgba(0,123,255,0.25);animation:wave 2.5s infinite;z-index:-1;}
+      @keyframes wave{0%{transform:scale(1);opacity:.6;}70%{transform:scale(1.8);opacity:0;}100%{opacity:0;}}
+      .voizee-tray{position:fixed;right:20px;bottom:120px;width:360px;max-width:calc(100vw - 40px);
+        background:#fff;border-radius:16px;box-shadow:0 16px 48px rgba(0,0,0,.3);font-family:sans-serif;
+        transform:translateY(20px);opacity:0;pointer-events:none;transition:all .3s ease;z-index:999999;}
+      .voizee-tray.open{transform:translateY(0);opacity:1;pointer-events:auto;}
+      .voizee-header{display:flex;align-items:center;padding:12px 16px;background:#000;color:#fff;border-top-left-radius:16px;border-top-right-radius:16px;}
+      .h-avatar{width:36px;height:36px;border-radius:50%;background:url('${AVATAR_URL}') center/cover;border:2px solid rgba(255,255,255,.5);}
+      .voizee-body{padding:16px;}
+      .voizee-input{width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;}
+      .voizee-btn{padding:10px;border:none;border-radius:8px;font-weight:600;cursor:pointer;}
+      .primary{background:#000;color:#fff;width:100%;}
+      .ghost{background:#f3f4f6;color:#111;width:100%;margin-top:6px;}
+      .voizee-footer{text-align:center;font-size:12px;color:#666;padding:10px;}
+    `;
+    const st=document.createElement("style");st.textContent=css;document.head.appendChild(st);
 
-    function findEndButton(){
-      return sr.querySelector('button[aria-label="End"],button[title="End"],button[aria-label="End call"],button[title="End call"]')
-        || sr.querySelector('slot[name="icon-phone-off"]')?.closest("button")
-        || Array.from(sr.querySelectorAll("button")).find(b=>(b.textContent||"").trim().toLowerCase()==="end");
-    }
-    function triggerTranscriptFetch(reason){
-      if(!CONV_ID)return;
-      const payload={visit_id:VISIT_ID,conversation_id:CONV_ID,agent_id:AGENT_ID,brand:BRAND,url:location.href,reason};
-      fetch("https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated",{
-        method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload),keepalive:true
-      }).catch(()=>{});
-      console.log("[ConvAI] Transcript fetch →",reason,CONV_ID);
-      setTimeout(()=>{try{
-        const blob=new Blob([JSON.stringify(payload)],{type:"application/json"});
-        navigator.sendBeacon("https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated-beacon",blob);
-      }catch(_){ }},2000);
-    }
+    const launcher=document.createElement("div");
+    launcher.id="voizee-launcher";
+    launcher.className="voizee-launcher";
+    launcher.innerHTML=`<div style="width:100%;height:100%;background:url('${AVATAR_URL}') center/cover;"></div>`;
+    document.body.appendChild(launcher);
 
-    // Manual click
-    const endBtn=findEndButton();
-    if(endBtn&&!endBtn.__hooked){
-      endBtn.__hooked=true;
-      endBtn.addEventListener("click",()=>triggerTranscriptFetch("manual_end"),{capture:true});
-    }
+    const tray=document.createElement("div");
+    tray.id="voizee-tray";
+    tray.className="voizee-tray";
+    tray.innerHTML=`
+      <div class="voizee-header">
+        <div class="h-avatar"></div>
+        <div style="margin-left:10px;">
+          <div style="font-weight:700;">Hi, I'm Vidhya</div>
+          <div style="font-size:12px;opacity:.75;">Your AI CFO Partner</div>
+        </div>
+        <button id="closeTray" style="margin-left:auto;background:none;border:none;color:#fff;font-size:18px;">×</button>
+      </div>
+      <div class="voizee-body" id="voizee-body">
+        <form id="voizee-form">
+          <input class="voizee-input" name="name" placeholder="Full name" required>
+          <input class="voizee-input" name="company" placeholder="Company" required>
+          <input class="voizee-input" name="email" type="email" placeholder="Email" required>
+          <input class="voizee-input" name="phone" placeholder="Phone" required>
+          <button class="voizee-btn primary" type="submit">Start Call</button>
+        </form>
+      </div>
+      <div class="voizee-footer">${BRANDING_TEXT}</div>`;
+    document.body.appendChild(tray);
 
-    // Auto-end poller every 5s
-    if(!window.__autoEndInterval){
-      window.__autoEndInterval=setInterval(()=>{
-        const active=sr.querySelector('slot[name="icon-phone-off"],button[aria-label="End"]');
-        const visible=!!active && active.offsetParent!==null;
-        const state=widget.getAttribute("state")||"";
-        if(!visible || /idle|ready|connecting/i.test(state)){
-          if(!window.__autoEndTriggered){
-            window.__autoEndTriggered=true;
-            triggerTranscriptFetch("auto_end_detected");
-          }
-        }
-      },5000);
-    }
+    launcher.onclick=()=>{if(ttlActive()){startCallDirect();return;}tray.classList.add("open");};
+    tray.querySelector("#closeTray").onclick=()=>tray.classList.remove("open");
 
-    // Observe DOM for re-render
-    if(!window.__endObserver){
-      window.__endObserver=new MutationObserver(()=>setupCallEndWatcher());
-      window.__endObserver.observe(sr,{childList:true,subtree:true});
-    }
+    const cached=getForm();
+    if(cached){for(const [k,v] of Object.entries(cached)){const el=tray.querySelector(`[name="${k}"]`);if(el)el.value=v;}}
+
+    tray.querySelector("#voizee-form").onsubmit=async(e)=>{
+      e.preventDefault();
+      const fd=new FormData(e.target);
+      const data=Object.fromEntries(fd.entries());
+      saveForm(data);
+      tray.querySelector("#voizee-body").innerHTML="<div>Loading widget...</div>";
+      try{
+        await fetch(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({event:"visitor_log",visit_id:VISIT_ID,agent_id:AGENT_ID,brand:BRAND,url:location.href,...data,timestamp:new Date().toISOString()})
+        });
+      }catch(_){}
+      tray.classList.remove("open");
+      startCallDirect();
+    };
   }
 
-  // ===== Initialize =====
-  createVisitorModal();
+  // ===== Start Call =====
+  async function startCallDirect(){
+    await loadScript();
+    CALL_START=Date.now();
+    const tag=document.createElement("elevenlabs-convai");
+    tag.setAttribute("agent-id",AGENT_ID);
+    tag.style="z-index:999999;";
+    document.body.appendChild(tag);
+    hideBranding();
+
+    window.addEventListener("message",(e)=>{
+      const d=e.data||{};
+      const cid=d?.conversation_initiation_metadata_event?.conversation_id||d?.conversation_id;
+      if(cid&&!CONV_ID){
+        CONV_ID=cid;
+        fetch(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({event:"conversation_id",visit_id:VISIT_ID,conversation_id:CONV_ID,brand:BRAND,url:location.href,timestamp:new Date().toISOString()})
+        }).catch(()=>{});
+      }
+    },false);
+
+    // Monitor call end every 5s
+    if(autoMonitor)clearInterval(autoMonitor);
+    autoMonitor=setInterval(()=>{
+      const sr=tag.shadowRoot;
+      if(!sr)return;
+      const endBtn=sr.querySelector('button[aria-label="End"],button[title="End"],slot[name="icon-phone-off"]');
+      if(!endBtn){endCall(tag);}
+    },5000);
+  }
+
+  // ===== End Call =====
+  async function endCall(tag){
+    if(!CALL_START)return;
+    CALL_END=Date.now();
+    const duration=Math.round((CALL_END-CALL_START)/1000);
+    clearInterval(autoMonitor);
+    setTimeout(async()=>{
+      try{
+        await fetch(TRANSCRIPT_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({visit_id:VISIT_ID,conversation_id:CONV_ID,agent_id:AGENT_ID,brand:BRAND,url:location.href,duration_seconds:duration})
+        });
+        await fetch(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({event:"call_summary",visit_id:VISIT_ID,conversation_id:CONV_ID,agent_id:AGENT_ID,brand:BRAND,url:location.href,duration_seconds:duration,timestamp:new Date().toISOString()})
+        });
+      }catch(_){}
+    },30000);
+    if(tag)tag.remove();
+  }
+
+  // ===== Init =====
+  if(document.readyState!=="loading")buildTray();
+  else document.addEventListener("DOMContentLoaded",buildTray);
 })();
-"""
-    js = js.replace("__AGENT_ID__", agent_id)
-    js = js.replace("__BRANDING__", branding)
-    js = js.replace("__BRAND__", brand)
-    js = js.replace("__BUTTON_AVATAR__", buttonAvatar)
-    return Response(js, mimetype="application/javascript")
-
+    """
+    return (
+        js.replace("__AGENT_ID__", agent_id)
+          .replace("__BRANDING__", branding)
+          .replace("__BRAND__", brand)
+          .replace("__BUTTON_AVATAR__", buttonAvatar)
+    )
 
 
 
