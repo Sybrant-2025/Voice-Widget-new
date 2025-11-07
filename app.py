@@ -4421,6 +4421,241 @@ def serve_widget_js_updated_cfo(
     )
 
 
+def serve_widget_js_updated_cfo1(
+    agent_id,
+    branding="Powered by cfobridge",
+    brand="",
+    buttonAvatar="https://sybrant.com/wp-content/uploads/2025/10/voizee_vidhya_white-e1761903844115.png",
+):
+    js = r"""
+(function(){
+  const AGENT_ID = "__AGENT_ID__";
+  const BRAND = "__BRAND__";
+  const BRANDING_TEXT = "__BRANDING__";
+  const AVATAR_URL = "__BUTTON_AVATAR__";
+  const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
+
+  // ===== Utilities =====
+  async function fetchWithRetry(url, opts, retries = 2, backoffMs = 800) {
+    for (let i = 0; i <= retries; i++) {
+      try {
+        const ctrl = new AbortController();
+        const timeout = setTimeout(() => ctrl.abort(), 10000);
+        const r = await fetch(url, { ...opts, signal: ctrl.signal });
+        clearTimeout(timeout);
+        if (r.ok) return r;
+      } catch(e){}
+      await new Promise(res => setTimeout(res, backoffMs * (i+1)));
+    }
+  }
+
+  // ===== Cache (24h) =====
+  const FORM_KEY = "convai_form_cache";
+  const TTL_KEY  = "convai_form_submitted";
+  const FORM_TTL_MS = 24*60*60*1000;
+
+  function saveFormCache(fields){
+    try {
+      localStorage.setItem(FORM_KEY, JSON.stringify({data:fields, ts:Date.now()}));
+      localStorage.setItem(TTL_KEY, String(Date.now() + FORM_TTL_MS));
+    }catch(_){}
+  }
+  function getFormCache(){
+    try {
+      const rec = JSON.parse(localStorage.getItem(FORM_KEY) || "null");
+      if (!rec || !rec.data) return null;
+      if (Date.now() - rec.ts > FORM_TTL_MS) return null;
+      return rec.data;
+    }catch(_){return null;}
+  }
+  function ttlActive(){ return Date.now() < parseInt(localStorage.getItem(TTL_KEY)||"0"); }
+
+  // ===== Visit & Conversation correlation =====
+  let VISIT_ID = (crypto.randomUUID ? crypto.randomUUID() : Date.now()+"_"+Math.random().toString(36).slice(2));
+  try { localStorage.setItem("convai_visit_id", VISIT_ID); } catch(_){}
+  let CONV_ID = null;
+  let _convIdResolve; const conversationIdReady = new Promise(res=>_convIdResolve=res);
+
+  function sendVisitorLog(reason){
+    const cached = getFormCache();
+    if (!cached) return;
+    const payload = {
+      event: "visitor_log",
+      visit_id: VISIT_ID,
+      agent_id: AGENT_ID,
+      brand: BRAND,
+      url: location.href,
+      timestamp: new Date().toISOString(),
+      ...cached
+    };
+    fetch(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}).catch(()=>{});
+    console.log("[ConvAI] visitor_log → sheet ("+reason+")");
+  }
+
+  function setConvIdOnce(cid){
+    if (!cid || CONV_ID) return;
+    CONV_ID = cid; try{_convIdResolve(cid);}catch(_){}
+    fetch(LOG_ENDPOINT,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        event:"conversation_id",
+        visit_id:VISIT_ID,
+        conversation_id:CONV_ID,
+        agent_id:AGENT_ID,
+        brand:BRAND,
+        url:location.href,
+        timestamp:new Date().toISOString()
+      })
+    }).catch(()=>{});
+    if (ttlActive()) sendVisitorLog("conv_id_arrived");
+    setupCallEndWatcher();
+  }
+
+  // ===== Capture Conv ID from messages =====
+  window.addEventListener("message",(evt)=>{
+    try{
+      const d=evt.data;
+      const cid=d?.conversation_initiation_metadata_event?.conversation_id||d?.conversation_id;
+      setConvIdOnce(cid);
+    }catch(_){}
+  });
+  (function patchWS(){
+    const OWS=window.WebSocket;if(!OWS)return;
+    function W(url,p){const ws=p?new OWS(url,p):new OWS(url);
+      ws.addEventListener("message",ev=>{try{
+        if(typeof ev.data!=="string")return;
+        const d=JSON.parse(ev.data);
+        const cid=d?.conversation_initiation_metadata_event?.conversation_id||d?.conversation_id;
+        if(cid) setConvIdOnce(cid);
+      }catch(_){}});return ws;}
+    W.prototype=OWS.prototype;Object.getOwnPropertyNames(OWS).forEach(k=>{try{W[k]=OWS[k];}catch(_){}});window.WebSocket=W;
+  })();
+
+  // ===== Remove ElevenLabs branding =====
+  function removeExtras(sr){
+    try{sr.querySelectorAll('a[href*="elevenlabs.io"]').forEach(el=>el.remove());
+      sr.querySelectorAll('span.opacity-30').forEach(el=>el.remove());
+    }catch(_){}
+  }
+
+  // ===== Inject visitor modal =====
+  function createVisitorModal(){
+    if(document.getElementById("convai-visitor-modal"))return;
+    const modal=document.createElement("div");
+    modal.id="convai-visitor-modal";
+    modal.style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:999999;align-items:center;justify-content:center;";
+    modal.innerHTML=`<div style="background:#fff;padding:20px;border-radius:8px;max-width:400px;width:90%;font-family:sans-serif;">
+      <h3 style="margin-top:0;">Tell us about you</h3>
+      <form id="convai-form" style="display:flex;flex-direction:column;gap:10px;">
+        <input name="name" placeholder="Full name" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+        <input name="company" placeholder="Company" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+        <input name="email" type="email" placeholder="Email" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+        <input name="phone" placeholder="Phone" required style="padding:10px;border:1px solid #ccc;border-radius:4px;">
+        <div style="display:flex;gap:10px;">
+          <button type="submit" style="flex:1;padding:10px;background:#007bff;color:white;border:none;border-radius:4px;">Submit</button>
+          <button type="button" id="convai-cancel" style="padding:10px;background:#eee;border:none;border-radius:4px;">Cancel</button>
+        </div>
+      </form></div>`;
+    document.body.appendChild(modal);
+    const form=modal.querySelector("#convai-form");
+    const cancel=modal.querySelector("#convai-cancel");
+    cancel.onclick=()=>modal.style.display="none";
+    form.onsubmit=(ev)=>{
+      ev.preventDefault();
+      const fdata=Object.fromEntries(new FormData(form).entries());
+      saveFormCache(fdata);
+      sendVisitorLog("form_submit");
+      modal.style.display="none";
+      startCallNow();
+    };
+  }
+
+  // ===== Start button interception =====
+  function interceptStart(){
+    const widget=document.querySelector("elevenlabs-convai");
+    if(!widget)return;
+    const sr=widget.shadowRoot;if(!sr)return;
+    removeExtras(sr);
+    const btns=['button[title="Start a call"]','button[aria-label="Start a call"]'];
+    btns.forEach(sel=>{
+      const b=sr.querySelector(sel);
+      if(b&&!b.__hooked){
+        b.__hooked=true;
+        b.addEventListener("click",ev=>{
+          if(ttlActive()&&getFormCache()){sendVisitorLog("ttl_cached");return;}
+          ev.preventDefault();createVisitorModal();document.getElementById("convai-visitor-modal").style.display="flex";
+        },true);
+      }
+    });
+  }
+  setInterval(interceptStart,1000);
+
+  // ===== End Call Watcher (manual + auto) =====
+  function setupCallEndWatcher(){
+    const widget=document.querySelector("elevenlabs-convai");
+    if(!widget)return;
+    const sr=widget.shadowRoot;if(!sr)return;
+
+    function findEndButton(){
+      return sr.querySelector('button[aria-label="End"],button[title="End"],button[aria-label="End call"],button[title="End call"]')
+        || sr.querySelector('slot[name="icon-phone-off"]')?.closest("button")
+        || Array.from(sr.querySelectorAll("button")).find(b=>(b.textContent||"").trim().toLowerCase()==="end");
+    }
+    function triggerTranscriptFetch(reason){
+      if(!CONV_ID)return;
+      const payload={visit_id:VISIT_ID,conversation_id:CONV_ID,agent_id:AGENT_ID,brand:BRAND,url:location.href,reason};
+      fetch("https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated",{
+        method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload),keepalive:true
+      }).catch(()=>{});
+      console.log("[ConvAI] Transcript fetch →",reason,CONV_ID);
+      setTimeout(()=>{try{
+        const blob=new Blob([JSON.stringify(payload)],{type:"application/json"});
+        navigator.sendBeacon("https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated-beacon",blob);
+      }catch(_){ }},2000);
+    }
+
+    // Manual click
+    const endBtn=findEndButton();
+    if(endBtn&&!endBtn.__hooked){
+      endBtn.__hooked=true;
+      endBtn.addEventListener("click",()=>triggerTranscriptFetch("manual_end"),{capture:true});
+    }
+
+    // Auto-end poller every 5s
+    if(!window.__autoEndInterval){
+      window.__autoEndInterval=setInterval(()=>{
+        const active=sr.querySelector('slot[name="icon-phone-off"],button[aria-label="End"]');
+        const visible=!!active && active.offsetParent!==null;
+        const state=widget.getAttribute("state")||"";
+        if(!visible || /idle|ready|connecting/i.test(state)){
+          if(!window.__autoEndTriggered){
+            window.__autoEndTriggered=true;
+            triggerTranscriptFetch("auto_end_detected");
+          }
+        }
+      },5000);
+    }
+
+    // Observe DOM for re-render
+    if(!window.__endObserver){
+      window.__endObserver=new MutationObserver(()=>setupCallEndWatcher());
+      window.__endObserver.observe(sr,{childList:true,subtree:true});
+    }
+  }
+
+  // ===== Initialize =====
+  createVisitorModal();
+})();
+"""
+    js = js.replace("__AGENT_ID__", agent_id)
+    js = js.replace("__BRANDING__", branding)
+    js = js.replace("__BRAND__", brand)
+    js = js.replace("__BUTTON_AVATAR__", buttonAvatar)
+    return Response(js, mimetype="application/javascript")
+
+
+
 
 ##########updated end##########
 ##### --- Core JS serve_widget_js2222222: instant modal + triple-guard injection + per-brand cache key ---
@@ -4484,7 +4719,7 @@ def serve_cfobridge_widget():
 @app.route('/newcfobridge')
 def serve_newcfobridge_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated_cfo(agent_id, branding="Powered by cfobridge", brand="demo")
+    js = serve_widget_js_updated_cfo1(agent_id, branding="Powered by cfobridge", brand="demo")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/voiceassistant')
