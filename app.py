@@ -58,6 +58,7 @@ BRAND_TO_WEBHOOK = {
     "leaserush": "https://script.google.com/macros/s/AKfycbxt20fVA71fAuePCWGzoRB-KRhjmpoogQF62Yr_qmFlqAP0wUQBkeNLJzlr9CrosIo9/exec",
     "demo": "https://script.google.com/macros/s/AKfycbxLYMDjeIyNU5-eO6OgnVa8RqOgvp2pBA8jNF5azWY1qiUDutrIyJs3zSkn1ZgyL5zfwQ/exec",
     "newgendigital": "https://script.google.com/macros/s/AKfycbyKHdnaO1IFWQSkpJiV-_dIZ6PU9GC-oRNwb8JjW6RM-DVVCcwScy3qTrG0ltRyH5Dc/exec",
+	"ctobridge" : "https://script.google.com/macros/s/AKfycbyKZ4q9Mv-KQUza44s2BnLOgIVEVSNfi1OchP-cybaNF0H-kzmtf70b4qafp8VI9i1vow/exec",
 }
 
 # 	"demo": "https://script.google.com/macros/s/AKfycbx5P0eiH1v7SE1Uoy1R_V4u-ab7dOqJJO7CpLFxgjkH7C8gMXwICzsaGTl3AWG2KU_Y0g/exec",
@@ -76,7 +77,9 @@ BRAND_DISPLAY_NAMES = {
     "kopiko": "Kopiko",
     "demo": "Demo",
 	"leaserush": "Lease Rush",
-	"newgendigital": "Newgen Digital"
+	"newgendigital": "Newgen Digital",
+	"ctobridge" : "CTO Bridge",
+	
 }
 
 DRY_RUN_SHEETS = os.getenv("DRY_RUN_SHEETS", "0") == "1"
