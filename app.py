@@ -4689,7 +4689,7 @@ def serve_voiceassistant_widget():
 @app.route('/dhilaktest')
 def serve_dhilaktest_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_update_new(agent_id, branding="Powered by dhilaktest", brand="dhilaktest")
+    js = serve_widget_js_updated(agent_id, branding="Powered by dhilaktest", brand="dhilaktest")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/kopiko')
