@@ -7105,7 +7105,7 @@ def demo_ctobridge():
       <div class="robot-image">
         <img src="https://sybrant.com/wp-content/uploads/2025/08/voizee_sybrant-e1755606750640.png" alt="Voizee Assistant" />
       </div>
-      <script src="https://voizee.sybrant.com/demo?agent=agent_4801k3fnfz4nexdt8mfts31zx0rd"></script>
+      <script src="https://voizee.sybrant.com/ctobridge?agent=agent_4801k3fnfz4nexdt8mfts31zx0rd"></script>
     </div>
 
     <footer>
