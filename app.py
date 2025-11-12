@@ -4852,7 +4852,7 @@ def serve_widget_js_updated_cfo14(
 def serve_widget_js_updated_new1(
     agent_id,
     branding="Powered by cfobridge",
-    brand="",
+    brand="cfobridge",
     buttonAvatar="https://sybrant.com/wp-content/uploads/2025/10/voizee_vidhya_white-e1761903844115.png",
 ):
     js = r"""
@@ -4864,10 +4864,21 @@ def serve_widget_js_updated_new1(
   const LOG_ENDPOINT="https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
   const TRANSCRIPT_ENDPOINT="https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated";
 
+  // ===== Utility: fetch with retry =====
+  async function fetchWithRetry(url, opts, retries=2, backoffMs=800){
+    for(let i=0;i<=retries;i++){
+      try{
+        const r=await fetch(url,opts);
+        if(r.ok) return r;
+      }catch(e){}
+      await new Promise(res=>setTimeout(res,backoffMs*(i+1)));
+    }
+  }
+
   // ===== Cache (24h) =====
   const FORM_KEY="convai_form_cache";
   const TTL_KEY="convai_form_ttl";
-  const TTL_MS=60*1000;
+  const TTL_MS=24*60*60*1000;
   const saveForm=(d)=>{try{localStorage.setItem(FORM_KEY,JSON.stringify({data:d,ts:Date.now()}));localStorage.setItem(TTL_KEY,String(Date.now()+TTL_MS));}catch(_){}};  
   const getForm=()=>{try{let o=JSON.parse(localStorage.getItem(FORM_KEY)||"null");if(!o||!o.data)return null;if(Date.now()-o.ts>TTL_MS)return null;return o.data;}catch(_){return null;}};  
   const ttlActive=()=>Date.now()<parseInt(localStorage.getItem(TTL_KEY)||"0");
@@ -4877,7 +4888,7 @@ def serve_widget_js_updated_new1(
   try{localStorage.setItem("convai_visit_id",VISIT_ID);}catch(_){}
   let CALL_START=null, CALL_END=null, CONV_ID=null;
 
-  // ===== Ensure ElevenLabs script loaded =====
+  // ===== Ensure ElevenLabs script =====
   if(!window.__elevenlabs_loaded){
     const s=document.createElement("script");
     s.src="https://unpkg.com/@elevenlabs/convai-widget-embed";
@@ -4905,31 +4916,81 @@ def serve_widget_js_updated_new1(
   }
   setInterval(hideElevenLabsBranding,1000);
 
-  // ===== CSS & Tray UI =====
+  // ===== Conversation ID capture (message + WS) =====
+  window.addEventListener("message",(e)=>{
+    const d=e.data||{};
+    const cid=d?.conversation_initiation_metadata_event?.conversation_id||d?.conversation_id;
+    if(cid&&!CONV_ID){registerConvId(cid);}
+  },false);
+
+  (function patchWS(){
+    const OWS=window.WebSocket;if(!OWS)return;
+    window.WebSocket=function(u,p){
+      const ws=p?new OWS(u,p):new OWS(u);
+      ws.addEventListener("message",(ev)=>{
+        try{
+          if(typeof ev.data!=="string")return;
+          const d=JSON.parse(ev.data);
+          const cid=d?.conversation_initiation_metadata_event?.conversation_id||d?.conversation_id;
+          if(cid&&!CONV_ID)registerConvId(cid);
+        }catch(_){}
+      });
+      return ws;
+    };
+    window.WebSocket.prototype=OWS.prototype;
+  })();
+
+  function registerConvId(cid){
+    CONV_ID=cid;
+    fetchWithRetry(LOG_ENDPOINT,{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        event:"conversation_id",
+        visit_id:VISIT_ID,
+        conversation_id:CONV_ID,
+        agent_id:AGENT_ID,
+        brand:BRAND,
+        url:location.href,
+        client_ts_iso:new Date().toISOString(),
+        server_ts_ms:Date.now()
+      })
+    });
+  }
+
+  // ===== CSS (same CFO design) =====
   function injectStyles(){
     if(document.getElementById("voizee-corner-styles"))return;
     const css=`
       .voizee-launcher{
-        position:fixed;right:20px;bottom:20px;z-index:999999;width:90px;height:90px;
-        border-radius:50%;cursor:pointer;background:#fff;box-shadow:0 0 20px rgba(0,123,255,0.5);
+        position:fixed;right:20px;bottom:20px;z-index:999999;
+        width:90px;height:90px;border-radius:50%;cursor:pointer;
+        background:#fff;box-shadow:0 0 20px rgba(0,123,255,0.5);
         display:flex;align-items:center;justify-content:center;overflow:hidden;
+        animation:zoomPulse 3s infinite;
       }
+      @keyframes zoomPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.08);} }
+      .voizee-launcher::before{
+        content:'';position:absolute;width:100%;height:100%;border-radius:50%;
+        background:rgba(0,123,255,0.25);animation:wave 2.5s infinite;z-index:-1;
+      }
+      @keyframes wave{0%{transform:scale(1);opacity:.6;}70%{transform:scale(1.8);opacity:0;}100%{transform:scale(1);opacity:0;}}
       .voizee-launcher .avatar{width:100%;height:100%;background-image:url('${AVATAR_URL}');
         background-size:cover;background-position:center;border-radius:50%;}
       .voizee-tray{position:fixed;right:20px;bottom:120px;z-index:999999;width:360px;
         transform:translateY(20px);opacity:0;pointer-events:none;transition:transform .25s ease,opacity .25s ease;}
       .voizee-tray.open{transform:translateY(0);opacity:1;pointer-events:auto;}
-      .voizee-card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.28);}
+      .voizee-card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.28);font-family:sans-serif;}
       .voizee-header{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#000;color:#fff;}
       .voizee-header .h-avatar{width:36px;height:36px;border-radius:999px;background-image:url('${AVATAR_URL}');
         background-size:cover;background-position:center;border:2px solid rgba(255,255,255,.4);}
       .voizee-body{padding:14px;}
-      .voizee-input{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:10px;background:#f8fafc;}
-      .voizee-actions{display:flex;gap:10px;}
+      .voizee-input{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;margin-bottom:10px;background:#f8fafc;}
+      .voizee-actions{display:flex;gap:10px;margin-top:10px;}
       .voizee-btn{flex:1;padding:10px 12px;border:none;border-radius:8px;cursor:pointer;font-weight:600;}
       .voizee-btn.primary{background:#000;color:#fff;}
       .voizee-btn.ghost{background:#f3f4f6;color:#111;}
       .voizee-footer{padding:10px 14px;font-size:12px;color:#6b7280;text-align:center;}
+      @media(max-width:480px){.voizee-tray{right:12px;left:12px;width:auto;}}
     `;
     const style=document.createElement("style");
     style.id="voizee-corner-styles";
@@ -4937,6 +4998,7 @@ def serve_widget_js_updated_new1(
     document.head.appendChild(style);
   }
 
+  // ===== Tray UI =====
   function buildTray(){
     if(document.getElementById("voizee-launcher"))return;
     injectStyles();
@@ -4944,34 +5006,32 @@ def serve_widget_js_updated_new1(
     const launcher=document.createElement("div");
     launcher.id="voizee-launcher";
     launcher.className="voizee-launcher";
-    launcher.innerHTML=`<div class="avatar"></div>`;
+    launcher.innerHTML=`<div class="avatar" title="Need help?"></div>`;
     document.body.appendChild(launcher);
 
     const tray=document.createElement("div");
     tray.id="voizee-tray";
     tray.className="voizee-tray";
-    tray.innerHTML=`
-      <div class="voizee-card">
-        <div class="voizee-header">
-          <div class="h-avatar"></div>
-          <div><div style="font-weight:700;">Hi, I'm Vidhya</div>
-          <div style="font-size:12px;opacity:.75;">Your AI CFO Partner</div></div>
-          <button id="voizee-close" style="margin-left:auto;background:transparent;border:none;color:#fff;font-size:18px;">×</button>
-        </div>
-        <div class="voizee-body">
-          <form id="voizee-form">
-            <input class="voizee-input" name="name" placeholder="Full name" required>
-            <input class="voizee-input" name="company" placeholder="Company name" required>
-            <input class="voizee-input" type="email" name="email" placeholder="Email" required>
-            <input class="voizee-input" name="phone" placeholder="Phone number" required>
-            <div class="voizee-actions">
-              <button type="submit" class="voizee-btn primary" id="voizee-submit">Start Call</button>
-              <button type="button" class="voizee-btn ghost" id="voizee-cancel">Cancel</button>
-            </div>
-          </form>
-        </div>
-        <div class="voizee-footer">${BRANDING_TEXT}</div>
-      </div>`;
+    tray.innerHTML=`<div class="voizee-card">
+      <div class="voizee-header">
+        <div class="h-avatar"></div>
+        <div><div style="font-weight:700;">Hi, I'm Vidhya</div>
+        <div style="font-size:12px;opacity:.75;">Your AI CFO Partner</div></div>
+        <button id="voizee-close" style="margin-left:auto;background:transparent;border:none;color:#fff;font-size:18px;cursor:pointer;">×</button>
+      </div>
+      <div class="voizee-body">
+        <form id="voizee-form">
+          <input class="voizee-input" name="name" placeholder="Full name" required>
+          <input class="voizee-input" name="company" placeholder="Company name" required>
+          <input class="voizee-input" type="email" name="email" placeholder="Email" required>
+          <input class="voizee-input" name="phone" placeholder="Phone number" required>
+          <div class="voizee-actions">
+            <button type="submit" class="voizee-btn primary" id="voizee-submit">Start Call</button>
+            <button type="button" class="voizee-btn ghost" id="voizee-cancel">Cancel</button>
+          </div>
+        </form>
+      </div>
+      <div class="voizee-footer">${BRANDING_TEXT}</div></div>`;
     document.body.appendChild(tray);
 
     launcher.onclick=()=>{if(ttlActive()){tray.classList.remove("open");startCall();return;}tray.classList.add("open");};
@@ -4979,44 +5039,24 @@ def serve_widget_js_updated_new1(
     tray.querySelector("#voizee-cancel").onclick=()=>tray.classList.remove("open");
 
     const cached=getForm();
-    if(cached){
-      tray.querySelector('input[name="name"]').value=cached.name||"";
-      tray.querySelector('input[name="company"]').value=cached.company||"";
-      tray.querySelector('input[name="email"]').value=cached.email||"";
-      tray.querySelector('input[name="phone"]').value=cached.phone||"";
-    }
+    if(cached){for(const k in cached){const el=tray.querySelector(`[name="${k}"]`);if(el)el.value=cached[k];}}
 
     tray.querySelector("#voizee-form").onsubmit=async(e)=>{
       e.preventDefault();
-      const fd=new FormData(e.target);
-      const data=Object.fromEntries(fd.entries());
+      const fd=new FormData(e.target);const data=Object.fromEntries(fd.entries());
       saveForm(data);
       const btn=tray.querySelector("#voizee-submit");
       btn.textContent="Submitting...";btn.disabled=true;
-      try{
-        await fetch(LOG_ENDPOINT,{
-          method:"POST",headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({
-            event:"visitor_log",
-            visit_id:VISIT_ID,
-            agent_id:AGENT_ID,
-            brand:BRAND,
-            url:location.href,
-            ...data,
-            timestamp:new Date().toISOString()
-          })
-        });
-        const body=tray.querySelector(".voizee-body");
-        body.innerHTML=`<div id="voizee-call-container" style="text-align:center;">
-          <div id="call-widget" style="margin-top:10px;"></div>
-          <button id="end-call" class="voizee-btn ghost" style="margin-top:10px;">End Call</button>
-        </div>`;
-        startCall(body);
-      }catch(err){console.error("Log error:",err);btn.textContent="Error. Try again";btn.disabled=false;}
+      await fetchWithRetry(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({event:"visitor_log",visit_id:VISIT_ID,agent_id:AGENT_ID,brand:BRAND,url:location.href,...data,timestamp:new Date().toISOString()})
+      });
+      tray.querySelector(".voizee-body").innerHTML=`<div id="voizee-call-container" style="text-align:center;">
+        <div id="call-widget" style="margin-top:10px;"></div><button id="end-call" class="voizee-btn ghost" style="margin-top:10px;">End Call</button></div>`;
+      startCall(tray.querySelector(".voizee-body"));
     };
   }
 
-  // ===== Call Start & Transcript Push =====
+  // ===== Call flow =====
   function startCall(bodyEl){
     CALL_START=Date.now();
     const convaiTag=document.createElement("elevenlabs-convai");
@@ -5026,49 +5066,20 @@ def serve_widget_js_updated_new1(
     (bodyEl?bodyEl.querySelector("#call-widget"):document.body).appendChild(convaiTag);
     hideElevenLabsBranding();
 
-    // detect conversation id
-    window.addEventListener("message",(e)=>{
-      const d=e.data||{};
-      const cid=d?.conversation_initiation_metadata_event?.conversation_id||d?.conversation_id;
-      if(cid&&!CONV_ID){
-        CONV_ID=cid;
-        fetch(LOG_ENDPOINT,{
-          method:"POST",headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({
-            event:"conversation_id",
-            visit_id:VISIT_ID,
-            conversation_id:CONV_ID,
-            agent_id:AGENT_ID,
-            brand:BRAND,
-            url:location.href,
-            client_ts_iso:new Date().toISOString(),
-            server_ts_ms:Date.now()
-          })
-        }).catch(()=>{});
-      }
-    },false);
-
-    const endBtnHandler=()=>{
+    const endBtn=bodyEl?.querySelector("#end-call");
+    if(!endBtn)return;
+    endBtn.onclick=()=>{
       CALL_END=Date.now();
       const duration=Math.round((CALL_END-CALL_START)/1000);
       setTimeout(async()=>{
         let transcript="";
         try{
-          const r=await fetch(TRANSCRIPT_ENDPOINT,{
-            method:"POST",headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({
-              visit_id:VISIT_ID,
-              conversation_id:CONV_ID,
-              agent_id:AGENT_ID,
-              brand:BRAND,
-              url:location.href,
-              duration_seconds:duration
-            })
+          const r=await fetch(TRANSCRIPT_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({visit_id:VISIT_ID,conversation_id:CONV_ID,agent_id:AGENT_ID,brand:BRAND,url:location.href,duration_seconds:duration})
           });
           transcript=await r.text();
-        }catch(e){console.error("Transcript fetch failed",e);}
-        await fetch(LOG_ENDPOINT,{
-          method:"POST",headers:{"Content-Type":"application/json"},
+        }catch(e){console.warn("Transcript fetch failed",e);}
+        await fetchWithRetry(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
           body:JSON.stringify({
             event:"call_summary",
             visit_id:VISIT_ID,
@@ -5082,19 +5093,25 @@ def serve_widget_js_updated_new1(
             server_ts_ms:Date.now(),
             timestamp:new Date().toISOString()
           })
-        }).catch(()=>{});
+        });
       },30000);
       convaiTag.remove();
       document.querySelector("#voizee-tray").classList.remove("open");
     };
-
-    const endButton=bodyEl?.querySelector("#end-call");
-    if(endButton)endButton.onclick=endBtnHandler;
   }
 
-  if(document.readyState!=="loading")buildTray();
-  else document.addEventListener("DOMContentLoaded",buildTray);
+  // ===== Beacon backup =====
+  function sendBeacon(){
+    if(!CONV_ID)return;
+    try{
+      const blob=new Blob([JSON.stringify({visit_id:VISIT_ID,conversation_id:CONV_ID,agent_id:AGENT_ID,brand:BRAND,url:location.href})],{type:"application/json"});
+      navigator.sendBeacon(TRANSCRIPT_ENDPOINT,blob);
+    }catch(_){}
+  }
+  window.addEventListener("pagehide",sendBeacon);
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")sendBeacon();});
 
+  if(document.readyState!=="loading")buildTray();else document.addEventListener("DOMContentLoaded",buildTray);
 })();
     """
     return (
