@@ -108,18 +108,18 @@ cached_conversations = {}  # { conv_id: { url, ts } }
 
 ########################
 
-def run_auto_transcript_updater():
-    """Run the transcript updater every 5 minutes in background."""
-    while True:
-        try:
-            print("[Scheduler] Triggering auto_update_transcripts.py")
-            subprocess.Popen(["python", "auto_update_transcripts.py"])
-        except Exception as e:
-            print(f"[Scheduler] Error: {e}")
-        time.sleep(300)  # wait 5 minutes
+# def run_auto_transcript_updater():
+#     """Run the transcript updater every 5 minutes in background."""
+#     while True:
+#         try:
+#             print("[Scheduler] Triggering auto_update_transcripts.py")
+#             subprocess.Popen(["python", "auto_update_transcripts.py"])
+#         except Exception as e:
+#             print(f"[Scheduler] Error: {e}")
+#         time.sleep(300)  # wait 5 minutes
 
-# start thread once when Flask launches
-threading.Thread(target=run_auto_transcript_updater, daemon=True).start()
+# # start thread once when Flask launches
+# threading.Thread(target=run_auto_transcript_updater, daemon=True).start()
 
 
 
