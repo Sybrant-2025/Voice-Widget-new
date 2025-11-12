@@ -5662,7 +5662,7 @@ def fetch_transcript_updated():
     """Pull transcript from ElevenLabs and push call summary to Google Sheet."""
     if request.method == "OPTIONS":
         return Response(status=200, headers={"Access-Control-Allow-Origin": "*"})
-    
+
     data = request.get_json(force=True)
     visit_id = data.get("visit_id")
     conv_id = data.get("conversation_id")
@@ -5701,14 +5701,14 @@ def fetch_transcript_updated():
     except Exception as e:
         app.logger.error(f"[Voizee] Error pushing transcript for {brand}: {e}")
 
-    # Step 3: Return transcript (for debug / UI logging)
+    # Step 3: Return transcript for UI logs
     return jsonify({
         "status": "ok",
         "visit_id": visit_id,
         "conversation_id": conv_id,
         "brand": brand,
         "duration_secs": duration_final,
-        "transcript_excerpt": txt[:200]
+        "transcript_excerpt": txt[:200],
     })
 
 @app.route("/fetch-transcript-updated-beacon", methods=["POST", "OPTIONS"])
