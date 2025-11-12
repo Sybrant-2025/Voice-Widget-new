@@ -12,10 +12,7 @@ SERVICE_FILE = "google_service_account.json"
 
 # list of brand-specific webhook sheet URLs (or spreadsheet IDs)
 SHEETS = {
-    "newcfobridge": "https://docs.google.com/spreadsheets/d/XXXXX/edit",
-    "sybrant": "https://docs.google.com/spreadsheets/d/YYYYY/edit",
-    "kfwcorp": "https://docs.google.com/spreadsheets/d/ZZZZZ/edit",
-    # add others here
+    "newcfobridge": "https://script.google.com/macros/s/AKfycbxLYMDjeIyNU5-eO6OgnVa8RqOgvp2pBA8jNF5azWY1qiUDutrIyJs3zSkn1ZgyL5zfwQ/exec"
 }
 
 # ===== GOOGLE AUTH =====
