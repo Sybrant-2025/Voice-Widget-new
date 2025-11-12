@@ -1,3 +1,7 @@
 Flask==2.3.3
 requests==2.31.0
 flask-cors==4.0.0
+
+# --- Added for Google Sheets auto transcript updater ---
+gspread==6.1.2
+oauth2client==4.1.3
