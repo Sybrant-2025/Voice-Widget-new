@@ -5322,6 +5322,192 @@ def serve_widget_js_updated_new2(
           .replace("__BUTTON_AVATAR__", buttonAvatar)
     )
 
+
+def serve_widget_js_updated_new3(
+    agent_id,
+    branding="Powered by cfobridge",
+    brand="",
+    buttonAvatar="https://sybrant.com/wp-content/uploads/2025/10/voizee_vidhya_white-e1761903844115.png",
+):
+    js = r"""
+(function(){
+  const AGENT_ID="__AGENT_ID__";
+  const BRAND="__BRAND__";
+  const BRANDING_TEXT="__BRANDING__";
+  const AVATAR_URL="__BUTTON_AVATAR__";
+  const LOG_ENDPOINT="https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
+  const TRANSCRIPT_ENDPOINT="https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated";
+
+  // --- Cached form (24h) ---
+  const FORM_KEY="convai_form_cache";
+  const TTL_KEY="convai_form_ttl";
+  const TTL_MS=60*60*1000;
+  const saveForm=(d)=>{try{localStorage.setItem(FORM_KEY,JSON.stringify({data:d,ts:Date.now()}));localStorage.setItem(TTL_KEY,String(Date.now()+TTL_MS));}catch(_){}};  
+  const getForm=()=>{try{let o=JSON.parse(localStorage.getItem(FORM_KEY)||"null");if(!o||!o.data)return null;if(Date.now()-o.ts>TTL_MS)return null;return o.data;}catch(_){return null;}};  
+  const ttlActive=()=>Date.now()<parseInt(localStorage.getItem(TTL_KEY)||"0");
+
+  // --- IDs & State ---
+  let VISIT_ID=(crypto.randomUUID?crypto.randomUUID():Date.now()+"_"+Math.random().toString(36).slice(2));
+  localStorage.setItem("convai_visit_id",VISIT_ID);
+  let CALL_START=null, CALL_END=null, CONV_ID=null, CALL_ACTIVE=false;
+
+  // --- Helper: Retry fetch with backoff ---
+  async function fetchWithRetry(url, opts, retries=3, delay=1000){
+    try { return await fetch(url, opts); }
+    catch(e){ if(retries<=0) throw e; await new Promise(r=>setTimeout(r,delay)); return fetchWithRetry(url, opts, retries-1, delay*1.5); }
+  }
+
+  // --- Load ElevenLabs Script ---
+  if(!window.__elevenlabs_loaded){
+    const s=document.createElement("script");
+    s.src="https://unpkg.com/@elevenlabs/convai-widget-embed";
+    s.async=true;
+    s.onload=()=>window.__elevenlabs_loaded=true;
+    document.head.appendChild(s);
+  }
+
+  // --- Hide branding periodically ---
+  function hideBranding(){
+    document.querySelectorAll('p,span,a').forEach(el=>{
+      const t=(el.textContent||"").toLowerCase();
+      if(t.includes("powered by elevenlabs")||t.includes("agents"))el.remove();
+    });
+  }
+  setInterval(hideBranding,1500);
+
+  // --- Build Tray UI (same design) ---
+  function buildTray(){
+    if(document.getElementById("voizee-launcher"))return;
+    const css=`.voizee-launcher{position:fixed;right:20px;bottom:20px;z-index:999999;width:90px;height:90px;border-radius:50%;cursor:pointer;background:#fff;box-shadow:0 0 20px rgba(0,123,255,0.5);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+      .voizee-launcher .avatar{width:100%;height:100%;background-image:url('${AVATAR_URL}');background-size:cover;background-position:center;border-radius:50%;}
+      .voizee-tray{position:fixed;right:20px;bottom:120px;z-index:999999;width:360px;max-width:calc(100vw - 40px);transform:translateY(20px);opacity:0;pointer-events:none;transition:.25s;}
+      .voizee-tray.open{transform:translateY(0);opacity:1;pointer-events:auto;}
+      .voizee-card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.28);}
+      .voizee-header{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#000;color:#fff;}
+      .voizee-header .h-avatar{width:36px;height:36px;border-radius:50%;background:url('${AVATAR_URL}') center/cover;}
+      .voizee-input{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px;}
+      .voizee-btn{padding:10px;border:none;border-radius:8px;cursor:pointer;font-weight:600;}
+      .primary{background:#000;color:#fff;width:48%;}
+      .ghost{background:#f3f4f6;color:#000;width:48%;}`;
+    const style=document.createElement("style");style.textContent=css;document.head.appendChild(style);
+
+    const launcher=document.createElement("div");
+    launcher.id="voizee-launcher";
+    launcher.className="voizee-launcher";
+    launcher.innerHTML=`<div class="avatar"></div>`;
+    document.body.appendChild(launcher);
+
+    const tray=document.createElement("div");
+    tray.id="voizee-tray";
+    tray.className="voizee-tray";
+    tray.innerHTML=`
+      <div class="voizee-card">
+        <div class="voizee-header">
+          <div class="h-avatar"></div>
+          <div><b>Hi, I'm Vidhya</b><div style="font-size:12px;opacity:.8;">Your AI CFO Partner</div></div>
+          <button id="closeTray" style="margin-left:auto;background:none;border:none;color:#fff;font-size:18px;">×</button>
+        </div>
+        <div class="voizee-body">
+          <form id="voizee-form">
+            <input class="voizee-input" name="name" placeholder="Full name" required>
+            <input class="voizee-input" name="company" placeholder="Company name" required>
+            <input class="voizee-input" type="email" name="email" placeholder="Email" required>
+            <input class="voizee-input" name="phone" placeholder="Phone number" required>
+            <div style="display:flex;justify-content:space-between;">
+              <button type="submit" class="voizee-btn primary">Start Call</button>
+              <button type="button" class="voizee-btn ghost" id="cancelBtn">Cancel</button>
+            </div>
+          </form>
+        </div>
+        <div style="padding:8px;text-align:center;font-size:12px;color:#666;">${BRANDING_TEXT}</div>
+      </div>`;
+    document.body.appendChild(tray);
+
+    launcher.onclick=()=>{if(ttlActive()){startCall();}else tray.classList.add("open");};
+    tray.querySelector("#closeTray").onclick=()=>tray.classList.remove("open");
+    tray.querySelector("#cancelBtn").onclick=()=>tray.classList.remove("open");
+
+    const f=tray.querySelector("#voizee-form");
+    f.onsubmit=async(e)=>{
+      e.preventDefault();
+      const data=Object.fromEntries(new FormData(f).entries());
+      saveForm(data);
+      tray.classList.remove("open");
+      await fetchWithRetry(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({event:"visitor_log",visit_id:VISIT_ID,agent_id:AGENT_ID,brand:BRAND,url:location.href,...data,timestamp:new Date().toISOString()})});
+      startCall();
+    };
+  }
+
+  // --- Core: Start & End detection ---
+  function startCall(){
+    CALL_START=Date.now();
+    CALL_ACTIVE=true;
+    const el=document.createElement("elevenlabs-convai");
+    el.setAttribute("agent-id",AGENT_ID);
+    el.style.display="block";
+    el.style.zIndex="999999";
+    document.body.appendChild(el);
+    hideBranding();
+
+    // Watch conversation ID
+    window.addEventListener("message",(e)=>{
+      const d=e.data||{};
+      const cid=d?.conversation_initiation_metadata_event?.conversation_id||d?.conversation_id;
+      if(cid&&!CONV_ID){
+        CONV_ID=cid;
+        fetchWithRetry(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({event:"conversation_id",visit_id:VISIT_ID,conversation_id:cid,agent_id:AGENT_ID,brand:BRAND,url:location.href,client_ts_iso:new Date().toISOString(),server_ts_ms:Date.now()})});
+      }
+    });
+
+    // Detect end automatically (DOM removed)
+    const observer=new MutationObserver(()=>{
+      if(CALL_ACTIVE && !document.body.contains(el)){
+        CALL_ACTIVE=false;
+        endCall();
+        observer.disconnect();
+      }
+    });
+    observer.observe(document.body,{childList:true,subtree:true});
+
+    // Manual end fallback after 10min
+    setTimeout(()=>{if(CALL_ACTIVE){CALL_ACTIVE=false;endCall();}},600000);
+  }
+
+  async function endCall(){
+    CALL_END=Date.now();
+    const duration=Math.round((CALL_END-CALL_START)/1000);
+    try{
+      await fetchWithRetry(TRANSCRIPT_ENDPOINT,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          visit_id:VISIT_ID,
+          conversation_id:CONV_ID,
+          agent_id:AGENT_ID,
+          brand:BRAND,
+          url:location.href,
+          duration_seconds:duration
+        })
+      });
+    }catch(e){console.warn("Transcript post failed:",e);}
+  }
+
+  // Handle browser/tab close or reload
+  window.addEventListener("beforeunload",()=>{
+    if(CALL_ACTIVE){endCall();}
+  });
+
+  if(document.readyState!=="loading")buildTray();
+  else document.addEventListener("DOMContentLoaded",buildTray);
+})();
+    """
+    return (
+        js.replace("__AGENT_ID__", agent_id)
+          .replace("__BRANDING__", branding)
+          .replace("__BRAND__", brand)
+          .replace("__BUTTON_AVATAR__", buttonAvatar)
+    )
+
 ##########updated end##########
 ##### --- Core JS serve_widget_js2222222: instant modal + triple-guard injection + per-brand cache key ---
 ##test end
@@ -5384,7 +5570,7 @@ def serve_cfobridge_widget():
 @app.route('/newcfobridge')
 def serve_newcfobridge_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated_new2(agent_id, branding="Powered by cfobridge", brand="newcfobridge")
+    js = serve_widget_js_updated_new3(agent_id, branding="Powered by cfobridge", brand="newcfobridge")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/voiceassistant')
