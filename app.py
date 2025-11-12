@@ -5326,7 +5326,7 @@ def serve_widget_js_updated_new2(
 def serve_widget_js_updated_new3(
     agent_id,
     branding="Powered by cfobridge",
-    brand="",
+    brand="cfobridge",
     buttonAvatar="https://sybrant.com/wp-content/uploads/2025/10/voizee_vidhya_white-e1761903844115.png",
 ):
     js = r"""
@@ -5338,26 +5338,28 @@ def serve_widget_js_updated_new3(
   const LOG_ENDPOINT="https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
   const TRANSCRIPT_ENDPOINT="https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated";
 
-  // --- Cached form (24h) ---
+  // ===== Helpers =====
+  async function wait(ms){return new Promise(r=>setTimeout(r,ms));}
+  async function fetchWithRetry(url,opts,retries=3,delay=1000){
+    for(let i=0;i<=retries;i++){
+      try{const r=await fetch(url,opts);if(r.ok)return r;}catch(_){}
+      await wait(delay*(i+1));
+    }
+  }
+
+  // ===== Cache =====
   const FORM_KEY="convai_form_cache";
   const TTL_KEY="convai_form_ttl";
-  const TTL_MS=60*60*1000;
+  const TTL_MS=24*60*60*1000;
   const saveForm=(d)=>{try{localStorage.setItem(FORM_KEY,JSON.stringify({data:d,ts:Date.now()}));localStorage.setItem(TTL_KEY,String(Date.now()+TTL_MS));}catch(_){}};  
   const getForm=()=>{try{let o=JSON.parse(localStorage.getItem(FORM_KEY)||"null");if(!o||!o.data)return null;if(Date.now()-o.ts>TTL_MS)return null;return o.data;}catch(_){return null;}};  
   const ttlActive=()=>Date.now()<parseInt(localStorage.getItem(TTL_KEY)||"0");
 
-  // --- IDs & State ---
+  // ===== IDs =====
   let VISIT_ID=(crypto.randomUUID?crypto.randomUUID():Date.now()+"_"+Math.random().toString(36).slice(2));
-  localStorage.setItem("convai_visit_id",VISIT_ID);
   let CALL_START=null, CALL_END=null, CONV_ID=null, CALL_ACTIVE=false;
 
-  // --- Helper: Retry fetch with backoff ---
-  async function fetchWithRetry(url, opts, retries=3, delay=1000){
-    try { return await fetch(url, opts); }
-    catch(e){ if(retries<=0) throw e; await new Promise(r=>setTimeout(r,delay)); return fetchWithRetry(url, opts, retries-1, delay*1.5); }
-  }
-
-  // --- Load ElevenLabs Script ---
+  // ===== ElevenLabs loader =====
   if(!window.__elevenlabs_loaded){
     const s=document.createElement("script");
     s.src="https://unpkg.com/@elevenlabs/convai-widget-embed";
@@ -5366,21 +5368,34 @@ def serve_widget_js_updated_new3(
     document.head.appendChild(s);
   }
 
-  // --- Hide branding periodically ---
+  // ===== Hide branding =====
   function hideBranding(){
-    document.querySelectorAll('p,span,a').forEach(el=>{
-      const t=(el.textContent||"").toLowerCase();
-      if(t.includes("powered by elevenlabs")||t.includes("agents"))el.remove();
-    });
+    if(!document.getElementById("hide-elevenlabs-style")){
+      const st=document.createElement("style");
+      st.id="hide-elevenlabs-style";
+      st.textContent=`p[class*="whitespace-nowrap"][class*="text-[10px]"],a[href*="elevenlabs.io"],span.opacity-30{display:none!important}`;
+      document.head.appendChild(st);
+    }
   }
-  setInterval(hideBranding,1500);
+  setInterval(hideBranding,1200);
 
-  // --- Build Tray UI (same design) ---
+  // ===== Conversation ID capture =====
+  window.addEventListener("message",(e)=>{
+    const d=e.data||{};
+    const cid=d?.conversation_initiation_metadata_event?.conversation_id||d?.conversation_id;
+    if(cid&&!CONV_ID){
+      CONV_ID=cid;
+      fetchWithRetry(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({event:"conversation_id",visit_id:VISIT_ID,conversation_id:cid,agent_id:AGENT_ID,brand:BRAND,url:location.href,client_ts_iso:new Date().toISOString(),server_ts_ms:Date.now()})});
+    }
+  });
+
+  // ===== UI =====
   function buildTray(){
     if(document.getElementById("voizee-launcher"))return;
-    const css=`.voizee-launcher{position:fixed;right:20px;bottom:20px;z-index:999999;width:90px;height:90px;border-radius:50%;cursor:pointer;background:#fff;box-shadow:0 0 20px rgba(0,123,255,0.5);display:flex;align-items:center;justify-content:center;overflow:hidden;}
-      .voizee-launcher .avatar{width:100%;height:100%;background-image:url('${AVATAR_URL}');background-size:cover;background-position:center;border-radius:50%;}
-      .voizee-tray{position:fixed;right:20px;bottom:120px;z-index:999999;width:360px;max-width:calc(100vw - 40px);transform:translateY(20px);opacity:0;pointer-events:none;transition:.25s;}
+    const css=`.voizee-launcher{position:fixed;right:20px;bottom:20px;z-index:999999;width:90px;height:90px;border-radius:50%;cursor:pointer;background:#fff;box-shadow:0 0 20px rgba(0,123,255,.5);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+      .voizee-launcher .avatar{width:100%;height:100%;background:url('${AVATAR_URL}') center/cover;border-radius:50%;}
+      .voizee-tray{position:fixed;right:20px;bottom:120px;z-index:999999;width:360px;transform:translateY(20px);opacity:0;pointer-events:none;transition:.25s;}
       .voizee-tray.open{transform:translateY(0);opacity:1;pointer-events:auto;}
       .voizee-card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.28);}
       .voizee-header{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#000;color:#fff;}
@@ -5433,12 +5448,13 @@ def serve_widget_js_updated_new3(
       const data=Object.fromEntries(new FormData(f).entries());
       saveForm(data);
       tray.classList.remove("open");
-      await fetchWithRetry(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({event:"visitor_log",visit_id:VISIT_ID,agent_id:AGENT_ID,brand:BRAND,url:location.href,...data,timestamp:new Date().toISOString()})});
+      await fetchWithRetry(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({event:"visitor_log",visit_id:VISIT_ID,agent_id:AGENT_ID,brand:BRAND,url:location.href,...data,timestamp:new Date().toISOString()})});
       startCall();
     };
   }
 
-  // --- Core: Start & End detection ---
+  // ===== Call Start & End Detection =====
   function startCall(){
     CALL_START=Date.now();
     CALL_ACTIVE=true;
@@ -5449,17 +5465,7 @@ def serve_widget_js_updated_new3(
     document.body.appendChild(el);
     hideBranding();
 
-    // Watch conversation ID
-    window.addEventListener("message",(e)=>{
-      const d=e.data||{};
-      const cid=d?.conversation_initiation_metadata_event?.conversation_id||d?.conversation_id;
-      if(cid&&!CONV_ID){
-        CONV_ID=cid;
-        fetchWithRetry(LOG_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({event:"conversation_id",visit_id:VISIT_ID,conversation_id:cid,agent_id:AGENT_ID,brand:BRAND,url:location.href,client_ts_iso:new Date().toISOString(),server_ts_ms:Date.now()})});
-      }
-    });
-
-    // Detect end automatically (DOM removed)
+    // --- Auto-end when widget removed ---
     const observer=new MutationObserver(()=>{
       if(CALL_ACTIVE && !document.body.contains(el)){
         CALL_ACTIVE=false;
@@ -5469,15 +5475,16 @@ def serve_widget_js_updated_new3(
     });
     observer.observe(document.body,{childList:true,subtree:true});
 
-    // Manual end fallback after 10min
+    // --- Manual timeout safeguard ---
     setTimeout(()=>{if(CALL_ACTIVE){CALL_ACTIVE=false;endCall();}},600000);
   }
 
   async function endCall(){
     CALL_END=Date.now();
     const duration=Math.round((CALL_END-CALL_START)/1000);
+    let transcript="";
     try{
-      await fetchWithRetry(TRANSCRIPT_ENDPOINT,{
+      const r=await fetchWithRetry(TRANSCRIPT_ENDPOINT,{
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
@@ -5489,13 +5496,32 @@ def serve_widget_js_updated_new3(
           duration_seconds:duration
         })
       });
-    }catch(e){console.warn("Transcript post failed:",e);}
+      transcript=await r.text();
+    }catch(e){console.warn("Transcript fetch failed:",e);}
+
+    // --- Push to Sheet with duration + transcript ---
+    await fetchWithRetry(LOG_ENDPOINT,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        event:"call_summary",
+        visit_id:VISIT_ID,
+        conversation_id:CONV_ID,
+        agent_id:AGENT_ID,
+        brand:BRAND,
+        url:location.href,
+        call_duration_secs:duration,
+        transcript:transcript||"",
+        client_ts_iso:new Date().toISOString(),
+        server_ts_ms:Date.now(),
+        timestamp:new Date().toISOString()
+      })
+    });
   }
 
-  // Handle browser/tab close or reload
-  window.addEventListener("beforeunload",()=>{
-    if(CALL_ACTIVE){endCall();}
-  });
+  // Handle page unload
+  window.addEventListener("beforeunload",()=>{if(CALL_ACTIVE){endCall();}});
+  window.addEventListener("pagehide",()=>{if(CALL_ACTIVE){endCall();}});
 
   if(document.readyState!=="loading")buildTray();
   else document.addEventListener("DOMContentLoaded",buildTray);
@@ -5507,6 +5533,7 @@ def serve_widget_js_updated_new3(
           .replace("__BRAND__", brand)
           .replace("__BUTTON_AVATAR__", buttonAvatar)
     )
+
 
 ##########updated end##########
 ##### --- Core JS serve_widget_js2222222: instant modal + triple-guard injection + per-brand cache key ---
