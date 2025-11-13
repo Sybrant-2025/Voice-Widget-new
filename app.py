@@ -7194,142 +7194,142 @@ def log_visitor_updated():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
-# @app.route('/fetch-transcript-updated', methods=['POST'])
-# def fetch_transcript_updated():
-#     try:
-#         data = request.get_json(force=True) or {}
-#         visit_id = (data.get("visit_id") or "").strip()
-#         conv_id  = (data.get("conversation_id") or "").strip()
-#         agent_id = (data.get("agent_id") or "").strip()
-#         brand    = (data.get("brand") or "").strip()
-#         page_url = (data.get("url") or "").strip()
-
-#         # backfill brand/url if missing
-#         meta = _VISIT_META.get(visit_id) or _CONV_META.get(conv_id) or {}
-#         brand = brand or (meta.get("brand") or "")
-#         page_url = page_url or (meta.get("url") or "")
-
-#         app.logger.info(">>> /fetch-transcript-updated visit=%s conv=%s brand=%s", visit_id, conv_id, brand or "default")
-#         if not conv_id:
-#             return jsonify({"status": "error", "message": "Missing conversation_id"}), 400
-
-#         api_key = (os.getenv("ELEVENLABS_API_KEY") or ELEVENLABS_API_KEY).strip()
-
-#         last_err = ""
-#         for _ in range(6):
-#             txt, duration, err = _pull_transcript(conv_id, api_key)
-#             if txt:
-#                 _push_transcript_to_sheet(visit_id, conv_id, txt, brand, page_url, duration)
-#                 return jsonify({"status": "success"}), 200
-#             last_err = err
-#             time.sleep(2)
-
-#         _push_transcript_to_sheet(visit_id, conv_id, f"[TRANSCRIPT_ERROR] {last_err or 'unavailable'}", brand, page_url, None)
-#         return jsonify({"status": "error", "message": last_err}), 200
-
-#     except Exception as e:
-#         app.logger.exception("/fetch-transcript-updated failed")
-#         return jsonify({"status": "error", "message": str(e)}), 500
-
-# @app.route('/fetch-transcript-updated-beacon', methods=['POST'])
-# def fetch_transcript_updated_beacon():
-#     """
-#     Handles navigator.sendBeacon() payloads during pagehide/unload.
-#     """
-#     try:
-#         raw = request.get_data(as_text=True) or ""
-#         try:
-#             data = json.loads(raw)
-#         except Exception:
-#             data = request.get_json(silent=True) or {}
-
-#         visit_id = (data.get("visit_id") or "").strip()
-#         conv_id  = (data.get("conversation_id") or "").strip()
-#         agent_id = (data.get("agent_id") or "").strip()
-#         brand    = (data.get("brand") or "").strip()
-#         page_url = (data.get("url") or "").strip()
-
-#         # backfill
-#         meta = _VISIT_META.get(visit_id) or _CONV_META.get(conv_id) or {}
-#         brand = brand or (meta.get("brand") or "")
-#         page_url = page_url or (meta.get("url") or "")
-
-#         app.logger.info(">>> /fetch-transcript-updated-beacon conv=%s brand=%s", conv_id, brand or "default")
-#         if conv_id:
-#             _schedule_transcript_pull(visit_id, conv_id, agent_id, brand, page_url)
-#         return ("", 204)
-
-#     except Exception:
-#         return ("", 204)
-
-
-
-@app.route("/fetch-transcript-updated", methods=["POST", "OPTIONS"])
+@app.route('/fetch-transcript-updated', methods=['POST'])
 def fetch_transcript_updated():
-    """Pull transcript from ElevenLabs and push call summary to Google Sheet."""
-    if request.method == "OPTIONS":
-        return Response(status=200, headers={"Access-Control-Allow-Origin": "*"})
-
-    data = request.get_json(force=True)
-    visit_id = data.get("visit_id")
-    conv_id = data.get("conversation_id")
-    brand = data.get("brand", "")
-    page_url = data.get("url", "")
-    duration = data.get("duration_seconds", 0)
-    agent_id = data.get("agent_id", "")
-
-    app.logger.info(f"[Voizee] Fetch transcript for {brand} | {conv_id}")
-
-    # Step 1: Pull transcript from ElevenLabs
-    txt, dur, err = _pull_transcript(conv_id, ELEVENLABS_API_KEY)
-    duration_final = dur or duration or 0
-
-    if not txt:
-        txt = f"[TRANSCRIPT_UNAVAILABLE] {err or 'No transcript data found'}"
-
-    # Step 2: Push transcript + duration to sheet
     try:
-        payload = {
-            "event": "call_summary",
-            "visit_id": visit_id,
-            "conversation_id": conv_id,
-            "brand": brand,
-            "url": page_url,
-            "call_duration_secs": duration_final,
-            "transcript": txt.strip(),
-            "client_ts_iso": datetime.utcnow().isoformat(),
-            "server_ts_ms": int(time.time() * 1000),
-        }
-        ok, resp = _send_to_sheet_brand(payload, brand)
-        if ok:
-            app.logger.info(f"[Voizee] ✅ Transcript pushed to sheet for {brand}")
-        else:
-            app.logger.warning(f"[Voizee] ⚠️ Failed to push transcript: {resp}")
+        data = request.get_json(force=True) or {}
+        visit_id = (data.get("visit_id") or "").strip()
+        conv_id  = (data.get("conversation_id") or "").strip()
+        agent_id = (data.get("agent_id") or "").strip()
+        brand    = (data.get("brand") or "").strip()
+        page_url = (data.get("url") or "").strip()
+
+        # backfill brand/url if missing
+        meta = _VISIT_META.get(visit_id) or _CONV_META.get(conv_id) or {}
+        brand = brand or (meta.get("brand") or "")
+        page_url = page_url or (meta.get("url") or "")
+
+        app.logger.info(">>> /fetch-transcript-updated visit=%s conv=%s brand=%s", visit_id, conv_id, brand or "default")
+        if not conv_id:
+            return jsonify({"status": "error", "message": "Missing conversation_id"}), 400
+
+        api_key = (os.getenv("ELEVENLABS_API_KEY") or ELEVENLABS_API_KEY).strip()
+
+        last_err = ""
+        for _ in range(6):
+            txt, duration, err = _pull_transcript(conv_id, api_key)
+            if txt:
+                _push_transcript_to_sheet(visit_id, conv_id, txt, brand, page_url, duration)
+                return jsonify({"status": "success"}), 200
+            last_err = err
+            time.sleep(2)
+
+        _push_transcript_to_sheet(visit_id, conv_id, f"[TRANSCRIPT_ERROR] {last_err or 'unavailable'}", brand, page_url, None)
+        return jsonify({"status": "error", "message": last_err}), 200
+
     except Exception as e:
-        app.logger.error(f"[Voizee] Error pushing transcript for {brand}: {e}")
+        app.logger.exception("/fetch-transcript-updated failed")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
-    # Step 3: Return transcript for UI logs
-    return jsonify({
-        "status": "ok",
-        "visit_id": visit_id,
-        "conversation_id": conv_id,
-        "brand": brand,
-        "duration_secs": duration_final,
-        "transcript_excerpt": txt[:200],
-    })
-
-@app.route("/fetch-transcript-updated-beacon", methods=["POST", "OPTIONS"])
+@app.route('/fetch-transcript-updated-beacon', methods=['POST'])
 def fetch_transcript_updated_beacon():
-    data = request.get_json(force=True)
-    if not data:
-        return Response(status=204)
-    visit_id = data.get("visit_id")
-    conv_id = data.get("conversation_id")
-    brand = data.get("brand", "")
-    url = data.get("url", "")
-    app.logger.info(f"[Voizee] Beacon received for {brand} | {conv_id}")
-    _schedule_transcript_pull(visit_id, conv_id, "", brand, url)
-    return Response(status=200)
+    """
+    Handles navigator.sendBeacon() payloads during pagehide/unload.
+    """
+    try:
+        raw = request.get_data(as_text=True) or ""
+        try:
+            data = json.loads(raw)
+        except Exception:
+            data = request.get_json(silent=True) or {}
+
+        visit_id = (data.get("visit_id") or "").strip()
+        conv_id  = (data.get("conversation_id") or "").strip()
+        agent_id = (data.get("agent_id") or "").strip()
+        brand    = (data.get("brand") or "").strip()
+        page_url = (data.get("url") or "").strip()
+
+        # backfill
+        meta = _VISIT_META.get(visit_id) or _CONV_META.get(conv_id) or {}
+        brand = brand or (meta.get("brand") or "")
+        page_url = page_url or (meta.get("url") or "")
+
+        app.logger.info(">>> /fetch-transcript-updated-beacon conv=%s brand=%s", conv_id, brand or "default")
+        if conv_id:
+            _schedule_transcript_pull(visit_id, conv_id, agent_id, brand, page_url)
+        return ("", 204)
+
+    except Exception:
+        return ("", 204)
+
+
+
+# @app.route("/fetch-transcript-updated", methods=["POST", "OPTIONS"])
+# def fetch_transcript_updated():
+#     """Pull transcript from ElevenLabs and push call summary to Google Sheet."""
+#     if request.method == "OPTIONS":
+#         return Response(status=200, headers={"Access-Control-Allow-Origin": "*"})
+
+#     data = request.get_json(force=True)
+#     visit_id = data.get("visit_id")
+#     conv_id = data.get("conversation_id")
+#     brand = data.get("brand", "")
+#     page_url = data.get("url", "")
+#     duration = data.get("duration_seconds", 0)
+#     agent_id = data.get("agent_id", "")
+
+#     app.logger.info(f"[Voizee] Fetch transcript for {brand} | {conv_id}")
+
+#     # Step 1: Pull transcript from ElevenLabs
+#     txt, dur, err = _pull_transcript(conv_id, ELEVENLABS_API_KEY)
+#     duration_final = dur or duration or 0
+
+#     if not txt:
+#         txt = f"[TRANSCRIPT_UNAVAILABLE] {err or 'No transcript data found'}"
+
+#     # Step 2: Push transcript + duration to sheet
+#     try:
+#         payload = {
+#             "event": "call_summary",
+#             "visit_id": visit_id,
+#             "conversation_id": conv_id,
+#             "brand": brand,
+#             "url": page_url,
+#             "call_duration_secs": duration_final,
+#             "transcript": txt.strip(),
+#             "client_ts_iso": datetime.utcnow().isoformat(),
+#             "server_ts_ms": int(time.time() * 1000),
+#         }
+#         ok, resp = _send_to_sheet_brand(payload, brand)
+#         if ok:
+#             app.logger.info(f"[Voizee] ✅ Transcript pushed to sheet for {brand}")
+#         else:
+#             app.logger.warning(f"[Voizee] ⚠️ Failed to push transcript: {resp}")
+#     except Exception as e:
+#         app.logger.error(f"[Voizee] Error pushing transcript for {brand}: {e}")
+
+#     # Step 3: Return transcript for UI logs
+#     return jsonify({
+#         "status": "ok",
+#         "visit_id": visit_id,
+#         "conversation_id": conv_id,
+#         "brand": brand,
+#         "duration_secs": duration_final,
+#         "transcript_excerpt": txt[:200],
+#     })
+
+# @app.route("/fetch-transcript-updated-beacon", methods=["POST", "OPTIONS"])
+# def fetch_transcript_updated_beacon():
+#     data = request.get_json(force=True)
+#     if not data:
+#         return Response(status=204)
+#     visit_id = data.get("visit_id")
+#     conv_id = data.get("conversation_id")
+#     brand = data.get("brand", "")
+#     url = data.get("url", "")
+#     app.logger.info(f"[Voizee] Beacon received for {brand} | {conv_id}")
+#     _schedule_transcript_pull(visit_id, conv_id, "", brand, url)
+#     return Response(status=200)
 
 
 #######updated method end
