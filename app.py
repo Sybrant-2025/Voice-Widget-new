@@ -1752,13 +1752,11 @@ def serve_widget_js_updated12_v1(
   try{localStorage.setItem("convai_visit_id",VISIT_ID);}catch(_){}
   let CALL_START=null, CALL_END=null, CONV_ID=null;
 
-  // ==============================
-  // ✅ FIX 1: Robust conversation_id capture (GLOBAL, attach once)
-  // ==============================
-  function extractConversationId(payload){
+  // ==========================================
+  // ✅ PHASE-1 FIX: Robust conversation_id capture (GLOBAL ONCE)
+  // ==========================================
+  function extractConversationId(d){
     try{
-      const d = payload || {};
-      // Try many possible shapes ElevenLabs may send
       return (
         d?.conversation_initiation_metadata_event?.conversation_id ||
         d?.conversationInitiationMetadataEvent?.conversationId ||
@@ -1778,79 +1776,74 @@ def serve_widget_js_updated12_v1(
     }
   }
 
-  if(!window.__voizee_conv_listener){
-    window.__voizee_conv_listener = true;
+  if(!window.__voizee_global_cid_listener){
+    window.__voizee_global_cid_listener = true;
     window.addEventListener("message",(e)=>{
-      const cid = extractConversationId(e.data || {});
+      const d = e.data || {};
+      const cid = extractConversationId(d);
       if(cid && !CONV_ID){
         CONV_ID = cid;
-        try{ localStorage.setItem("convai_conversation_id", CONV_ID); }catch(_){}
-        // console.log("[Voizee] conversation_id captured:", CONV_ID);
+        try{ localStorage.setItem("convai_conversation_id", cid); }catch(_){}
+        // console.log("[Voizee] CID captured:", cid);
       }
-    },false);
+    }, false);
   }
 
-  // ==============================
-  // ✅ FIX 2: Transcript fetch with retry/poll until ready
-  // ==============================
-  async function fetchTranscriptWithRetry(opts){
-    const {
-      visit_id,
-      conversation_id,
-      agent_id,
-      brand,
-      url,
-      duration_seconds,
-      max_wait_ms = 120000,   // 2 minutes max wait
-      interval_ms = 5000      // every 5 sec
-    } = opts;
+  function getCid(){
+    try{
+      return CONV_ID || localStorage.getItem("convai_conversation_id") || "";
+    }catch(_){
+      return CONV_ID || "";
+    }
+  }
 
+  // ==========================================
+  // ✅ PHASE-1 FIX: Transcript fetch with retry (poll until ready)
+  // ==========================================
+  async function fetchTranscriptWithRetry(durationSeconds){
+    const maxWaitMs = 120000;   // 2 min
+    const intervalMs = 5000;    // 5 sec
     const start = Date.now();
     let lastText = "";
 
-    while(Date.now() - start < max_wait_ms){
+    while(Date.now() - start < maxWaitMs){
+      const cid = getCid();
       try{
         const r = await fetch(TRANSCRIPT_ENDPOINT,{
           method:"POST",
           headers:{"Content-Type":"application/json"},
           body:JSON.stringify({
-            visit_id,
-            conversation_id,
-            agent_id,
-            brand,
-            url,
-            duration_seconds
+            visit_id: VISIT_ID,
+            conversation_id: cid,
+            agent_id: AGENT_ID,
+            brand: BRAND,
+            url: location.href,
+            duration_seconds: durationSeconds
           })
         });
 
-        // Try JSON first, fallback to text
+        // Prefer JSON if API returns it; fallback to text
         let t = "";
         const ct = (r.headers.get("content-type") || "").toLowerCase();
         if(ct.includes("application/json")){
           const j = await r.json().catch(()=>null);
-          if(j){
-            t = (j.transcript || j.text || j.data || "").toString();
-          }
+          if(j) t = (j.transcript || j.text || j.data || "").toString();
         }else{
           t = (await r.text().catch(()=> "")) || "";
         }
 
         t = (t || "").trim();
-
-        // If transcript is valid and not a tiny placeholder, return it
         if(t && t.length >= 20){
           return t;
         }
-
-        lastText = t || lastText;
+        if(t) lastText = t;
       }catch(_){
         // ignore and retry
       }
 
-      await new Promise(res => setTimeout(res, interval_ms));
+      await new Promise(res => setTimeout(res, intervalMs));
     }
 
-    // Return whatever we got (may be empty)
     return (lastText || "").trim();
   }
 
@@ -2041,47 +2034,39 @@ def serve_widget_js_updated12_v1(
 
     // auto click start
     function tryStartCall(retries=10){
-      const sr=convaiTag.shadowRoot;if(sr){const btn=sr.querySelector('button[aria-label*="Start"],button[title*="Start"],button:has(svg)');if(btn){btn.click();return;}}
+      const sr=convaiTag.shadowRoot;
+      if(sr){
+        const btn=sr.querySelector('button[aria-label*="Start"],button[title*="Start"],button:has(svg)');
+        if(btn){btn.click();return;}
+      }
       if(retries>0)setTimeout(()=>tryStartCall(retries-1),800);
     }
     tryStartCall();
 
-    const endBtnHandler=async()=>{
+    // ✅ finalize only once
+    async function finalizeCall(){
+      if(window.__voizee_call_finalized) return;
+      window.__voizee_call_finalized = true;
+
       observer.disconnect();
       CALL_END=Date.now();
       const duration=Math.round((CALL_END-CALL_START)/1000);
 
-      // ✅ Wait briefly for conversation_id if not captured yet
+      // wait up to 15s for CID
       const waitStart = Date.now();
-      while(!CONV_ID && (Date.now()-waitStart) < 15000){
-        // try also from localStorage in case it was captured earlier
-        try{ CONV_ID = CONV_ID || localStorage.getItem("convai_conversation_id"); }catch(_){}
-        await new Promise(res=>setTimeout(res,500));
+      while(!getCid() && (Date.now()-waitStart)<15000){
+        await new Promise(r=>setTimeout(r,500));
       }
 
-      // ✅ Poll transcript endpoint until transcript is ready (instead of single fixed 30s)
-      let transcript = "";
-      try{
-        transcript = await fetchTranscriptWithRetry({
-          visit_id: VISIT_ID,
-          conversation_id: CONV_ID || "",
-          agent_id: AGENT_ID,
-          brand: BRAND,
-          url: location.href,
-          duration_seconds: duration,
-          max_wait_ms: 120000,
-          interval_ms: 5000
-        });
-      }catch(_){}
+      const transcript = await fetchTranscriptWithRetry(duration);
 
-      // ✅ Always send call_summary (even if transcript empty)
       await fetch(LOG_ENDPOINT,{
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
           event:"call_summary",
           visit_id:VISIT_ID,
-          conversation_id:CONV_ID,
+          conversation_id:getCid(),
           agent_id:AGENT_ID,
           brand:BRAND,
           url:location.href,
@@ -2092,11 +2077,33 @@ def serve_widget_js_updated12_v1(
       }).catch(()=>{});
 
       convaiTag.remove();
-      document.querySelector("#voizee-tray").classList.remove("open");
-    };
+      const tray=document.querySelector("#voizee-tray");
+      if(tray) tray.classList.remove("open");
+    }
 
+    // ✅ Your custom "End Call" button
     const endButton=bodyEl?.querySelector("#end-call");
-    if(endButton)endButton.onclick=endBtnHandler;
+    if(endButton) endButton.onclick=finalizeCall;
+
+    // ✅ PHASE-1 FIX: Hook ElevenLabs internal End/Hangup button too
+    const hookInterval = setInterval(()=>{
+      try{
+        const sr = convaiTag.shadowRoot;
+        if(!sr) return;
+
+        const btns = sr.querySelectorAll("button");
+        btns.forEach(btn=>{
+          const txt = ((btn.textContent||"") + " " + (btn.getAttribute("aria-label")||"") + " " + (btn.getAttribute("title")||"")).toLowerCase();
+          if(txt.includes("end") || txt.includes("hang") || txt.includes("stop")){
+            if(!btn.__voizee_end_hooked){
+              btn.__voizee_end_hooked = true;
+              btn.addEventListener("click", finalizeCall, { once:true });
+            }
+          }
+        });
+      }catch(_){}
+    }, 800);
+    setTimeout(()=>clearInterval(hookInterval), 20000);
   }
 
   if(document.readyState!=="loading")buildTray();
@@ -2110,6 +2117,7 @@ def serve_widget_js_updated12_v1(
           .replace("__BRAND__", brand)
           .replace("__BUTTON_AVATAR__", buttonAvatar)
     )
+
 
 
 ##########updated end##########
