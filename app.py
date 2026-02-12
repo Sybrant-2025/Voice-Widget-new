@@ -1736,44 +1736,68 @@ def serve_widget_js_updated12_v1(
   const BRAND="__BRAND__";
   const BRANDING_TEXT="__BRANDING__";
   const AVATAR_URL="__BUTTON_AVATAR__";
-  const LOG_ENDPOINT=location.origin + "/log-visitor-updated";
-  const TRANSCRIPT_ENDPOINT=location.origin + "/fetch-transcript-updated";
 
-  // ===== Cache (24h) =====
+  // ✅ Option A: same-origin endpoints (no CORS)
+  const LOG_ENDPOINT = location.origin + "/log-visitor-updated";
+  const TRANSCRIPT_ENDPOINT = location.origin + "/fetch-transcript-updated";
+
+  // ===== Cache (1 hour) =====
   const FORM_KEY="convai_form_cache";
   const TTL_KEY="convai_form_ttl";
-  const TTL_MS=60*1000;
+  const TTL_MS=60*60*1000; // 1 hour
   const saveForm=(d)=>{try{localStorage.setItem(FORM_KEY,JSON.stringify({data:d,ts:Date.now()}));localStorage.setItem(TTL_KEY,String(Date.now()+TTL_MS));}catch(_){}};  
   const getForm=()=>{try{let o=JSON.parse(localStorage.getItem(FORM_KEY)||"null");if(!o||!o.data)return null;if(Date.now()-o.ts>TTL_MS)return null;return o.data;}catch(_){return null;}};  
   const ttlActive=()=>Date.now()<parseInt(localStorage.getItem(TTL_KEY)||"0");
 
   // ===== IDs & state =====
-  let VISIT_ID=(crypto.randomUUID?crypto.randomUUID():Date.now()+"_"+Math.random().toString(36).slice(2));
-  try{localStorage.setItem("convai_visit_id",VISIT_ID);}catch(_){}
+  function newVisitId(){
+    const v = (crypto.randomUUID?crypto.randomUUID():Date.now()+"_"+Math.random().toString(36).slice(2));
+    try{ localStorage.setItem("convai_visit_id", v); }catch(_){}
+    return v;
+  }
+  let VISIT_ID = newVisitId();
   let CALL_START=null, CALL_END=null, CONV_ID=null;
 
   // ==========================================
-  // ✅ PHASE-1 FIX: Robust conversation_id capture (GLOBAL ONCE)
+  // ✅ Robust conversation_id capture (GLOBAL ONCE)
   // ==========================================
   function extractConversationId(d){
     try{
-      return (
+      const direct =
         d?.conversation_initiation_metadata_event?.conversation_id ||
-        d?.conversationInitiationMetadataEvent?.conversationId ||
         d?.conversation_initiation_metadata_event?.conversationId ||
+        d?.conversationInitiationMetadataEvent?.conversation_id ||
+        d?.conversationInitiationMetadataEvent?.conversationId ||
+        d?.conversation_metadata?.conversation_id ||
+        d?.conversation_metadata?.conversationId ||
         d?.conversation_id ||
         d?.conversationId ||
-        d?.metadata?.conversation_id ||
-        d?.metadata?.conversationId ||
         d?.detail?.conversation_id ||
         d?.detail?.conversationId ||
         d?.data?.conversation_id ||
         d?.data?.conversationId ||
-        null
-      );
-    }catch(_){
-      return null;
-    }
+        null;
+      if(direct) return direct;
+
+      // deep scan
+      const stack = [d];
+      const seen = new Set();
+      while(stack.length){
+        const cur = stack.pop();
+        if(!cur || typeof cur !== "object") continue;
+        if(seen.has(cur)) continue;
+        seen.add(cur);
+
+        if(typeof cur.conversation_id === "string" && cur.conversation_id) return cur.conversation_id;
+        if(typeof cur.conversationId === "string" && cur.conversationId) return cur.conversationId;
+
+        for(const k in cur){
+          const v = cur[k];
+          if(v && typeof v === "object") stack.push(v);
+        }
+      }
+    }catch(_){}
+    return null;
   }
 
   if(!window.__voizee_global_cid_listener){
@@ -1790,15 +1814,12 @@ def serve_widget_js_updated12_v1(
   }
 
   function getCid(){
-    try{
-      return CONV_ID || localStorage.getItem("convai_conversation_id") || "";
-    }catch(_){
-      return CONV_ID || "";
-    }
+    try{ return CONV_ID || localStorage.getItem("convai_conversation_id") || ""; }
+    catch(_){ return CONV_ID || ""; }
   }
 
   // ==========================================
-  // ✅ PHASE-1 FIX: Transcript fetch with retry (poll until ready)
+  // ✅ Transcript fetch with retry (poll until ready)
   // ==========================================
   async function fetchTranscriptWithRetry(durationSeconds){
     const maxWaitMs = 120000;   // 2 min
@@ -1822,7 +1843,6 @@ def serve_widget_js_updated12_v1(
           })
         });
 
-        // Prefer JSON if API returns it; fallback to text
         let t = "";
         const ct = (r.headers.get("content-type") || "").toLowerCase();
         if(ct.includes("application/json")){
@@ -1837,10 +1857,7 @@ def serve_widget_js_updated12_v1(
           return t;
         }
         if(t) lastText = t;
-      }catch(_){
-        // ignore and retry
-      }
-
+      }catch(_){}
       await new Promise(res => setTimeout(res, intervalMs));
     }
 
@@ -1976,7 +1993,12 @@ def serve_widget_js_updated12_v1(
     document.body.appendChild(tray);
 
     launcher.onclick=()=>{
-      if(ttlActive()){console.log("Form already submitted recently — skipping");tray.classList.remove("open");startCall();return;}
+      if(ttlActive()){
+        // ✅ skip form within 1 hour; start call directly
+        tray.classList.remove("open");
+        startCall();
+        return;
+      }
       tray.classList.add("open");
     };
     tray.querySelector("#voizee-close").onclick=()=>tray.classList.remove("open");
@@ -1995,6 +2017,7 @@ def serve_widget_js_updated12_v1(
       const fd=new FormData(e.target);
       const data=Object.fromEntries(fd.entries());
       saveForm(data);
+
       const btn=tray.querySelector("#voizee-submit");
       btn.textContent="Submitting...";btn.disabled=true;
 
@@ -2021,6 +2044,9 @@ def serve_widget_js_updated12_v1(
 
   // ===== Start ElevenLabs Call =====
   function startCall(bodyEl){
+    // ✅ new visit id for each call
+    VISIT_ID = newVisitId();
+
     CALL_START=Date.now();
     const convaiTag=document.createElement("elevenlabs-convai");
     convaiTag.setAttribute("agent-id",AGENT_ID);
@@ -2032,14 +2058,48 @@ def serve_widget_js_updated12_v1(
     const observer=new MutationObserver(()=>{if(bodyEl&&!bodyEl.contains(convaiTag)){bodyEl.querySelector("#call-widget").appendChild(convaiTag);}});
     observer.observe(document.body,{childList:true,subtree:true});
 
-    // auto click start
-    function tryStartCall(retries=10){
-      const sr=convaiTag.shadowRoot;
+    // Sometimes CID becomes available later; re-check briefly
+    const cidInterval = setInterval(()=>{
+      if(getCid()){ clearInterval(cidInterval); return; }
+      try{
+        const maybe = convaiTag.getAttribute("conversation-id") || convaiTag.dataset?.conversationId;
+        if(maybe){
+          CONV_ID = maybe;
+          try{ localStorage.setItem("convai_conversation_id", maybe); }catch(_){}
+          clearInterval(cidInterval);
+        }
+      }catch(_){}
+    }, 1000);
+    setTimeout(()=>clearInterval(cidInterval), 20000);
+
+    // ✅ improved auto-start (works with "Talk" UI)
+    function tryStartCall(retries=20){
+      const sr = convaiTag.shadowRoot;
       if(sr){
-        const btn=sr.querySelector('button[aria-label*="Start"],button[title*="Start"],button:has(svg)');
-        if(btn){btn.click();return;}
+        const buttons = Array.from(sr.querySelectorAll("button"));
+        let candidate = null;
+
+        for(const b of buttons){
+          const txt = ((b.textContent||"") + " " + (b.getAttribute("aria-label")||"") + " " + (b.getAttribute("title")||"")).toLowerCase();
+          if(txt.includes("talk") || txt.includes("start") || txt.includes("call") || txt.includes("microphone") || txt.includes("mic")){
+            candidate = b; break;
+          }
+        }
+
+        if(!candidate){
+          candidate = buttons.find(b=>{
+            const txt = ((b.textContent||"") + " " + (b.getAttribute("aria-label")||"") + " " + (b.getAttribute("title")||"")).toLowerCase();
+            const rect = b.getBoundingClientRect();
+            return rect.width>0 && rect.height>0 && !txt.includes("end") && !txt.includes("hang");
+          });
+        }
+
+        if(candidate){
+          candidate.click();
+          return;
+        }
       }
-      if(retries>0)setTimeout(()=>tryStartCall(retries-1),800);
+      if(retries>0) setTimeout(()=>tryStartCall(retries-1), 600);
     }
     tryStartCall();
 
@@ -2079,13 +2139,16 @@ def serve_widget_js_updated12_v1(
       convaiTag.remove();
       const tray=document.querySelector("#voizee-tray");
       if(tray) tray.classList.remove("open");
+
+      // reset for next call
+      window.__voizee_call_finalized = false;
     }
 
     // ✅ Your custom "End Call" button
     const endButton=bodyEl?.querySelector("#end-call");
     if(endButton) endButton.onclick=finalizeCall;
 
-    // ✅ PHASE-1 FIX: Hook ElevenLabs internal End/Hangup button too
+    // ✅ Hook ElevenLabs internal End/Hangup button too
     const hookInterval = setInterval(()=>{
       try{
         const sr = convaiTag.shadowRoot;
