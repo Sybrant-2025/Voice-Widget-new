@@ -1736,8 +1736,8 @@ def serve_widget_js_updated12_v1(
   const BRAND="__BRAND__";
   const BRANDING_TEXT="__BRANDING__";
   const AVATAR_URL="__BUTTON_AVATAR__";
-  const LOG_ENDPOINT="https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
-  const TRANSCRIPT_ENDPOINT="https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated";
+  const LOG_ENDPOINT=location.origin + "/log-visitor-updated";
+  const TRANSCRIPT_ENDPOINT=location.origin + "/fetch-transcript-updated";
 
   // ===== Cache (24h) =====
   const FORM_KEY="convai_form_cache";
