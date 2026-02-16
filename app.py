@@ -8,7 +8,7 @@ import datetime
 import time
 import subprocess
 import threading
-
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
@@ -3868,7 +3868,7 @@ def serve_widget_js_updated12_v6(
   const AVATAR_URL = "__BUTTON_AVATAR__";
 
   const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
-  const TRANSCRIPT_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated";
+  const TRANSCRIPT_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated-cfo";
   const TRANSCRIPT_BEACON_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated-beacon";
 
   // ===== Cache (TTL) =====
@@ -4303,7 +4303,14 @@ def serve_widget_js_updated12_v6(
       fetch(TRANSCRIPT_ENDPOINT, {
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+		  visit_id: VISIT_ID,
+		  conversation_id: CONV_ID || "",
+		  agent_id: AGENT_ID,
+		  brand: BRAND,
+		  url: location.href,
+		  duration_seconds: duration		
+		}),
         keepalive:true
       }).catch(()=>{});
     }, 30000);
@@ -4696,6 +4703,92 @@ def fetch_transcript_updated_beacon():
     except Exception:
         return ("", 204)
 
+############cfo version
+@app.route("/fetch-transcript-updated-cfo", methods=["POST", "OPTIONS"])
+def fetch_transcript_updated_cfo():
+    """
+    CFOBridge-only: fetch transcript from ElevenLabs and push to Sheets as event=call_summary
+    (so it matches your updated12 Apps Script).
+    """
+    if request.method == "OPTIONS":
+        return Response(
+            status=200,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+            },
+        )
+
+    try:
+        data = request.get_json(force=True) or {}
+
+        visit_id = (data.get("visit_id") or "").strip()
+        conv_id  = (data.get("conversation_id") or "").strip()
+        brand    = (data.get("brand") or "").strip()
+        page_url = (data.get("url") or "").strip()
+        agent_id = (data.get("agent_id") or "").strip()
+        duration_frontend = data.get("duration_seconds")
+
+        # backfill brand/url if missing (your file already keeps these maps)
+        meta = _VISIT_META.get(visit_id) or _CONV_META.get(conv_id) or {}
+        brand    = brand or (meta.get("brand") or "")
+        page_url = page_url or (meta.get("url") or "")
+
+        if not conv_id:
+            return jsonify({"status": "error", "message": "conversation_id missing"}), 200
+
+        api_key = (os.getenv("ELEVENLABS_API_KEY") or ELEVENLABS_API_KEY).strip()
+
+        last_err = ""
+        txt = ""
+        dur = None
+
+        # retry a few times because transcript becomes available with delay
+        for _ in range(6):
+            txt, dur, last_err = _pull_transcript(conv_id, api_key)
+            if txt:
+                break
+            time.sleep(2)
+
+        # duration preference: ElevenLabs duration > frontend duration_seconds > 0
+        duration_final = dur
+        if (duration_final is None or duration_final == "") and duration_frontend is not None:
+            try:
+                duration_final = int(duration_frontend)
+            except Exception:
+                duration_final = duration_frontend
+
+        if not txt:
+            txt = f"[TRANSCRIPT_UNAVAILABLE] {last_err or 'No transcript data found'}"
+
+        # ✅ CFO Apps Script expects event="call_summary"
+        payload = {
+            "event": "call_summary",
+            "visit_id": visit_id,
+            "conversation_id": conv_id,
+            "agent_id": agent_id,
+            "brand": brand,
+            "url": page_url,
+            "duration_seconds": duration_final or "",
+            "transcript": (txt or "").strip(),
+            "timestamp": datetime.utcnow().isoformat(),
+            "server_timestamp_ms": int(time.time() * 1000),
+        }
+
+        ok, resp = _send_to_sheet_brand(payload, brand)
+
+        return jsonify({
+            "status": "success" if ok else "error",
+            "visit_id": visit_id,
+            "conversation_id": conv_id,
+            "duration_seconds": duration_final,
+            "sheet_resp": (resp or "")[:200],
+        }), 200
+
+    except Exception as e:
+        app.logger.exception("/fetch-transcript-updated-cfo failed")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 # @app.route("/fetch-transcript-updated", methods=["POST", "OPTIONS"])
