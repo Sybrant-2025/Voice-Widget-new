@@ -4368,6 +4368,229 @@ def serve_widget_js_updated12_v6(
           .replace("__BUTTON_AVATAR__", buttonAvatar)
     )
 
+# ---------- Widget JS (Tray + Form + Conversation-ID + Duration + Transcript) ----------
+def serve_widget_js_updated12_v7(
+    agent_id,
+    branding="Powered by cfobridge",
+    brand="",
+    buttonAvatar="https://sybrant.com/wp-content/uploads/2025/10/voizee_vidhya_white-e1761903844115.png",
+):
+    js = r"""
+(function () {
+
+  const AGENT_ID = "__AGENT_ID__";
+  const BRAND = "__BRAND__";
+  const BRANDING_TEXT = "__BRANDING__";
+  const AVATAR_URL = "__BUTTON_AVATAR__";
+
+  const LOG_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/log-visitor-updated";
+  const TRANSCRIPT_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated-cfo";
+
+  // =============================
+  // IDs
+  // =============================
+  let VISIT_ID = (crypto.randomUUID ? crypto.randomUUID() :
+    Date.now() + "_" + Math.random().toString(36).slice(2));
+
+  let CONV_ID = null;
+  let CALL_START_MS = null;
+  let CALL_ENDED = false;
+
+  // =============================
+  // Capture Conversation ID
+  // =============================
+  function postConversationId(cid){
+    fetch(LOG_ENDPOINT,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        event:"conversation_id",
+        visit_id:VISIT_ID,
+        conversation_id:cid,
+        agent_id:AGENT_ID,
+        brand:BRAND,
+        url:location.href,
+        timestamp:new Date().toISOString()
+      })
+    }).catch(()=>{});
+  }
+
+  function setConvIdOnce(cid){
+    if (!cid || CONV_ID) return;
+    CONV_ID = cid;
+    postConversationId(CONV_ID);
+  }
+
+  window.addEventListener("message",(evt)=>{
+    try{
+      const d = evt?.data;
+      const cid = d?.conversation_initiation_metadata_event?.conversation_id || d?.conversation_id;
+      if (cid) setConvIdOnce(cid);
+    }catch(_){}
+  },false);
+
+  (function patchWebSocket(){
+    const OriginalWS = window.WebSocket;
+    if (!OriginalWS || window.__voizee_ws_patch) return;
+    window.__voizee_ws_patch = true;
+
+    function WrappedWS(url,protocols){
+      const ws = protocols ? new OriginalWS(url,protocols) : new OriginalWS(url);
+      ws.addEventListener("message",(ev)=>{
+        try{
+          if(typeof ev.data!=="string") return;
+          const d = JSON.parse(ev.data);
+          const cid = d?.conversation_initiation_metadata_event?.conversation_id || d?.conversation_id;
+          if(cid) setConvIdOnce(cid);
+        }catch(_){}
+      });
+      return ws;
+    }
+    WrappedWS.prototype = OriginalWS.prototype;
+    window.WebSocket = WrappedWS;
+  })();
+
+  // =============================
+  // Load ElevenLabs
+  // =============================
+  function loadWidget(){
+    return new Promise((resolve)=>{
+      if (customElements.get("elevenlabs-convai")) return resolve();
+      const s=document.createElement("script");
+      s.src="https://unpkg.com/@elevenlabs/convai-widget-embed";
+      s.async=true;
+      s.onload=()=>resolve();
+      s.onerror=()=>resolve();
+      document.head.appendChild(s);
+    });
+  }
+
+  // =============================
+  // UI
+  // =============================
+  function injectCSS(){
+    if(document.getElementById("voizee-css")) return;
+    const style=document.createElement("style");
+    style.id="voizee-css";
+    style.textContent=`
+      .voizee-launcher{position:fixed;right:20px;bottom:20px;z-index:999999;width:90px;height:90px;border-radius:50%;cursor:pointer;background:#fff;box-shadow:0 0 20px rgba(0,123,255,.5);display:flex;align-items:center;justify-content:center;}
+      .voizee-launcher .avatar{width:100%;height:100%;background-image:url('${AVATAR_URL}');background-size:cover;background-position:center;border-radius:50%;}
+      .voizee-tray{position:fixed;right:20px;bottom:120px;z-index:999999;width:360px;max-width:calc(100vw - 40px);background:#fff;border-radius:16px;box-shadow:0 16px 48px rgba(0,0,0,.28);display:none;font-family:sans-serif;}
+      .voizee-tray.open{display:block;}
+      .voizee-body{padding:14px;}
+      .voizee-input{width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;margin-bottom:10px;}
+      .voizee-btn{width:100%;padding:10px;border:none;border-radius:8px;background:#000;color:#fff;cursor:pointer;}
+      #voizee-call-widget elevenlabs-convai{display:block;width:100%;min-height:360px;}
+    `;
+    document.head.appendChild(style);
+  }
+
+  function buildUI(){
+    injectCSS();
+
+    const launcher=document.createElement("div");
+    launcher.className="voizee-launcher";
+    launcher.innerHTML='<div class="avatar"></div>';
+    document.body.appendChild(launcher);
+
+    const tray=document.createElement("div");
+    tray.className="voizee-tray";
+    tray.innerHTML=`
+      <div class="voizee-body" id="voizee-body">
+        <form id="voizee-form">
+          <input class="voizee-input" name="name" placeholder="Full name" required>
+          <input class="voizee-input" name="company" placeholder="Company name" required>
+          <input class="voizee-input" name="email" placeholder="Email" required>
+          <input class="voizee-input" name="phone" placeholder="Phone" required>
+          <button type="submit" class="voizee-btn">Start Call</button>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(tray);
+
+    launcher.onclick=()=>tray.classList.add("open");
+
+    tray.querySelector("#voizee-form").onsubmit=async(e)=>{
+      e.preventDefault();
+      const fd=new FormData(e.target);
+      const fields=Object.fromEntries(fd.entries());
+
+      await fetch(LOG_ENDPOINT,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          event:"visitor_log",
+          visit_id:VISIT_ID,
+          agent_id:AGENT_ID,
+          brand:BRAND,
+          url:location.href,
+          timestamp:new Date().toISOString(),
+          name:fields.name,
+          company:fields.company,
+          email:fields.email,
+          phone:fields.phone
+        })
+      }).catch(()=>{});
+
+      startCall(tray);
+    };
+  }
+
+  async function startCall(tray){
+    CALL_START_MS=Date.now();
+
+    const body=tray.querySelector("#voizee-body");
+    body.innerHTML=`<div id="voizee-call-widget"></div><button id="voizee-end" class="voizee-btn" style="margin-top:10px;">End Call</button>`;
+
+    await loadWidget();
+
+    const tag=document.createElement("elevenlabs-convai");
+    tag.setAttribute("agent-id",AGENT_ID);
+    document.getElementById("voizee-call-widget").appendChild(tag);
+
+    document.getElementById("voizee-end").onclick=()=>endCall(tag,tray);
+  }
+
+  function endCall(tag,tray){
+    if(CALL_ENDED) return;
+    CALL_ENDED=true;
+
+    const durationSec=Math.max(0,Math.round((Date.now()-CALL_START_MS)/1000));
+
+    // Request transcript after 30 sec
+    setTimeout(()=>{
+      if(!CONV_ID) return;
+
+      fetch(TRANSCRIPT_ENDPOINT,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          visit_id:VISIT_ID,
+          conversation_id:CONV_ID,
+          agent_id:AGENT_ID,
+          brand:BRAND,
+          url:location.href,
+          duration_seconds:durationSec
+        }),
+        keepalive:true
+      }).catch(()=>{});
+    },30000);
+
+    tag.remove();
+    tray.classList.remove("open");
+  }
+
+  if(document.readyState!=="loading") buildUI();
+  else document.addEventListener("DOMContentLoaded",buildUI);
+
+})();
+    """
+    return (
+        js.replace("__AGENT_ID__", agent_id)
+          .replace("__BRANDING__", branding)
+          .replace("__BRAND__", brand)
+          .replace("__BUTTON_AVATAR__", buttonAvatar)
+    )
 
 
 ##########updated end##########
@@ -4432,7 +4655,7 @@ def serve_cfobridge_widget():
 @app.route('/newcfobridge')
 def serve_newcfobridge_widget():
     agent_id = request.args.get('agent', 'YOUR_DEFAULT_AGENT_ID')
-    js = serve_widget_js_updated12_v6(agent_id, branding="Powered by cfobridge", brand="newcfobridge")
+    js = serve_widget_js_updated12_v7(agent_id, branding="Powered by cfobridge", brand="newcfobridge")
     return Response(js, mimetype='application/javascript')
 
 @app.route('/voiceassistant')
