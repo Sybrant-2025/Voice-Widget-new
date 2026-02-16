@@ -3871,116 +3871,118 @@ def serve_widget_js_updated12_v6(
   const TRANSCRIPT_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated";
   const TRANSCRIPT_BEACON_ENDPOINT = "https://voice-widget-new-production-177d.up.railway.app/fetch-transcript-updated-beacon";
 
-  // =========================
-  // Cache (TTL)
-  // =========================
+  // ===== Cache (TTL) =====
   const FORM_KEY = "convai_form_cache";
-  const TTL_KEY = "convai_form_ttl";
-  const TTL_MS = 24 * 60 * 60 * 1000; // 24h (change if you want)
+  const TTL_KEY  = "convai_form_ttl";
+  const TTL_MS   = 24 * 60 * 60 * 1000;
 
-  const saveForm = (d) => {
-    try {
-      localStorage.setItem(FORM_KEY, JSON.stringify({ data: d, ts: Date.now() }));
-      localStorage.setItem(TTL_KEY, String(Date.now() + TTL_MS));
-    } catch (_) {}
-  };
-  const getForm = () => {
-    try {
-      const o = JSON.parse(localStorage.getItem(FORM_KEY) || "null");
-      if (!o || !o.data) return null;
-      if (Date.now() - (o.ts || 0) > TTL_MS) return null;
-      return o.data;
-    } catch (_) {
-      return null;
-    }
-  };
+  const saveForm = (d) => { try {
+    localStorage.setItem(FORM_KEY, JSON.stringify({ data:d, ts:Date.now() }));
+    localStorage.setItem(TTL_KEY, String(Date.now() + TTL_MS));
+  } catch(_){} };
+
+  const getForm = () => { try {
+    const o = JSON.parse(localStorage.getItem(FORM_KEY) || "null");
+    if (!o || !o.data) return null;
+    if (Date.now() - (o.ts || 0) > TTL_MS) return null;
+    return o.data;
+  } catch(_) { return null; } };
+
   const ttlActive = () => Date.now() < parseInt(localStorage.getItem(TTL_KEY) || "0", 10);
 
-  // =========================
-  // IDs & State
-  // =========================
-  let VISIT_ID =
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : Date.now() + "_" + Math.random().toString(36).slice(2);
+  // ===== IDs =====
+  let VISIT_ID = (typeof crypto !== "undefined" && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : (Date.now() + "_" + Math.random().toString(36).slice(2));
 
-  try { localStorage.setItem("convai_visit_id", VISIT_ID); } catch (_) {}
+  try { localStorage.setItem("convai_visit_id", VISIT_ID); } catch(_) {}
 
   let CONV_ID = null;
   let CALL_START_MS = null;
   let CALL_END_MS = null;
   let CALL_ENDED = false;
 
-  // "last submitted form" so we can re-send visitor_log with conv id once it arrives
   let LAST_FORM_FIELDS = null;
   let VISITOR_LOG_SENT = false;
   let VISITOR_LOG_SENT_WITH_CONV = false;
 
   // =========================
-  // Ensure ElevenLabs script loaded BEFORE inserting widget
+  // Load ElevenLabs + wait for custom element
   // =========================
   function ensureElevenLabsLoaded() {
     return new Promise((resolve) => {
       try {
-        if (window.__elevenlabs_loaded) return resolve();
+        // if already defined, done
+        if (window.customElements && customElements.get("elevenlabs-convai")) return resolve();
 
-        const existing = document.querySelector('script[src*="convai-widget-embed"]');
+        // avoid double-inject
+        const existing = document.querySelector('script[data-voizee-eleven="1"]');
         if (existing) {
-          existing.addEventListener("load", () => {
-            window.__elevenlabs_loaded = true;
-            resolve();
-          }, { once: true });
-          existing.addEventListener("error", () => resolve(), { once: true });
+          existing.addEventListener("load", () => resolve(), { once:true });
+          existing.addEventListener("error", () => resolve(), { once:true });
           return;
         }
 
         const s = document.createElement("script");
+        s.dataset.voizeeEleven = "1";
         s.src = "https://unpkg.com/@elevenlabs/convai-widget-embed";
         s.async = true;
-        s.onload = () => { window.__elevenlabs_loaded = true; resolve(); };
+        s.onload = () => resolve();
         s.onerror = () => {
-          // fallback
-          const fallback = document.createElement("script");
-          fallback.src = "https://elevenlabs.io/convai-widget/index.js";
-          fallback.async = true;
-          fallback.onload = () => { window.__elevenlabs_loaded = true; resolve(); };
-          fallback.onerror = () => resolve();
-          document.head.appendChild(fallback);
+          const f = document.createElement("script");
+          f.dataset.voizeeEleven = "1";
+          f.src = "https://elevenlabs.io/convai-widget/index.js";
+          f.async = true;
+          f.onload = () => resolve();
+          f.onerror = () => resolve();
+          document.head.appendChild(f);
         };
         document.head.appendChild(s);
-      } catch (_) {
+      } catch(_) {
         resolve();
       }
     });
   }
 
+  async function whenWidgetDefined(timeoutMs = 12000) {
+    try {
+      if (window.customElements && customElements.get("elevenlabs-convai")) return true;
+      if (!window.customElements || !customElements.whenDefined) return true;
+
+      const p = customElements.whenDefined("elevenlabs-convai");
+      const t = new Promise((res) => setTimeout(() => res(false), timeoutMs));
+      const ok = await Promise.race([p.then(()=>true), t]);
+      return ok === true;
+    } catch(_) {
+      return true;
+    }
+  }
+
   // =========================
-  // Conversation ID capture (same idea as your working serve_widget_js_updated)
+  // Conversation ID capture (same as working version)
   // =========================
   function postConversationIdToSheet(cid) {
-    if (!cid) return;
     fetch(LOG_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         event: "conversation_id",
         visit_id: VISIT_ID,
-        conversation_id: cid,
+        conversation_id: cid || "",
         agent_id: AGENT_ID,
         brand: BRAND,
         url: location.href,
         timestamp: new Date().toISOString()
       })
-    }).catch(() => {});
+    }).catch(()=>{});
   }
 
   function maybeReLogVisitorWithConvId() {
     if (!LAST_FORM_FIELDS) return;
-    if (VISITOR_LOG_SENT_WITH_CONV) return;
     if (!CONV_ID) return;
+    if (VISITOR_LOG_SENT_WITH_CONV) return;
 
     VISITOR_LOG_SENT_WITH_CONV = true;
-
     fetch(LOG_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -3997,36 +3999,30 @@ def serve_widget_js_updated12_v6(
         email: LAST_FORM_FIELDS.email || "",
         phone: LAST_FORM_FIELDS.phone || ""
       })
-    }).catch(() => {});
+    }).catch(()=>{});
   }
 
   function setConvIdOnce(cid) {
     if (!cid || CONV_ID) return;
     CONV_ID = cid;
-
-    // 1) Update sheet row with conv id
     postConversationIdToSheet(CONV_ID);
-
-    // 2) Re-log visitor row with conv id (optional, but helps when first log had "")
     maybeReLogVisitorWithConvId();
   }
 
-  // capture from postMessage
   window.addEventListener("message", (evt) => {
     try {
-      const d = evt && evt.data;
+      const d = evt?.data;
       const cid = d?.conversation_initiation_metadata_event?.conversation_id || d?.conversation_id;
-      setConvIdOnce(cid);
-    } catch (_) {}
+      if (cid) setConvIdOnce(cid);
+    } catch(_) {}
   }, false);
 
-  // capture from WebSocket JSON messages
-  (function patchWebSocket() {
+  (function patchWebSocket(){
     const OriginalWS = window.WebSocket;
     if (!OriginalWS || window.__voizee_ws_patched) return;
     window.__voizee_ws_patched = true;
 
-    function WrappedWS(url, protocols) {
+    function WrappedWS(url, protocols){
       const ws = protocols ? new OriginalWS(url, protocols) : new OriginalWS(url);
       ws.addEventListener("message", (ev) => {
         try {
@@ -4034,22 +4030,19 @@ def serve_widget_js_updated12_v6(
           const d = JSON.parse(ev.data);
           const cid = d?.conversation_initiation_metadata_event?.conversation_id || d?.conversation_id;
           if (cid) setConvIdOnce(cid);
-        } catch (_) {}
+        } catch(_) {}
       });
       return ws;
     }
-
     WrappedWS.prototype = OriginalWS.prototype;
-    Object.getOwnPropertyNames(OriginalWS).forEach((k) => {
-      try { WrappedWS[k] = OriginalWS[k]; } catch (_) {}
-    });
+    Object.getOwnPropertyNames(OriginalWS).forEach(k => { try { WrappedWS[k] = OriginalWS[k]; } catch(_){} });
     window.WebSocket = WrappedWS;
   })();
 
   // =========================
-  // Branding removal (lightweight)
+  // Branding hide (SAFE)
   // =========================
-  function hideElevenLabsBranding() {
+  function hideElevenLabsBrandingSafe(){
     try {
       if (!document.getElementById("hide-elevenlabs-style")) {
         const style = document.createElement("style");
@@ -4069,45 +4062,25 @@ def serve_widget_js_updated12_v6(
         `;
         document.head.appendChild(style);
       }
+
       const widget = document.querySelector("elevenlabs-convai");
       if (widget && widget.shadowRoot) {
-        widget.shadowRoot.querySelectorAll("a,span,p").forEach((el) => {
-          const t = (el.textContent || "").toLowerCase();
-          if (t.includes("powered by elevenlabs") || t.includes("agents")) el.remove();
-        });
+        widget.shadowRoot.querySelectorAll('span.opacity-30, a[href*="elevenlabs.io"], p[class*="text-[10px]"]').forEach(el => el.remove());
       }
-    } catch (_) {}
+    } catch(_) {}
   }
-  setInterval(hideElevenLabsBranding, 1200);
+  setInterval(hideElevenLabsBrandingSafe, 1200);
 
   // =========================
-  // CSS + Tray UI
+  // UI CSS
   // =========================
-  function injectStyles() {
+  function injectStyles(){
     if (document.getElementById("voizee-corner-styles")) return;
     const css = `
-      .voizee-launcher{
-        position:fixed;right:20px;bottom:20px;z-index:999999;
-        width:90px;height:90px;border-radius:50%;cursor:pointer;
-        background:#fff;box-shadow:0 0 20px rgba(0,123,255,0.5);
-        display:flex;align-items:center;justify-content:center;overflow:hidden;
-        animation:zoomPulse 3s infinite;
-      }
+      .voizee-launcher{position:fixed;right:20px;bottom:20px;z-index:999999;width:90px;height:90px;border-radius:50%;cursor:pointer;background:#fff;box-shadow:0 0 20px rgba(0,123,255,.5);display:flex;align-items:center;justify-content:center;overflow:hidden;animation:zoomPulse 3s infinite;}
       @keyframes zoomPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
-      .voizee-launcher::before{
-        content:'';position:absolute;width:100%;height:100%;border-radius:50%;
-        background:rgba(0,123,255,0.25);animation:wave 2.5s infinite;z-index:-1;
-      }
-      @keyframes wave{0%{transform:scale(1);opacity:.6;}70%{transform:scale(1.8);opacity:0;}100%{transform:scale(1);opacity:0;}}
-      .voizee-launcher .avatar{
-        width:100%;height:100%;
-        background-image:url('${AVATAR_URL}');
-        background-size:cover;background-position:center;border-radius:50%;
-      }
-      .voizee-tray{
-        position:fixed;right:20px;bottom:120px;z-index:999999;width:360px;max-width:calc(100vw - 40px);
-        transform:translateY(20px);opacity:0;pointer-events:none;transition:transform .25s ease,opacity .25s ease;
-      }
+      .voizee-launcher .avatar{width:100%;height:100%;background-image:url('${AVATAR_URL}');background-size:cover;background-position:center;border-radius:50%;}
+      .voizee-tray{position:fixed;right:20px;bottom:120px;z-index:999999;width:360px;max-width:calc(100vw - 40px);transform:translateY(20px);opacity:0;pointer-events:none;transition:transform .25s ease,opacity .25s ease;}
       .voizee-tray.open{transform:translateY(0);opacity:1;pointer-events:auto;}
       .voizee-card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.28);font-family:sans-serif;}
       .voizee-header{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#000;color:#fff;}
@@ -4119,8 +4092,10 @@ def serve_widget_js_updated12_v6(
       .voizee-btn.primary{background:#000;color:#fff;}
       .voizee-btn.ghost{background:#f3f4f6;color:#111;}
       .voizee-footer{padding:10px 14px;font-size:12px;color:#6b7280;text-align:center;}
-      #voizee-call-widget elevenlabs-convai{display:block;}
-      @media(max-width:480px){.voizee-tray{right:12px;left:12px;width:auto;}}
+
+      /* IMPORTANT: widget visibility */
+      #voizee-call-widget{min-height:380px; display:block;}
+      #voizee-call-widget elevenlabs-convai{display:block; min-height:360px; width:100%;}
     `;
     const style = document.createElement("style");
     style.id = "voizee-corner-styles";
@@ -4128,7 +4103,10 @@ def serve_widget_js_updated12_v6(
     document.head.appendChild(style);
   }
 
-  function buildTray() {
+  // =========================
+  // Build Tray
+  // =========================
+  function buildTray(){
     if (document.getElementById("voizee-launcher")) return;
     injectStyles();
 
@@ -4167,7 +4145,7 @@ def serve_widget_js_updated12_v6(
       </div>`;
     document.body.appendChild(tray);
 
-    // fill cached form
+    // cached fill
     const cached = getForm();
     if (cached) {
       tray.querySelector('input[name="name"]').value = cached.name || "";
@@ -4177,43 +4155,38 @@ def serve_widget_js_updated12_v6(
     }
 
     launcher.onclick = async () => {
-      // If TTL active, skip form and go straight to call
-      if (ttlActive() && getForm()) {
-        tray.classList.add("open");
-        await showCallUIAndStart(tray, /*skipForm*/ true);
-        return;
-      }
       tray.classList.add("open");
+      if (ttlActive() && getForm()) {
+        LAST_FORM_FIELDS = getForm();
+        await showCallUIAndStart(tray);
+      }
     };
-    tray.querySelector("#voizee-close").onclick = () => tray.classList.remove("open");
+
+    tray.querySelector("#voizee-close").onclick  = () => tray.classList.remove("open");
     tray.querySelector("#voizee-cancel").onclick = () => tray.classList.remove("open");
 
     tray.querySelector("#voizee-form").onsubmit = async (e) => {
       e.preventDefault();
-
       const btn = tray.querySelector("#voizee-submit");
-      const form = e.target;
-      const fd = new FormData(form);
+      const fd = new FormData(e.target);
       const fields = Object.fromEntries(fd.entries());
       LAST_FORM_FIELDS = fields;
 
       saveForm(fields);
-
       btn.textContent = "Submitting...";
       btn.disabled = true;
 
       try {
-        // 1) Log visitor row FIRST (conv id may not exist yet)
         await fetch(LOG_ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            event: "visitor_log",
-            visit_id: VISIT_ID,
-            agent_id: AGENT_ID,
-            brand: BRAND,
-            url: location.href,
-            timestamp: new Date().toISOString(),
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({
+            event:"visitor_log",
+            visit_id:VISIT_ID,
+            agent_id:AGENT_ID,
+            brand:BRAND,
+            url:location.href,
+            timestamp:new Date().toISOString(),
             conversation_id: CONV_ID || "",
             name: fields.name || "",
             company: fields.company || "",
@@ -4223,9 +4196,7 @@ def serve_widget_js_updated12_v6(
         });
         VISITOR_LOG_SENT = true;
 
-        // 2) Replace body with call UI and start
-        await showCallUIAndStart(tray, /*skipForm*/ false);
-
+        await showCallUIAndStart(tray);
       } catch (err) {
         console.error("Log error:", err);
         btn.textContent = "Error. Try again";
@@ -4234,10 +4205,8 @@ def serve_widget_js_updated12_v6(
     };
   }
 
-  async function showCallUIAndStart(tray, skipForm) {
+  async function showCallUIAndStart(tray){
     const body = tray.querySelector("#voizee-body");
-    if (!body) return;
-
     body.innerHTML = `
       <div id="voizee-call-container" style="text-align:center;">
         <div id="voizee-call-widget" style="margin-top:10px;"></div>
@@ -4245,109 +4214,81 @@ def serve_widget_js_updated12_v6(
       </div>
     `;
 
-    // ensure embed loaded BEFORE we insert <elevenlabs-convai>
+    // IMPORTANT: load + wait until custom element defined
     await ensureElevenLabsLoaded();
+    const defined = await whenWidgetDefined();
+    if (!defined) {
+      body.innerHTML = `<div style="color:#b91c1c;font-weight:600;">Widget script loaded, but element not defined (blocked by CSP / network). Try on another network or check browser console.</div>`;
+      return;
+    }
 
-    // Start call
     startCall(body);
 
-    // If user skipped form due to TTL but we have cached data, send visitor_log now
-    if (skipForm) {
-      const cached = getForm();
-      if (cached && !VISITOR_LOG_SENT) {
-        LAST_FORM_FIELDS = cached;
-        fetch(LOG_ENDPOINT, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            event: "visitor_log",
-            visit_id: VISIT_ID,
-            agent_id: AGENT_ID,
-            brand: BRAND,
-            url: location.href,
-            timestamp: new Date().toISOString(),
-            conversation_id: CONV_ID || "",
-            name: cached.name || "",
-            company: cached.company || "",
-            email: cached.email || "",
-            phone: cached.phone || ""
-          })
-        }).catch(()=>{});
-        VISITOR_LOG_SENT = true;
-      }
+    // if TTL path and visitor_log not sent, send now
+    if (!VISITOR_LOG_SENT && LAST_FORM_FIELDS) {
+      fetch(LOG_ENDPOINT,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          event:"visitor_log",
+          visit_id:VISIT_ID,
+          agent_id:AGENT_ID,
+          brand:BRAND,
+          url:location.href,
+          timestamp:new Date().toISOString(),
+          conversation_id: CONV_ID || "",
+          name: LAST_FORM_FIELDS.name || "",
+          company: LAST_FORM_FIELDS.company || "",
+          email: LAST_FORM_FIELDS.email || "",
+          phone: LAST_FORM_FIELDS.phone || ""
+        })
+      }).catch(()=>{});
+      VISITOR_LOG_SENT = true;
     }
   }
 
-  // =========================
-  // Start Call (embed widget inside tray) + hook End
-  // =========================
-  function startCall(bodyEl) {
-    if (CALL_START_MS) return; // already started
+  function startCall(bodyEl){
+    if (CALL_START_MS) return;
     CALL_START_MS = Date.now();
 
     const mount = bodyEl.querySelector("#voizee-call-widget") || bodyEl;
 
-    // Insert widget
     const convaiTag = document.createElement("elevenlabs-convai");
     convaiTag.setAttribute("agent-id", AGENT_ID);
     convaiTag.style.display = "block";
     convaiTag.style.width = "100%";
-    convaiTag.style.zIndex = "999999";
+    convaiTag.style.minHeight = "360px";
     mount.appendChild(convaiTag);
 
-    hideElevenLabsBranding();
+    hideElevenLabsBrandingSafe();
 
-    // Sometimes shadowRoot appears later, keep trying to auto-start
-    function tryStartCall(retries = 20) {
-      try {
+    // auto start button click (best effort)
+    function tryStart(retries=25){
+      try{
         const sr = convaiTag.shadowRoot;
-        if (sr) {
-          // try common start button selectors
+        if (sr){
           const btn =
             sr.querySelector('button[title="Start a call"]') ||
             sr.querySelector('button[aria-label="Start a call"]') ||
             sr.querySelector('button[title*="Start"]') ||
             sr.querySelector('button[aria-label*="Start"]');
-
-          if (btn) { btn.click(); return; }
+          if (btn){ btn.click(); return; }
         }
-      } catch (_) {}
-      if (retries > 0) setTimeout(() => tryStartCall(retries - 1), 700);
+      }catch(_){}
+      if (retries>0) setTimeout(()=>tryStart(retries-1), 700);
     }
-    tryStartCall();
+    tryStart();
 
-    // End button in tray UI
-    const endBtn = bodyEl.querySelector("#voizee-end-call");
-    if (endBtn) endBtn.onclick = () => endCall(convaiTag);
-
-    // Also try hooking widget internal "End" button (best-effort)
-    const hookInternalEnd = () => {
-      try {
-        const sr = convaiTag.shadowRoot;
-        if (!sr) return;
-        let btn =
-          sr.querySelector('button[aria-label="End"],button[title="End"],button[aria-label="End call"],button[title="End call"]');
-        if (btn && !btn.__voizeeEndHooked) {
-          btn.__voizeeEndHooked = true;
-          btn.addEventListener("click", () => endCall(convaiTag), { capture: true });
-        }
-      } catch (_) {}
-    };
-
-    const obs = new MutationObserver(() => hookInternalEnd());
-    obs.observe(convaiTag, { childList: true, subtree: true });
-    setTimeout(hookInternalEnd, 1500);
+    bodyEl.querySelector("#voizee-end-call").onclick = () => endCall(convaiTag);
   }
 
-  function endCall(convaiTag) {
+  function endCall(convaiTag){
     if (CALL_ENDED) return;
     CALL_ENDED = true;
 
     CALL_END_MS = Date.now();
-    const durationSec = Math.max(0, Math.round((CALL_END_MS - (CALL_START_MS || CALL_END_MS)) / 1000));
+    const durationSec = Math.max(0, Math.round((CALL_END_MS - (CALL_START_MS || CALL_END_MS))/1000));
 
-    // If we still don't have conv id, still log call_summary with blank conv id.
-    // But keep one more chance via beacon / delayed fetch.
     const payload = {
       visit_id: VISIT_ID,
       conversation_id: CONV_ID || "",
@@ -4357,68 +4298,56 @@ def serve_widget_js_updated12_v6(
       duration_seconds: durationSec
     };
 
-    // Ask server to fetch transcript after 30s (your backend already does this flow)
-    setTimeout(() => {
+    // request transcript after 30s
+    setTimeout(()=>{
       fetch(TRANSCRIPT_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
         body: JSON.stringify(payload),
-        keepalive: true
-      }).catch(() => {});
+        keepalive:true
+      }).catch(()=>{});
     }, 30000);
 
-    // Also send beacon on unload/close or end-call (extra safety)
-    try {
-      const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+    // beacon safety
+    try{
+      const blob = new Blob([JSON.stringify(payload)], {type:"application/json"});
       navigator.sendBeacon(TRANSCRIPT_BEACON_ENDPOINT, blob);
-    } catch (_) {}
+    }catch(_){}
 
-    // Call summary to sheet (transcript will be empty if backend hasn't fetched yet)
-    fetch(LOG_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        event: "call_summary",
-        visit_id: VISIT_ID,
+    // call_summary now (transcript empty; backend updates later)
+    fetch(LOG_ENDPOINT,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        event:"call_summary",
+        visit_id:VISIT_ID,
         conversation_id: CONV_ID || "",
-        agent_id: AGENT_ID,
-        brand: BRAND,
-        url: location.href,
-        duration_seconds: durationSec,
-        transcript: "",
-        timestamp: new Date().toISOString()
+        agent_id:AGENT_ID,
+        brand:BRAND,
+        url:location.href,
+        duration_seconds:durationSec,
+        transcript:"",
+        timestamp:new Date().toISOString()
       }),
-      keepalive: true
-    }).catch(() => {});
+      keepalive:true
+    }).catch(()=>{});
 
-    // cleanup UI
-    try { if (convaiTag) convaiTag.remove(); } catch (_) {}
-    try { document.getElementById("voizee-tray")?.classList.remove("open"); } catch (_) {}
+    try{ convaiTag.remove(); }catch(_){}
+    try{ document.getElementById("voizee-tray")?.classList.remove("open"); }catch(_){}
   }
 
-  // extra safety: if tab closes mid-call, ping backend once more
-  function setupUnloadBeacons() {
-    function beacon() {
+  // unload beacon
+  (function setupUnload(){
+    function beacon(){
       if (!CONV_ID) return;
-      try {
-        const payload = JSON.stringify({
-          visit_id: VISIT_ID,
-          conversation_id: CONV_ID,
-          agent_id: AGENT_ID,
-          brand: BRAND,
-          url: location.href
-        });
-        const blob = new Blob([payload], { type: "application/json" });
-        navigator.sendBeacon(TRANSCRIPT_BEACON_ENDPOINT, blob);
-      } catch (_) {}
+      try{
+        const payload = JSON.stringify({ visit_id:VISIT_ID, conversation_id:CONV_ID, agent_id:AGENT_ID, brand:BRAND, url:location.href });
+        navigator.sendBeacon(TRANSCRIPT_BEACON_ENDPOINT, new Blob([payload], {type:"application/json"}));
+      }catch(_){}
     }
     window.addEventListener("pagehide", beacon);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden") beacon();
-    });
-  }
-
-  setupUnloadBeacons();
+    document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden") beacon(); });
+  })();
 
   if (document.readyState !== "loading") buildTray();
   else document.addEventListener("DOMContentLoaded", buildTray);
@@ -4431,8 +4360,6 @@ def serve_widget_js_updated12_v6(
           .replace("__BRAND__", brand)
           .replace("__BUTTON_AVATAR__", buttonAvatar)
     )
-
-
 
 
 
