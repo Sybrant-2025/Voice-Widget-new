@@ -129,7 +129,7 @@ cached_conversations = {}  # { conv_id: { url, ts } }
 
 def get_db():
     return mysql.connector.connect(
-        host="115.243.144.114",
+        host="115.245.171.186",
         database="voizee",
         user="delvein1",
         password="lLRc4PsEURUBI(M-",
