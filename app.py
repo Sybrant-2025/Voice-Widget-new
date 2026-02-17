@@ -3,6 +3,7 @@ from flask_cors import CORS
 from flask import render_template_string
 import logging, json, threading
 import requests
+import mysql.connector
 import os
 import datetime
 import time
@@ -123,8 +124,48 @@ cached_conversations = {}  # { conv_id: { url, ts } }
 
 # # start thread once when Flask launches
 # threading.Thread(target=run_auto_transcript_updater, daemon=True).start()
+#############################db insert
 
 
+def get_db():
+    return mysql.connector.connect(
+        host="192.168.1.248",
+        database="voizee",
+        user="delvein1",
+        password="lLRc4PsEURUBI(M-",
+        autocommit=True
+    )
+
+@app.route("/api/voice-lead-test", methods=["POST"])
+def voice_lead_test():
+    data = request.get_json(silent=True) or {}
+
+    required = ["name", "companyName", "mobile", "email", "transcript", "callDuration"]
+    missing = [k for k in required if k not in data]
+    if missing:
+        return jsonify({"success": False, "message": "Missing fields", "missing": missing}), 400
+
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO cfo_leads_test
+            (name, company_name, mobile, email, transcript, call_duration)
+            VALUES (%s,%s,%s,%s,%s,%s)
+        """, (
+            data.get("name",""),
+            data.get("companyName",""),
+            data.get("mobile",""),
+            data.get("email",""),
+            data.get("transcript",""),
+            data.get("callDuration",""),
+        ))
+        new_id = cur.lastrowid
+        cur.close()
+        conn.close()
+        return jsonify({"success": True, "message": "Stored in MySQL test table", "id": str(new_id)}), 200
+    except Exception as e:
+        return jsonify({"success": False, "message": "DB insert failed", "error": str(e)}), 500
 
 
 
