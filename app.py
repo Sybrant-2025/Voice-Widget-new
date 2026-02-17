@@ -9,6 +9,8 @@ import time
 import subprocess
 import threading
 from datetime import datetime
+from update import start_transcript_poller
+
 
 app = Flask(__name__)
 CORS(app)
@@ -62,10 +64,11 @@ BRAND_TO_WEBHOOK = {
     "demo": "https://script.google.com/macros/s/AKfycbxLYMDjeIyNU5-eO6OgnVa8RqOgvp2pBA8jNF5azWY1qiUDutrIyJs3zSkn1ZgyL5zfwQ/exec",
     "newgendigital": "https://script.google.com/macros/s/AKfycbyKHdnaO1IFWQSkpJiV-_dIZ6PU9GC-oRNwb8JjW6RM-DVVCcwScy3qTrG0ltRyH5Dc/exec",
 	"ctobridge" : "https://script.google.com/macros/s/AKfycbyKZ4q9Mv-KQUza44s2BnLOgIVEVSNfi1OchP-cybaNF0H-kzmtf70b4qafp8VI9i1vow/exec",
-	"newcfobridge": "https://script.google.com/macros/s/AKfycbxLYMDjeIyNU5-eO6OgnVa8RqOgvp2pBA8jNF5azWY1qiUDutrIyJs3zSkn1ZgyL5zfwQ/exec",
+	"newcfobridge": "https://script.google.com/macros/s/AKfycbwJFIK9NJ4-nkNcozftSVbZX-EJ2hLuoOWF3n87sWu2Qh3dsENrNAl_44o-rd4-DK7qjQ/exec",
 }
 
 # 	"demo": "https://script.google.com/macros/s/AKfycbx5P0eiH1v7SE1Uoy1R_V4u-ab7dOqJJO7CpLFxgjkH7C8gMXwICzsaGTl3AWG2KU_Y0g/exec",
+# "newcfobridge": "https://script.google.com/macros/s/AKfycbxLYMDjeIyNU5-eO6OgnVa8RqOgvp2pBA8jNF5azWY1qiUDutrIyJs3zSkn1ZgyL5zfwQ/exec"
 
 # pretty labels for sheet display
 BRAND_DISPLAY_NAMES = {
@@ -7730,4 +7733,8 @@ def favicon():
 
 # --- Start Server ---
 if __name__ == "__main__":
+	# Enable transcript poller only when env says so
+    if os.getenv("ENABLE_TRANSCRIPT_POLLER", "0") == "1":
+        start_transcript_poller()
+        print("[Voizee] Transcript poller started (every 30 min)")
     app.run(host="0.0.0.0", port=5000)
