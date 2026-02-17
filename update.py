@@ -12,11 +12,11 @@ ELEVEN_API_KEY = os.getenv("ELEVEN_API_KEY", "").strip()
 
 # Use ONLY ONE sheet webapp (your listed sheet)
 # Example: newcfobridge script URL
-SHEET_WEBAPP_URL = os.getenv("SHEET_WEBAPP_URL", "").strip()
+SHEET_WEBAPP_URL = os.getenv("SHEET_WEBAPP_URL", "https://script.google.com/macros/s/AKfycbwJFIK9NJ4-nkNcozftSVbZX-EJ2hLuoOWF3n87sWu2Qh3dsENrNAl_44o-rd4-DK7qjQ/exec").strip()
 
 # CFO backend injection
-CFO_API_URL = os.getenv("CFO_API_URL", "https://cfobackend.apps.magentic.in/api/voice-lead").strip()
-CFO_API_SECRET = os.getenv("CFO_API_SECRET", "").strip()
+# CFO_API_URL = os.getenv("CFO_API_URL", "https://cfobackend.apps.magentic.in/api/voice-lead").strip()
+# CFO_API_SECRET = os.getenv("CFO_API_SECRET", "").strip()
 
 # Worker behavior
 POLL_EVERY_SECONDS = int(os.getenv("TRANSCRIPT_POLL_SECONDS", "1800"))  # 30 min
