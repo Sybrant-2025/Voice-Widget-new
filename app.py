@@ -11,7 +11,8 @@ import subprocess
 import threading
 from datetime import datetime
 from update import start_transcript_poller
-from update import run_sheet_cycle
+from update import run_all_brands_cycle
+
 
 app = Flask(__name__)
 CORS(app)
