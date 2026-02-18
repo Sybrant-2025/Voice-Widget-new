@@ -11,7 +11,7 @@ import subprocess
 import threading
 from datetime import datetime
 from update import start_transcript_poller
-
+from update import run_sheet_cycle
 
 app = Flask(__name__)
 CORS(app)
@@ -125,50 +125,32 @@ cached_conversations = {}  # { conv_id: { url, ts } }
 # # start thread once when Flask launches
 # threading.Thread(target=run_auto_transcript_updater, daemon=True).start()
 #############################db insert
+_POLLER_STARTED = False
+_POLLER_LOCK = threading.Lock()
 
+def start_update_poller_once():
+    global _POLLER_STARTED
+    with _POLLER_LOCK:
+        if _POLLER_STARTED:
+            return
 
-def get_db():
-    return mysql.connector.connect(
-        host="115.245.171.186",
-        database="voizee",
-        user="delvein1",
-        password="lLRc4PsEURUBI(M-",
-        autocommit=True
-    )
+        # Only start if enabled
+        if os.getenv("ENABLE_TRANSCRIPT_POLLER", "0") == "1":
+            try:
+                start_transcript_poller()
+                print("[app.py] ✅ update.py poller started")
+            except Exception as e:
+                print("[app.py] ❌ update.py poller failed:", str(e))
 
-@app.route("/api/voice-lead-test", methods=["POST"])
-def voice_lead_test():
-    data = request.get_json(silent=True) or {}
+        _POLLER_STARTED = True
 
-    required = ["name", "companyName", "mobile", "email", "transcript", "callDuration"]
-    missing = [k for k in required if k not in data]
-    if missing:
-        return jsonify({"success": False, "message": "Missing fields", "missing": missing}), 400
-
+@app.route("/run-update-now", methods=["POST", "GET"])
+def run_update_now():
     try:
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO cfo_leads_test
-            (name, company_name, mobile, email, transcript, call_duration)
-            VALUES (%s,%s,%s,%s,%s,%s)
-        """, (
-            data.get("name",""),
-            data.get("companyName",""),
-            data.get("mobile",""),
-            data.get("email",""),
-            data.get("transcript",""),
-            data.get("callDuration",""),
-        ))
-        new_id = cur.lastrowid
-        cur.close()
-        conn.close()
-        return jsonify({"success": True, "message": "Stored in MySQL test table", "id": str(new_id)}), 200
+        run_sheet_cycle()
+        return {"success": True, "message": "update cycle executed"}, 200
     except Exception as e:
-        return jsonify({"success": False, "message": "DB insert failed", "error": str(e)}), 500
-
-
-
+        return {"success": False, "error": str(e)}, 500
 
 
 # ---------- Helpers for Sheets ----------
