@@ -56,7 +56,7 @@ BRAND_TO_WEBHOOK = {
     "galent":      "https://script.google.com/macros/s/AKfycbzZrTfc6KbWz0L98YjhWiID1Wwwhcg4_MLybcKF4plbCYzOcVMQgsPsS-cnPv5nKxVPSw/exec",
     "myndwell":    "https://script.google.com/macros/s/AKfycbznRQAdKL7e2y7AqOhK6vmFuW9xzKZ29AHJQa8HFPqS01tn_bAF4hiGCohxvex2R8LGeA/exec",
     "preludesys":  "https://script.google.com/macros/s/AKfycbwZpUmj42D_GB3AgxTqSSdQcua2byy5dvFr7dO5jJBhYrUDNhulPj-RxLtWwlz_87T5Pg/exec",
-    "cfobridge":   "https://script.google.com/macros/s/AKfycbwy2r95sXSdIM_XEVJot0ghAZuZDKXo-dDZUJtvM3m0gdgYOyKBh7BoGJxo6SJMP4H5/exec",
+    "cfobridge":   "https://script.google.com/macros/s/AKfycbxLwZx-xce2bC1xPxAzhxEAEQPquZYL1Y0kF72WLFLMGJoD3y_pP01-c36NCWABLJmZ/exec",
     "voiceassistant": "https://script.google.com/macros/s/AKfycbyde5ank1ylpdAM3Kn28ZAULySme300V__VjOy7ESLHd0NX-gtoQAvMkmbt0bv7QJ01LQ/exec",
     "sybrant": "https://script.google.com/macros/s/AKfycbzW-OSCQ1bJA17bqac6WlsdXs3pVrUvPlFhhbIud_uZwuQugD8HoHRxG3NWp-J6e0wP/exec",
     "dhilaktest_old": "https://script.google.com/macros/s/AKfycby0hb5wDlSqtDwLiTWKULqkuZzVmtpJXRgof9ncF5adfIV_y3hL7QmDw7tliYtvF_fRGw/exec",
@@ -71,6 +71,8 @@ BRAND_TO_WEBHOOK = {
 
 # 	"demo": "https://script.google.com/macros/s/AKfycbx5P0eiH1v7SE1Uoy1R_V4u-ab7dOqJJO7CpLFxgjkH7C8gMXwICzsaGTl3AWG2KU_Y0g/exec",
 # "newcfobridge": "https://script.google.com/macros/s/AKfycbxLYMDjeIyNU5-eO6OgnVa8RqOgvp2pBA8jNF5azWY1qiUDutrIyJs3zSkn1ZgyL5zfwQ/exec"
+# "cfobridge":   "https://script.google.com/macros/s/AKfycbwy2r95sXSdIM_XEVJot0ghAZuZDKXo-dDZUJtvM3m0gdgYOyKBh7BoGJxo6SJMP4H5/exec",
+    
 
 # pretty labels for sheet display
 BRAND_DISPLAY_NAMES = {
