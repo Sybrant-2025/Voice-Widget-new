@@ -1,3 +1,4 @@
+# update.py  (FIXED: multi-brand sheets + safe scheduler + Railway-ready)
 import os
 import json
 import time
@@ -13,9 +14,15 @@ from oauth2client.service_account import ServiceAccountCredentials
 # =========================================================
 # ENV CONFIG (Railway Variables)
 # =========================================================
-# Google Sheet
-SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "https://script.google.com/macros/s/AKfycbwJFIK9NJ4-nkNcozftSVbZX-EJ2hLuoOWF3n87sWu2Qh3dsENrNAl_44o-rd4-DK7qjQ/exec").strip()     # required
+# Single-sheet fallback (ONLY used if BRAND_SHEETS is empty)
+# IMPORTANT: SPREADSHEET_ID must be GOOGLE SHEET KEY (not Apps Script URL)
+SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "").strip()
 WORKSHEET_NAME = os.getenv("WORKSHEET_NAME", "Sheet1").strip()
+
+# Multi-brand sheets (preferred)
+# Format:
+#   brand:SPREADSHEET_KEY:WORKSHEET_TAB,brand2:KEY2:TAB2
+BRAND_SHEETS = os.getenv("BRAND_SHEETS", "").strip()
 
 # Service Account JSON (either file path or raw JSON string)
 GOOGLE_SA_JSON_PATH = os.getenv("GOOGLE_SA_JSON_PATH", "").strip()
@@ -26,7 +33,10 @@ POLL_MINUTES = int(os.getenv("POLL_MINUTES", "30").strip())
 
 # ElevenLabs
 XI_API_KEY = os.getenv("XI_API_KEY", "").strip()  # required for transcript fetch
-ELEVEN_CONV_BASE_URL = os.getenv("ELEVEN_CONV_BASE_URL", "https://api.elevenlabs.io/v1/convai/conversations").strip()
+ELEVEN_CONV_BASE_URL = os.getenv(
+    "ELEVEN_CONV_BASE_URL",
+    "https://api.elevenlabs.io/v1/convai/conversations"
+).strip()
 
 # Injection targets
 INJECT_MODE = os.getenv("INJECT_MODE", "test").strip().lower()
@@ -34,6 +44,7 @@ INJECT_MODE = os.getenv("INJECT_MODE", "test").strip().lower()
 
 # Your test API (you said working)
 TEST_API_URL = os.getenv("TEST_API_URL", "http://115.243.144.114:5000/api/voice-lead").strip()
+
 # Client API
 CFO_API_URL = os.getenv("CFO_API_URL", "https://cfobackend.apps.magentic.in/api/voice-lead").strip()
 CFO_API_SECRET = os.getenv("CFO_API_SECRET", "").strip()
@@ -43,6 +54,36 @@ DRY_RUN = os.getenv("DRY_RUN", "0").strip() == "1"
 
 # Limits per run (avoid huge scan)
 MAX_ROWS_PER_RUN = int(os.getenv("MAX_ROWS_PER_RUN", "200").strip())
+
+
+# =========================================================
+# BRAND SHEETS PARSER
+# =========================================================
+def parse_brand_sheets():
+    """
+    Returns list of (brand, spreadsheet_key, worksheet_name).
+    If BRAND_SHEETS is empty, falls back to SPREADSHEET_ID + WORKSHEET_NAME.
+    """
+    items = []
+
+    if BRAND_SHEETS:
+        for part in BRAND_SHEETS.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            bits = part.split(":")
+            if len(bits) != 3:
+                raise RuntimeError(
+                    f"Invalid BRAND_SHEETS entry: '{part}'. Expected brand:key:worksheet"
+                )
+            brand, key, ws = bits
+            items.append((brand.strip(), key.strip(), ws.strip()))
+        return items
+
+    # fallback
+    if SPREADSHEET_ID:
+        items.append(("default", SPREADSHEET_ID, WORKSHEET_NAME))
+    return items
 
 
 # =========================================================
@@ -95,10 +136,10 @@ def get_gspread_client():
     raise RuntimeError("Missing GOOGLE_SA_JSON_PATH or GOOGLE_SA_JSON env var")
 
 
-def open_sheet():
+def open_sheet(spreadsheet_id: str, worksheet_name: str):
     gc = get_gspread_client()
-    sh = gc.open_by_key(SPREADSHEET_ID)
-    ws = sh.worksheet(WORKSHEET_NAME)
+    sh = gc.open_by_key(spreadsheet_id)
+    ws = sh.worksheet(worksheet_name)
     return ws
 
 
@@ -119,13 +160,11 @@ def fetch_conversation(conv_id: str) -> dict:
 
 
 def extract_duration_and_transcript(conv_json: dict):
-    # duration (seconds)
     dur = (
         safe_get(conv_json, "metadata", "call_duration_secs")
         or safe_get(conv_json, "conversation_initiation_client_data", "dynamic_variables", "system__call_duration_secs")
     )
 
-    # transcript list -> one text blob
     transcript_items = conv_json.get("transcript", []) or []
     lines = []
     for t in transcript_items:
@@ -135,7 +174,6 @@ def extract_duration_and_transcript(conv_json: dict):
             lines.append(f"{role}: {msg}")
     transcript_text = "\n".join(lines).strip()
 
-    # normalize duration
     try:
         dur_int = int(float(dur)) if dur is not None and str(dur).strip() != "" else None
     except Exception:
@@ -156,7 +194,6 @@ def post_json(url: str, payload: dict, headers: dict | None = None):
         h.update(headers)
 
     r = requests.post(url, headers=h, json=payload, timeout=30)
-    # accept 200/202 as success typically
     if r.status_code >= 400:
         raise RuntimeError(f"HTTP {r.status_code}: {r.text[:300]}")
     try:
@@ -192,23 +229,20 @@ def inject_to_client(row_obj: dict):
 
 
 # =========================================================
-# Main poll logic
+# Main poll logic (per sheet)
 # =========================================================
-def run_sheet_cycle():
+def run_sheet_cycle_for(spreadsheet_id: str, worksheet_name: str, brand: str):
     try:
-        ws = open_sheet()
+        ws = open_sheet(spreadsheet_id, worksheet_name)
         values = ws.get_all_values()
         if not values or len(values) < 2:
-            print("[update.py] Sheet empty or only header.")
+            print(f"[update.py] brand={brand} Sheet empty or only header.")
             return
 
         header = values[0]
         rows = values[1:]
-
-        # map headers -> index
         idx = {h.strip(): i for i, h in enumerate(header)}
 
-        # required columns
         needed_cols = [
             "Conversation ID",
             "Transcript",
@@ -222,13 +256,11 @@ def run_sheet_cycle():
         ]
         for c in needed_cols:
             if c not in idx:
-                print(f"[update.py] Missing header column: {c}")
+                print(f"[update.py] brand={brand} Missing header column: {c}")
                 return
 
-        # process from bottom (latest) to top, but limit MAX_ROWS_PER_RUN
         processed = 0
 
-        # 1-based row number in sheet: header=1, first data row=2
         for i in range(len(rows) - 1, -1, -1):
             if processed >= MAX_ROWS_PER_RUN:
                 break
@@ -241,13 +273,12 @@ def run_sheet_cycle():
             transcript_status = row[idx["transcript updated"]].strip().upper() or "PENDING"
             db_status = row[idx["DB_injected"]].strip().upper() or "PENDING"
 
-            # If no conv id, mark NO_CONV_ID once and skip
             if not conv_id:
                 if transcript_status not in ("NO_CONV_ID", "UPDATED"):
                     ws.update_cell(sheet_row_num, idx["transcript updated"] + 1, "NO_CONV_ID")
                 continue
 
-            # ---------- Step A: fetch transcript if not updated ----------
+            # Step A: fetch transcript
             if transcript_status != "UPDATED":
                 try:
                     conv_json = fetch_conversation(conv_id)
@@ -257,29 +288,26 @@ def run_sheet_cycle():
 
                     dur_secs, transcript_text = extract_duration_and_transcript(conv_json)
 
-                    # If transcript still empty, mark ERROR-ish but keep retry next cycle
                     if not transcript_text:
                         ws.update_cell(sheet_row_num, idx["transcript updated"] + 1, "ERROR_EMPTY_TRANSCRIPT")
                         continue
 
-                    # Write duration + transcript + status
                     if dur_secs is not None:
                         ws.update_cell(sheet_row_num, idx["Call Duration (secs)"] + 1, str(dur_secs))
                     ws.update_cell(sheet_row_num, idx["Transcript"] + 1, transcript_text)
                     ws.update_cell(sheet_row_num, idx["transcript updated"] + 1, "UPDATED")
 
-                    transcript = transcript_text  # refresh local
+                    transcript = transcript_text
                     transcript_status = "UPDATED"
 
                 except Exception as e:
-                    print(f"[update.py] Transcript fetch error row={sheet_row_num} conv={conv_id}: {e}")
+                    print(f"[update.py] brand={brand} Transcript fetch error row={sheet_row_num} conv={conv_id}: {e}")
                     ws.update_cell(sheet_row_num, idx["transcript updated"] + 1, "ERROR")
                     continue
 
-            # ---------- Step B: inject to DB/API if transcript updated ----------
+            # Step B: inject
             if transcript_status == "UPDATED" and db_status != "SENT":
                 try:
-                    # Build injection object
                     name = row[idx["Name"]].strip()
                     email = row[idx["Email"]].strip()
                     phone = row[idx["Phone"]].strip()
@@ -300,7 +328,6 @@ def run_sheet_cycle():
                         "CallDurationHHMMSS": seconds_to_hhmmss(dur_secs_int),
                     }
 
-                    # If required fields missing, skip (don’t send junk to client)
                     if not (name and (email or phone) and transcript):
                         ws.update_cell(sheet_row_num, idx["DB_injected"] + 1, "SKIPPED_MISSING_FIELDS")
                         continue
@@ -309,27 +336,43 @@ def run_sheet_cycle():
                         ws.update_cell(sheet_row_num, idx["DB_injected"] + 1, "READY")
                         continue
 
-                    # 1) Test (your server)
                     if INJECT_MODE in ("test", "both"):
                         inject_to_test(row_obj)
 
-                    # 2) Client
                     if INJECT_MODE in ("client", "both"):
                         inject_to_client(row_obj)
 
                     ws.update_cell(sheet_row_num, idx["DB_injected"] + 1, "SENT")
 
                 except Exception as e:
-                    print(f"[update.py] Inject error row={sheet_row_num} conv={conv_id}: {e}")
+                    print(f"[update.py] brand={brand} Inject error row={sheet_row_num} conv={conv_id}: {e}")
                     ws.update_cell(sheet_row_num, idx["DB_injected"] + 1, "ERROR")
                     continue
 
             processed += 1
 
-        print(f"[update.py] Cycle complete. processed={processed} at {_now_iso()}")
+        print(f"[update.py] brand={brand} Cycle complete. processed={processed} at {_now_iso()}")
 
     except Exception:
-        print("[update.py] Fatal cycle error:\n", traceback.format_exc())
+        print(f"[update.py] brand={brand} Fatal cycle error:\n{traceback.format_exc()}")
+
+
+# =========================================================
+# Run all brands wrapper
+# =========================================================
+def run_all_brands_cycle():
+    sheets = parse_brand_sheets()
+    if not sheets:
+        print("[update.py] No sheets configured. Set BRAND_SHEETS or SPREADSHEET_ID.")
+        return
+
+    for brand, key, wsname in sheets:
+        try:
+            print(f"[update.py] ▶ brand={brand} | sheet={key} | tab={wsname}")
+            run_sheet_cycle_for(key, wsname, brand)
+        except Exception as e:
+            print(f"[update.py] ❌ brand={brand} failed: {e}")
+            print(traceback.format_exc())
 
 
 # =========================================================
@@ -342,12 +385,33 @@ def start_sheet_poller():
     if _scheduler:
         return _scheduler
 
-    if not SPREADSHEET_ID:
-        raise RuntimeError("SPREADSHEET_ID env var not set")
+    sheets = parse_brand_sheets()
+    if not sheets:
+        raise RuntimeError("No sheets configured. Use BRAND_SHEETS or SPREADSHEET_ID")
 
     _scheduler = BackgroundScheduler(daemon=True)
-    _scheduler.add_job(run_sheet_cycle, "interval", minutes=POLL_MINUTES, next_run_time=datetime.now())
+    _scheduler.add_job(
+        run_all_brands_cycle,
+        "interval",
+        minutes=POLL_MINUTES,
+        next_run_time=datetime.now()
+    )
     _scheduler.start()
 
-    print(f"[update.py] Sheet poller started: every {POLL_MINUTES} minutes | mode={INJECT_MODE} | dry_run={DRY_RUN}")
+    print(f"[update.py] Sheet poller started: every {POLL_MINUTES} minutes | sheets={len(sheets)} | mode={INJECT_MODE} | dry_run={DRY_RUN}")
     return _scheduler
+
+
+# -------------------------
+# Backward-compatible alias
+# -------------------------
+def start_transcript_poller():
+    return start_sheet_poller()
+
+
+# Optional standalone run (local debug)
+if __name__ == "__main__":
+    run_all_brands_cycle()
+    start_sheet_poller()
+    while True:
+        time.sleep(60)
